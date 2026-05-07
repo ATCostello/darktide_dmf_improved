@@ -4,6 +4,8 @@ local UIWidgetGrid = require("scripts/ui/widget_logic/ui_widget_grid")
 local UIWidget = require("scripts/managers/ui/ui_widget")
 
 local view_settings = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_settings")
+local _content_blueprints =
+	mod:io_dofile("dmf_settings_improved/scripts/mods/dmf_settings_improved/modules/mod_tabs_blueprints")
 
 mod.selected_tabs = mod.selected_tabs or {}
 
@@ -36,7 +38,7 @@ mod.inject_tabs_into_widgets = function(self, category)
 				current_group_tab = template.tab
 			end
 
-			template_data[display_name] = template.tab or current_group_tab or fallback_tab
+			template_data[display_name] = current_group_tab or fallback_tab
 		end
 	end
 
@@ -81,7 +83,7 @@ mod.get_tabs = function(self, category)
 	end
 
 	local tabs = {
-		"Generic",
+		mod.default_tab,
 	}
 
 	for tab_name, _ in pairs(found) do
@@ -96,6 +98,52 @@ end
 -- ############################################################
 -- Create tab bar
 -- ############################################################
+local _create_settings_widget_from_config = function(
+	self,
+	config,
+	category,
+	suffix,
+	callback_name,
+	changed_callback_name
+)
+	local scenegraph_id = "settings_grid_content_pivot"
+	local widget = nil
+	local template = _content_blueprints["mod_tab_button"]
+	local size = template.size_function and template.size_function(self, config) or template.size
+	local indentation_level = config.indentation_level or 0
+	local indentation_spacing = view_settings.indentation_spacing * indentation_level
+	local new_size = {
+		size[1] - indentation_spacing,
+		size[2],
+	}
+	local pass_template_function = template.pass_template_function
+	local pass_template = pass_template_function and pass_template_function(self, config, new_size)
+		or template.pass_template
+	local widget_definition = pass_template and UIWidget.create_definition(pass_template, scenegraph_id, nil, new_size)
+	local name = "widget_" .. suffix
+
+	if widget_definition then
+		widget = self:_create_widget(name, widget_definition)
+		widget.type = "mod_tab_button"
+		local init = template.init
+
+		if init then
+			init(self, widget, config, callback_name, changed_callback_name)
+		end
+	end
+
+	if widget then
+		return widget, {
+			horizontal_alignment = "right",
+			size = size,
+			name = name,
+		}
+	else
+		return nil, {
+			size = size,
+		}
+	end
+end
 
 mod.create_tab_bar = function(self, category)
 	local tabs = mod.get_tabs(self, category)
@@ -118,12 +166,15 @@ mod.create_tab_bar = function(self, category)
 		}
 
 		local widget, alignment_widget =
-			self:_create_settings_widget_from_config(entry, category, "mod_tab_" .. i, nil, nil)
+			_create_settings_widget_from_config(self, entry, category, "mod_tab_" .. i, nil, nil)
 
-		alignment_widget.size = { 180, 50 }
+		local width = 140
+		local height = 60
+
+		alignment_widget.size = { width, height }
 
 		if widget then
-			widget.content.size = { 180, 50 }
+			widget.content.size = { width, height }
 
 			-- override default DMF callback system
 			local hotspot = widget.content.hotspot
@@ -140,7 +191,7 @@ mod.create_tab_bar = function(self, category)
 		alignment_list[#alignment_list + 1] = alignment_widget
 	end
 
-	local grid = UIWidgetGrid:new(widgets, alignment_list, self._ui_scenegraph, "mod_tab_content", "right", { 0, 10 })
+	local grid = UIWidgetGrid:new(widgets, alignment_list, self._ui_scenegraph, "mod_tab_content", "right", { 16, 16 })
 
 	grid:set_render_scale(self._render_scale)
 
@@ -176,7 +227,7 @@ mod.filter_settings = function(self, category)
 	-- ############################################################
 
 	local spacing = view_settings.settings_grid_spacing or { 10, 0 }
-	local current_y = 0
+	local current_y = 24
 
 	for _, data in ipairs(category_widgets) do
 		local widget = data.widget
@@ -192,19 +243,16 @@ mod.filter_settings = function(self, category)
 			-- force title and description to be visible always
 			if _ == 1 or _ == 2 then
 				visible = true
-			else
-				-- ############################################################
-				-- Reflow visible widgets
-				-- ############################################################
-
-				if visible then
-					-- reposition widgets to the top of the list temporarily 
-					-- Moves topmost visible widget to under position 2,
-					-- then follows under that
-					-- needs to reposition back to original if it's not visible
-				else
-				end
 			end
+
+			-- ############################################################
+			-- Reflow visible widgets
+			-- ############################################################
+			if visible then
+				widget.offset[2] = current_y
+				current_y = current_y + (alignment_widget.size[2] + spacing[2])
+			end
+
 			-- ############################################################
 			-- Visibility
 			-- ############################################################

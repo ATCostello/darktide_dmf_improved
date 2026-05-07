@@ -1,6 +1,6 @@
 local mod = get_mod("dmf_settings_improved")
 
-mod.default_tab = "Generic"
+mod.default_tab = "Default"
 mod.settings_widgets = {}
 
 return {

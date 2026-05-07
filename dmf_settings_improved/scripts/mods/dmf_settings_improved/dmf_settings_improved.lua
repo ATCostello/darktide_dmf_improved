@@ -43,8 +43,15 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 		horizontal_alignment = "center",
 		vertical_alignment = "bottom",
 		size = { 900, 8 },
-		position = { 0, -10, 203 },
+		position = { 0, -10, 802 },
 	}
+
+	--defs.scenegraph_definition.settings_grid_background.size[1] = 1920
+	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
+	defs.scenegraph_definition.settings_grid_background.position[2] = 16
+	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
+	defs.scenegraph_definition.settings_grid_mask.size[2] = 1012
+	defs.scenegraph_definition.settings_grid_mask.position[2] = 0
 
 	-- rebuild the live scenegraph
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
