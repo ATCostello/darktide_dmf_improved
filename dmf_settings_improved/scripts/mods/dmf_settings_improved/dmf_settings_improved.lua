@@ -23,7 +23,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	defs.scenegraph_definition = defs.scenegraph_definition or {}
 
 	defs.scenegraph_definition.mod_tab_area = {
-		parent = "settings_grid_background",
+		parent = "settings_grid_content_pivot",
 		horizontal_alignment = "left",
 		vertical_alignment = "top",
 		size = { 900, 60 },
@@ -50,8 +50,8 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
 	defs.scenegraph_definition.settings_grid_background.position[2] = 16
 	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
-	defs.scenegraph_definition.settings_grid_mask.size[2] = 1012
-	defs.scenegraph_definition.settings_grid_mask.position[2] = 0
+	defs.scenegraph_definition.settings_grid_mask.size[2] = 2000
+	defs.scenegraph_definition.settings_grid_mask.position[2] = -10
 
 	-- rebuild the live scenegraph
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
