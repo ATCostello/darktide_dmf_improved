@@ -1,4 +1,4 @@
-local mod = get_mod("dmf_settings_improved")
+local mod = get_mod("Alfs_DMF_Extensions")
 
 local scroll_settings = {}
 

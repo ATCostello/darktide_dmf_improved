@@ -1,6 +1,6 @@
-local mod = get_mod("dmf_settings_improved")
-mod.version = "1.5.08"
-mod:info("DMF Settings Improved is installed, using version: " .. tostring(mod.version))
+local mod = get_mod("Alfs_DMF_Extensions")
+mod.version = "1.0.0"
+mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
 
@@ -10,25 +10,69 @@ local colours = {
 	text = "169,191,153",
 }
 
+local function lerp(a, b, t)
+	return a + (b - a) * t
+end
+
+mod.gradientText = function(text, startColor, endColor, colorSpaces)
+	local result = ""
+	local length = #text
+	local visibleIndex = 0
+
+	-- Count visible characters
+	for i = 1, length do
+		local char = text:sub(i, i)
+		if colorSpaces or char ~= " " then
+			visibleIndex = visibleIndex + 1
+		end
+	end
+
+	local currentIndex = 0
+
+	for i = 1, length do
+		local char = text:sub(i, i)
+
+		if not colorSpaces and char == " " then
+			result = result .. char
+		else
+			currentIndex = currentIndex + 1
+			local t = (visibleIndex <= 1) and 0 or (currentIndex - 1) / (visibleIndex - 1)
+
+			local r = math.floor(lerp(startColor[1], endColor[1], t))
+			local g = math.floor(lerp(startColor[2], endColor[2], t))
+			local b = math.floor(lerp(startColor[3], endColor[3], t))
+
+			result = result .. string.format("{#color(%d,%d,%d)}%s", r, g, b, char)
+		end
+	end
+
+	result = result .. "{#reset()}"
+	return result
+end
+
+--local name = mod.gradientText("Alf's DMF Extensions", { 255, 255, 0 }, { 255, 0, 255 }, true)
+--Clipboard.put(name)
+--mod:echo(name)
+
 -- base localisations
 mod.localisation = {
 	mod_name = {
-		en = "DMF Settings Improved",
+		en = "Alf's DMF Extensions",
 	},
 	mod_name_pizazz = {
 		en = "{#color("
 			.. colours.title
-			.. ")} {#color(255,0,0)}E{#color(248,0,14)}n{#color(240,0,29)}e{#color(233,0,43)}m{#color(225,0,57)}i{#color(218,0,71)}e{#color(210,0,86)}s {#color(203,0,100)}I{#color(195,0,114)}m{#color(188,0,129)}p{#color(180,0,143)}r{#color(173,0,157)}o{#color(165,0,171)}v{#color(158,0,186)}e{#color(150,0,200)}d{#reset()}",
+			.. ")} {#color(255,255,0)}A{#color(255,241,13)}l{#color(255,228,26)}f{#color(255,214,40)}'{#color(255,201,53)}s{#color(255,187,67)} {#color(255,174,80)}D{#color(255,161,93)}M{#color(255,147,107)}F{#color(255,134,120)} {#color(255,120,134)}E{#color(255,107,147)}x{#color(255,93,161)}t{#color(255,80,174)}e{#color(255,67,187)}n{#color(255,53,201)}s{#color(255,40,214)}i{#color(255,26,228)}o{#color(255,13,241)}n{#color(255,0,255)}s{#reset()}",
 	},
 	mod_name_boring = {
-		en = "DMF Settings Improved",
+		en = "Alf's DMF Extensions",
 	},
 	mod_description = {
 		en = "{#color("
 			.. colours.text
 			.. ")}"
-			.. "Healthbars, debuffs, outlines, markers, special attack alerts and more, to improve the enemies throughout Darktide."
-			.. "{#reset()}\n\n"
+			.. "Extensions to the Darktide Mod Framework settings menu, that will benefit users and mod creators in various ways. All designed to be optional, integrated extensions - not mandatory changes."
+			.. "{#reset()}\n"
 			.. "{#color("
 			.. colours.subtitle
 			.. ")}Author: "
@@ -43,11 +87,38 @@ mod.localisation = {
 			.. mod.version
 			.. "{#reset()}",
 	},
+	general_settings = {
+		en = "{#color(" .. colours.title .. ")}General Settings{#reset()}",
+	},
 	mod_name_pizazz_toggle = {
 		en = "Enable Name Pizazz",
 	},
 	mod_name_pizazz_tooltip = {
 		en = "Toggles the rainbow colours effect on the mod name text. Requires a reload.\nIf enabled, you will get a small euphoric experience everytime you scroll through the mod menu, \nIf disabled - you will be a John Darktide and have no rainbow sprinkles (but I'll love you anyway).",
+	},
+	enable_scroll_position_saving = {
+		en = "Scroll Position Saving",
+	},
+	enable_scroll_position_saving_tooltip = {
+		en = "Toggles saving of scroll position within the mod settings menu, so you can return to the last position you were at when you reopen the menu.",
+	},
+	enable_mod_tabs = {
+		en = "Mod Tabs",
+	},
+	enable_mod_tabs_tooltip = {
+		en = "Toggles mod tabs being created at all, which let mod authors add custom tabs to the mod settings menu for easier navigation and grouping. If this setting is disabled, no mod tabs will be shown at all.",
+	},
+	enable_generalised_mod_tabs = {
+		en = "Generalised Mod Tabs",
+	},
+	enable_generalised_mod_tabs_tooltip = {
+		en = "Toggles generalised mod tab creation for mods that do not explicitly have tab support. These are automatically created using the mod's existing settings structure, and may be innacurate. If this setting is disabled, only mods that have specifically added tab support for 'Alf's DMF Extensions' will have tabs.",
+	},
+	enable_RGB_widget = {
+		en = "Custom RGB Widget"
+	},
+	enable_RGB_widget_tooltip = {
+		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible."
 	},
 }
 

@@ -1,12 +1,13 @@
-local mod = get_mod("dmf_settings_improved")
+local mod = get_mod("Alfs_DMF_Extensions")
 
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIScenegraph = require("scripts/managers/ui/ui_scenegraph")
 
-mod:io_dofile("dmf_settings_improved/scripts/mods/dmf_settings_improved/dmf_settings_improved_localization")
-mod:io_dofile("dmf_settings_improved/scripts/mods/dmf_settings_improved/modules/load_dmf")
-mod:io_dofile("dmf_settings_improved/scripts/mods/dmf_settings_improved/modules/save_scroll_position")
-mod:io_dofile("dmf_settings_improved/scripts/mods/dmf_settings_improved/modules/mod_tabs")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/Alfs_DMF_Extensions_localization")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/load_dmf")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/save_scroll_position")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
 
 mod.last_category = nil
 mod.current_category = nil
@@ -72,9 +73,17 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	self.dmf = mod.dmf
 	dbg_self = self
 
-	mod._saveScrollPosition(self)
+	if mod:get("enable_scroll_position_saving") then
+		mod._saveScrollPosition(self)
+	end
 
-	mod._addModTabs(self)
+	if mod:get("enable_mod_tabs") then
+		mod._addModTabs(self)
+	end
+
+	if mod:get("enable_RGB_widget") then
+		mod._addRgbSliders(self, dt, t, input_service)
+	end
 
 	mod.last_category = mod.current_category
 end)

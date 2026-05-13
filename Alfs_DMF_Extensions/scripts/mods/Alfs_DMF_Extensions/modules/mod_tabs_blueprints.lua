@@ -1,4 +1,4 @@
-local mod = get_mod("dmf_settings_improved")
+local mod = get_mod("Alfs_DMF_Extensions")
 
 local _view_settings = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_settings")
 

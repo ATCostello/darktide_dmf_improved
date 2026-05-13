@@ -1,4 +1,4 @@
-local mod = get_mod("dmf_settings_improved")
+local mod = get_mod("Alfs_DMF_Extensions")
 
 mod.dmf = get_mod("DMF")
 
@@ -74,6 +74,7 @@ mod.dmf.create_mod_options_settings = function(self, options_templates)
 
 	-- build lookup table from initialized widget data
 	local tab_lookup = {}
+	local setting_id_lookup = {}
 
 	for _, mod_widgets in ipairs(mod.dmf.options_widgets_data) do
 		for _, widget in ipairs(mod_widgets) do
@@ -88,6 +89,16 @@ mod.dmf.create_mod_options_settings = function(self, options_templates)
 					tab_lookup[widget.title] = widget.tab
 				end
 			end
+
+			-- lookup by setting_id
+			if widget.setting_id then
+				setting_id_lookup[widget.setting_id] = widget.setting_id
+			end
+
+			-- fallback lookup by title/display_name
+			if widget.title then
+				setting_id_lookup[widget.title] = widget.setting_id
+			end
 		end
 	end
 
@@ -96,18 +107,19 @@ mod.dmf.create_mod_options_settings = function(self, options_templates)
 		local tab = tab_lookup[template.setting_id] or tab_lookup[template.display_name]
 
 		if tab then
-			template.tab = tab
-
+			template.tab = tab -- pass tab through
 			--mod:echo(string.format('Applied tab "%s" to template "%s"', tostring(tab), tostring(template.display_name)))
+		end
+
+		local setting_id = setting_id_lookup[template.setting_id] or setting_id_lookup[template.display_name]
+
+		if setting_id then
+			template.setting_id = setting_id -- pass setting_id through
 		end
 	end
 
 	return result
 end
-
--- IMPORTANT
--- self._options_templates tab is passed through...
--- 
 
 -- ###########################################################################
 -- all mods loaded
