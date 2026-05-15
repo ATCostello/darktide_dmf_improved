@@ -83,6 +83,7 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	if mod:get("enable_RGB_widget") then
 		mod._addRgbSliders(self)
+		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 
 	mod.last_category = mod.current_category

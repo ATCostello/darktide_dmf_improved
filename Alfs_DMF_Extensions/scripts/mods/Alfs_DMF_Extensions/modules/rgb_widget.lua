@@ -99,6 +99,8 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 	widget.content.b_entry = rgb_entries.B
 	widget.content.a_entry = rgb_entries.A
 
+	widget.content.tab = group_widget.content.tab or rgb_entries.R.tab or mod.default_tab
+
 	template.init(self, widget, rgb_entries.R)
 
 	return widget
@@ -161,9 +163,11 @@ mod.inject_rgb_widgets = function(self, category)
 					end
 
 					-- set rgb widget offset to that of the group header
-					-- NEED TO CHANGE THIS TO BE DYNAMIC/UPDATE BASED ON GROUP HEADER OFFSET, SO IF GROUP HEADER OFFSET CHANGES, THESE WILL FOLLOW.
-					rgb_widget.offset[1] = row.widget.offset[1]
-					rgb_widget.offset[2] = row.widget.offset[2]
+					-- NEED TO CHANGE THIS TO BE DYNAMIC/UPDATE BASED ON THE ORIGINAL _R/TOP WIDGET UNDER THE GROUP'S POSITION, AND MOVE TO FOLLOW THE GROUP HEADER AS THAT CHANGES POSITION
+					-- store dynamic anchor refs
+					rgb_widget._group_widget = row.widget
+					rgb_widget._anchor_widget = r_row.widget
+					rgb_widget._alignment_widget = r_row.alignment_widget
 
 					replaced = replaced + 1
 				end
@@ -177,8 +181,30 @@ end
 -- ############################################################
 -- Hook entry point
 -- ############################################################
+mod._updateRGBSliders = function(self, input_service, dt, t)
+	local category = mod.current_category
+
+	if not category then
+		return
+	end
+
+	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+
+	if not widgets then
+		return
+	end
+
+	for _, row in ipairs(widgets) do
+		local widget = row.widget
+
+		if widget and widget.type == "rgb_widget" and widget.update then
+			widget.update(self, widget, input_service, dt, t)
+		end
+	end
+end
 
 mod._addRgbSliders = function(self)
+	-- NEED TO RE-RUN THIS WHEN THE TABS CHANGES, IF CUSTOM TABS ARE ENABLED...
 	if mod.current_category ~= mod.last_category then
 		mod.inject_rgb_widgets(self, mod.current_category)
 	end

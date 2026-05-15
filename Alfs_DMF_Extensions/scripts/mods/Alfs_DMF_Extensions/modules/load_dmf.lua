@@ -49,7 +49,6 @@ mod.dmf.initialize_mod_options = function(passed_mod, options)
 
 		if raw then
 			initialized.tab = raw.tab
-			initialized.__my_test = raw.__my_test
 		end
 	end
 
@@ -108,7 +107,6 @@ mod.dmf.create_mod_options_settings = function(self, options_templates)
 
 		if tab then
 			template.tab = tab -- pass tab through
-			--mod:echo(string.format('Applied tab "%s" to template "%s"', tostring(tab), tostring(template.display_name)))
 		end
 
 		local setting_id = setting_id_lookup[template.setting_id] or setting_id_lookup[template.display_name]
