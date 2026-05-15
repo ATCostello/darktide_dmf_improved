@@ -207,5 +207,6 @@ mod._addRgbSliders = function(self)
 	-- NEED TO RE-RUN THIS WHEN THE TABS CHANGES, IF CUSTOM TABS ARE ENABLED...
 	if mod.current_category ~= mod.last_category then
 		mod.inject_rgb_widgets(self, mod.current_category)
+		mod.filter_settings(self, mod.current_category)
 	end
 end
