@@ -1,86 +1,202 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
-local UIWidgetGrid = require("scripts/ui/widget_logic/ui_widget_grid")
 local UIWidget = require("scripts/managers/ui/ui_widget")
-local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
 
 local view_settings = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_settings")
 
-local _rgb_blueprints =
+local rgb_blueprints =
 	mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget_blueprints")
 
-mod.inject_rgb_widgets = function(self, category)
-	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+-- ############################################################
+-- Helpers
+-- ############################################################
 
-	if not widgets or not self._options_templates then
-		return
+local function ends_with(str, ending)
+	return str and ending ~= "" and str:sub(-#ending) == ending
+end
+
+local function is_group(widget)
+	if not widget then
+		return false
 	end
 
-	for _, template in ipairs(self._options_templates.settings or {}) do
-		if template.category == category then
-			local display_name = template.display_name
-			local setting_id = template.setting_id
-			local setting_type = template.widget_type
+	if widget.type ~= "group_header" then
+		return false
+	end
 
-			-- Replace this group_header widget content with the RGB widgets from our blueprint
-			-- expected content is in the following format, with the commonality being the setting_id group is "xx_colour", and the sub_widgets are "xx_colour_R", "xx_colour_G", "xx_colour_B"
-			--[[
-                {
-                    setting_id = "main_font_colour",
-                    type = "group",
-                    tab = "General",
-                    sub_widgets = {
-                        {
-                            setting_id = "main_font_colour_R",
-                            type = "numeric",
-                            default_value = 255,
-                            range = {
-                                0,
-                                255,
-                            },
-                            tooltip = "main_font_colour_tooltip",
-                        },
-                        {
-                            setting_id = "main_font_colour_G",
-                            type = "numeric",
-                            default_value = 255,
-                            range = {
-                                0,
-                                255,
-                            },
-                            tooltip = "main_font_colour_tooltip",
-                        },
-                        {
-                            setting_id = "main_font_colour_B",
-                            type = "numeric",
-                            default_value = 255,
-                            range = {
-                                0,
-                                255,
-                            },
-                            tooltip = "main_font_colour_tooltip",
-                        },
-                    },
-                },
-                ]]
-			if setting_type == "group_header" and (setting_id and string.find(setting_id, "_colour")) then
-				-- now need to check the following three widgets are either "colour_r", "colour_g", "colour_b" OR check the next 4 for "colour_A", "colour_R", "colour_G", "colour_B"
-				-- Then replace the RGB/ARGB widgets with our custom one, using the same values passed through
+	return true
+end
 
-				--mod:echo("Injecting RGB widgets for: " .. display_name)
+local function is_rgb_child(entry)
+	if not entry or not entry.setting_id then
+		return false
+	end
+
+	local id = entry.setting_id
+	return ends_with(id, "_R") or ends_with(id, "_G") or ends_with(id, "_B") or ends_with(id, "_A")
+end
+
+-- ############################################################
+-- Extract RGB group safely
+-- ############################################################
+
+local function extract_rgb_group(widgets, start_index)
+	local found = {}
+
+	for j = start_index, start_index + 3 do
+		local row = widgets[j]
+
+		if row and row.widget and row.widget.content then
+			local e = row.widget.content.entry
+
+			if e and e.setting_id then
+				if ends_with(e.setting_id, "_R") then
+					found.R = e
+				elseif ends_with(e.setting_id, "_G") then
+					found.G = e
+				elseif ends_with(e.setting_id, "_B") then
+					found.B = e
+				elseif ends_with(e.setting_id, "_A") then
+					found.A = e
+				end
 			end
 		end
+	end
+
+	if found.R and found.G and found.B then
+		return found
 	end
 end
 
 -- ############################################################
--- Update
+-- Widget creation
 -- ############################################################
 
-mod._addRgbSliders = function(self, dt, t, input_service)
-	if mod.current_category ~= mod.last_category then
-		mod.last_category = mod.current_category
+local function create_rgb_widget(self, group_widget, rgb_entries)
+	if not group_widget or not rgb_entries then
+		return nil
+	end
 
+	mod:echo("[RGB DEBUG] Creating widget")
+
+	local template = rgb_blueprints.rgb_widget
+
+	local widget_def =
+		UIWidget.create_definition(template.pass_template, "settings_grid_content_pivot", nil, template.size)
+
+	widget_def.content = table.clone(template.content or {})
+	widget_def.style = table.clone(template.style or {})
+
+	local widget = self:_create_widget("rgb_widget_" .. rgb_entries.R.setting_id, widget_def)
+
+	if not widget then
+		mod:echo("[RGB DEBUG] ❌ Failed to create widget")
+		return nil
+	end
+
+	widget.type = "rgb_widget"
+	widget.update = template.update
+
+	template.init(self, widget, rgb_entries.R)
+
+	widget.content.r_entry = rgb_entries.R
+	widget.content.g_entry = rgb_entries.G
+	widget.content.b_entry = rgb_entries.B
+	widget.content.a_entry = rgb_entries.A
+
+	mod:echo("[RGB DEBUG] ✔ Widget created successfully")
+
+	return widget
+end
+
+-- ############################################################
+-- Main injection pass
+-- ############################################################
+
+mod.inject_rgb_widgets = function(self, category)
+	mod:echo("[RGB DEBUG] ===== Injection start =====")
+	mod:echo("[RGB DEBUG] Category: " .. tostring(category))
+
+	if not self._settings_category_widgets then
+		mod:echo("[RGB DEBUG] ❌ No _settings_category_widgets")
+		return
+	end
+
+	local widgets = self._settings_category_widgets[category]
+
+	if not widgets then
+		mod:echo("[RGB DEBUG] ❌ No widgets for category")
+		return
+	end
+
+	mod:echo("[RGB DEBUG] Widget count: " .. tostring(#widgets))
+
+	local i = 1
+	local replaced = 0
+
+	while i <= #widgets do
+		local row = widgets[i] -- get group header widget
+
+		-- ONLY group headers
+		if is_group(row.widget) then
+			mod:echo("[RGB DEBUG] ▶ Group candidate at index " .. i)
+
+			local rgb = extract_rgb_group(widgets, i + 1)
+
+			if rgb then
+				local r_row = widgets[i + 1]
+
+				local rgb_widget = create_rgb_widget(self, r_row.widget, rgb)
+
+				if rgb_widget then
+					widgets[i + 1] = {
+						widget = rgb_widget,
+						alignment_widget = r_row.alignment_widget,
+					}
+
+					mod:echo("[RGB DEBUG] ✔ Replaced row " .. i + 1)
+
+					-- remove sub widgets
+					local remove = {}
+
+					for j = i + 2, #widgets do
+						local e2 = widgets[j]
+							and widgets[j].widget
+							and widgets[j].widget.content
+							and widgets[j].widget.content.entry
+
+						if is_rgb_child(e2) then
+							mod:echo("[RGB DEBUG] removing child at " .. j)
+
+							remove[#remove + 1] = j
+						else
+							break
+						end
+					end
+
+					for k = #remove, 1, -1 do
+						table.remove(widgets, remove[k])
+					end
+
+					replaced = replaced + 1
+				end
+			end
+		end
+
+		i = i + 1
+	end
+
+	mod:echo("[RGB DEBUG] ===== Injection end =====")
+	mod:echo("[RGB DEBUG] Total replaced: " .. tostring(replaced))
+end
+
+-- ############################################################
+-- Hook entry point
+-- ############################################################
+
+mod._addRgbSliders = function(self)
+	if mod.current_category ~= mod.last_category then
+		mod:echo("[RGB DEBUG] Category changed → injecting")
 		mod.inject_rgb_widgets(self, mod.current_category)
 	end
 end

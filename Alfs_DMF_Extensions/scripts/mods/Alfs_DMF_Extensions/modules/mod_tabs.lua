@@ -536,8 +536,6 @@ end)
 
 mod._addModTabs = function(self, dt, t, input_service)
 	if mod.current_category ~= mod.last_category then
-		mod.last_category = mod.current_category
-
 		mod.inject_tabs_into_widgets(self, mod.current_category)
 
 		mod.create_tab_bar(self, mod.current_category)
