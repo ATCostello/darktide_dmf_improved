@@ -7,46 +7,47 @@ local blueprints = {}
 local settings_grid_width = 850
 local widget_height = 190
 
-local BAR_WIDTH = 320
+local BAR_WIDTH = 240
 local BAR_HEIGHT = 28
 
+local PREVIEW_WIDTH = 40
 local PREVIEW_HEIGHT = 40
 
 -- ############################################################
 -- Helpers
 -- ############################################################
 
-local function clamp(v)
-	return math.clamp(math.floor(v or 0), 0, 255)
-end
-
 local function get_value(entry)
-	if not entry or not entry.get_function then
+	if not entry then
 		return 255
 	end
 
-	local value = entry.get_function(entry)
+	if not entry.setting_id then
+		return 255
+	end
 
-	return clamp(value)
+	local value = entry.get_function()
+
+	if not value then
+		return 255
+	end
+
+	return value
 end
 
 local function set_value(entry, value)
-	value = clamp(value)
-
-	if entry.on_activated then
-		entry.on_activated(value, entry)
+	if not entry then
+		return
 	end
 
-	if entry.changed_callback then
-		entry.changed_callback(value)
-	end
+	entry.changed_callback(value)
 end
 
 -- ############################################################
 -- Slider Pass Builder
 -- ############################################################
 
-local function create_slider(name, y, color, label)
+local function create_slider(name, x, color, label)
 	return {
 		{
 			pass_type = "hotspot",
@@ -73,7 +74,7 @@ local function create_slider(name, y, color, label)
 		},
 	}, {
 		[name .. "_hotspot_style"] = {
-			offset = { 0, y, 0 },
+			offset = { x, 0, 0 },
 			size = { BAR_WIDTH, BAR_HEIGHT },
 		},
 		[name .. "_label"] = label,
@@ -81,13 +82,13 @@ local function create_slider(name, y, color, label)
 	}, {
 		[name .. "_bg"] = {
 			color = { 255, 30, 30, 30 },
-			offset = { 0, y, 0 },
+			offset = { x, 0, 0 },
 			size = { BAR_WIDTH, BAR_HEIGHT },
 		},
 
 		[name .. "_fill"] = {
 			color = color,
-			offset = { 0, y, 1 },
+			offset = { x, 0, 1 },
 			size = { 0, BAR_HEIGHT },
 		},
 
@@ -97,7 +98,7 @@ local function create_slider(name, y, color, label)
 			vertical_alignment = "center",
 			font_size = 24,
 			text_color = { 255, 255, 255, 255 },
-			offset = { -40, y - 2, 2 },
+			offset = { x - 22, -2, 2 },
 		},
 
 		[name .. "_value_style"] = {
@@ -106,7 +107,7 @@ local function create_slider(name, y, color, label)
 			vertical_alignment = "center",
 			font_size = 24,
 			text_color = { 255, 255, 255, 255 },
-			offset = { BAR_WIDTH + 12, y - 2, 2 },
+			offset = { x + BAR_WIDTH + 5, -2, 2 },
 		},
 	}
 end
@@ -122,26 +123,26 @@ local style = {}
 local sliders = {
 	{
 		name = "r",
-		y = 0,
-		color = { 255, 255, 60, 60 },
+		x = PREVIEW_WIDTH + 10,
+		color = { 255, 155, 155, 155 },
 		label = "R",
 	},
 	{
 		name = "g",
-		y = 50,
-		color = { 255, 60, 255, 60 },
+		x = PREVIEW_WIDTH + 10 + (BAR_WIDTH + 100),
+		color = { 255, 155, 155, 155 },
 		label = "G",
 	},
 	{
 		name = "b",
-		y = 100,
-		color = { 255, 60, 140, 255 },
+		x = PREVIEW_WIDTH + 10 + ((BAR_WIDTH + 100) * 2),
+		color = { 255, 155, 155, 155 },
 		label = "B",
 	},
 }
 
 for _, slider in ipairs(sliders) do
-	local p, c, s = create_slider(slider.name, slider.y, slider.color, slider.label)
+	local p, c, s = create_slider(slider.name, slider.x, slider.color, slider.label)
 
 	for _, pass in ipairs(p) do
 		table.insert(passes, pass)
@@ -163,13 +164,14 @@ table.insert(passes, {
 
 style.preview_style = {
 	color = { 255, 255, 255, 255 },
-	offset = { 0, 150, 0 },
-	size = { BAR_WIDTH, PREVIEW_HEIGHT },
+	offset = { -PREVIEW_WIDTH, -0.25 * PREVIEW_HEIGHT, 0 },
+	size = { PREVIEW_WIDTH, PREVIEW_HEIGHT },
 }
 
 -- ############################################################
 -- Blueprint
 -- ############################################################
+local DEFAULT_NUM_DECIMALS = 0
 
 blueprints = {
 	rgb_widget = {
@@ -181,20 +183,28 @@ blueprints = {
 		pass_template = passes,
 		content = content,
 		style = style,
-
-		init = function(parent, widget, entry)
-			local content = widget.content
-
-			content.entry = entry
+		pass_template_function = function(parent, config, size)
+			return SliderPassTemplates.settings_value_slider(size[1], BAR_WIDTH, BAR_HEIGHT, true)
 		end,
-
-		update = function(parent, widget, input_service, dt, t)
+		init = function(parent, widget, entry)
 			local content = widget.content
 			local style = widget.style
 
 			local r = get_value(content.r_entry)
 			local g = get_value(content.g_entry)
 			local b = get_value(content.b_entry)
+
+			if r == nil then
+				r = 0
+			end
+			if g == nil then
+				g = 0
+			end
+			if b == nil then
+				b = 0
+			end
+
+			mod:echo("[RGB DEBUG] r: " .. tostring(r) .. " g: " .. tostring(g) .. " b: " .. tostring(b))
 
 			content.r_value = tostring(r)
 			content.g_value = tostring(g)
@@ -211,31 +221,134 @@ blueprints = {
 				b,
 			}
 
-			local cursor = input_service:get("cursor")
+			local display_name = entry.display_name or Managers.localization:localize("loc_settings_option_unavailable")
+			content.text = display_name
+			content.entry = entry
+			content.area_length = BAR_WIDTH
+			content.step_size = entry.step_size_fraction
+			content.apply_on_drag = entry.apply_on_drag and true
+			local get_function = entry.get_function
+			local value, value_fraction = get_function(entry)
+			content.previous_slider_value = value_fraction
+			content.slider_value = value_fraction
+			entry.pressed_callback = callback(parent, callback_name, widget, entry)
 
-			local function handle_drag(hotspot, entry, bar_style)
-				if not hotspot or not hotspot.is_held or not cursor then
-					return
+			entry.changed_callback = function(changed_value)
+				callback(parent, changed_callback_name, widget, entry)()
+			end
+		end,
+
+		update = function(parent, widget, input_service, dt, t)
+			local content = widget.content
+			local style = widget.style
+
+			local r = get_value(content.r_entry)
+			local g = get_value(content.g_entry)
+			local b = get_value(content.b_entry)
+
+			mod:echo("[RGB DEBUG] r: " .. r .. " g: " .. g .. " b: " .. b)
+
+			content.r_value = tostring(r)
+			content.g_value = tostring(g)
+			content.b_value = tostring(b)
+
+			style.r_fill.size[1] = (r / 255) * BAR_WIDTH
+			style.g_fill.size[1] = (g / 255) * BAR_WIDTH
+			style.b_fill.size[1] = (b / 255) * BAR_WIDTH
+
+			style.preview_style.color = {
+				255,
+				r,
+				g,
+				b,
+			}
+
+			local content = widget.content
+			local entry = content.entry
+			local pass_input = true
+			local is_disabled = entry.disabled or false
+			content.disabled = is_disabled
+			local using_gamepad = not parent:using_cursor_navigation()
+			local get_function = entry.get_function
+			local value, value_fraction = get_function(entry)
+			local on_activated = entry.on_activated
+			local format_value_function = entry.format_value_function
+			local num_decimals = entry.num_decimals
+			local drag_value, new_value_fraction = nil
+			local apply_on_drag = entry.apply_on_drag and not is_disabled
+			local drag_active = content.drag_active and not is_disabled
+			local drag_previously_active = content.drag_previously_active
+			local focused = content.exclusive_focus and using_gamepad and not is_disabled
+
+			if drag_active or focused then
+				drag_value = math.lerp(entry.min_value, entry.max_value, content.slider_value)
+			elseif not focused or drag_previously_active then
+				local previous_slider_value = content.previous_slider_value
+				local slider_value = content.slider_value
+
+				if drag_previously_active then
+					if previous_slider_value ~= slider_value then
+						new_value_fraction = slider_value
+						drag_value = math.lerp(entry.min_value, entry.max_value, new_value_fraction)
+					end
+				elseif value_fraction ~= slider_value then
+					content.slider_value = value_fraction
+					content.previous_slider_value = value_fraction
+					content.scroll_add = nil
 				end
 
-				local scenegraph_id = widget.scenegraph_id
-				local position = parent:_scenegraph_world_position(scenegraph_id)
-
-				local widget_x = position[1]
-				local bar_x = widget_x + bar_style.offset[1]
-
-				local local_x = math.clamp(cursor[1] - bar_x, 0, BAR_WIDTH)
-
-				local value = math.floor((local_x / BAR_WIDTH) * 255)
-
-				set_value(entry, value)
+				content.previous_slider_value = slider_value
 			end
 
-			handle_drag(content.r_hotspot, content.r_entry, style.r_bg)
-			handle_drag(content.g_hotspot, content.g_entry, style.g_bg)
-			handle_drag(content.b_hotspot, content.b_entry, style.b_bg)
+			content.drag_previously_active = drag_active
+			local display_value = nil
 
-			return true
+			if format_value_function then
+				display_value = format_value_function(entry, drag_value or value)
+			else
+				local number_format = string.format("%%.%sf", num_decimals or DEFAULT_NUM_DECIMALS)
+				display_value = string.format(number_format, drag_value or value)
+			end
+
+			if display_value then
+				content.value_text = display_value
+			end
+
+			local hotspot = content.hotspot
+
+			if hotspot.on_pressed and not is_disabled then
+				if focused then
+					new_value_fraction = content.slider_value
+				elseif not hotspot.is_hover then
+					entry.pressed_callback()
+				end
+			end
+
+			if focused and parent:can_exit() then
+				parent:set_can_exit(false)
+			end
+
+			if
+				apply_on_drag
+				and drag_value
+				and not new_value_fraction
+				and content.slider_value ~= content.previous_slider_value
+			then
+				new_value_fraction = content.slider_value
+			end
+
+			if new_value_fraction then
+				local new_value = math.lerp(entry.min_value, entry.max_value, new_value_fraction)
+
+				on_activated(new_value, entry)
+				entry.changed_callback(new_value)
+
+				content.slider_value = new_value_fraction
+				content.previous_slider_value = new_value_fraction
+				content.scroll_add = nil
+			end
+
+			return pass_input
 		end,
 	},
 }

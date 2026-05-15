@@ -77,8 +77,6 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 		return nil
 	end
 
-	mod:echo("[RGB DEBUG] Creating widget")
-
 	local template = rgb_blueprints.rgb_widget
 
 	local widget_def =
@@ -90,21 +88,18 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 	local widget = self:_create_widget("rgb_widget_" .. rgb_entries.R.setting_id, widget_def)
 
 	if not widget then
-		mod:echo("[RGB DEBUG] ❌ Failed to create widget")
 		return nil
 	end
 
 	widget.type = "rgb_widget"
 	widget.update = template.update
 
-	template.init(self, widget, rgb_entries.R)
-
 	widget.content.r_entry = rgb_entries.R
 	widget.content.g_entry = rgb_entries.G
 	widget.content.b_entry = rgb_entries.B
 	widget.content.a_entry = rgb_entries.A
 
-	mod:echo("[RGB DEBUG] ✔ Widget created successfully")
+	template.init(self, widget, rgb_entries.R)
 
 	return widget
 end
@@ -114,22 +109,15 @@ end
 -- ############################################################
 
 mod.inject_rgb_widgets = function(self, category)
-	mod:echo("[RGB DEBUG] ===== Injection start =====")
-	mod:echo("[RGB DEBUG] Category: " .. tostring(category))
-
 	if not self._settings_category_widgets then
-		mod:echo("[RGB DEBUG] ❌ No _settings_category_widgets")
 		return
 	end
 
 	local widgets = self._settings_category_widgets[category]
 
 	if not widgets then
-		mod:echo("[RGB DEBUG] ❌ No widgets for category")
 		return
 	end
-
-	mod:echo("[RGB DEBUG] Widget count: " .. tostring(#widgets))
 
 	local i = 1
 	local replaced = 0
@@ -139,8 +127,6 @@ mod.inject_rgb_widgets = function(self, category)
 
 		-- ONLY group headers
 		if is_group(row.widget) then
-			mod:echo("[RGB DEBUG] ▶ Group candidate at index " .. i)
-
 			local rgb = extract_rgb_group(widgets, i + 1)
 
 			if rgb then
@@ -154,8 +140,6 @@ mod.inject_rgb_widgets = function(self, category)
 						alignment_widget = r_row.alignment_widget,
 					}
 
-					mod:echo("[RGB DEBUG] ✔ Replaced row " .. i + 1)
-
 					-- remove sub widgets
 					local remove = {}
 
@@ -166,8 +150,6 @@ mod.inject_rgb_widgets = function(self, category)
 							and widgets[j].widget.content.entry
 
 						if is_rgb_child(e2) then
-							mod:echo("[RGB DEBUG] removing child at " .. j)
-
 							remove[#remove + 1] = j
 						else
 							break
@@ -178,6 +160,11 @@ mod.inject_rgb_widgets = function(self, category)
 						table.remove(widgets, remove[k])
 					end
 
+					-- set rgb widget offset to that of the group header
+					-- NEED TO CHANGE THIS TO BE DYNAMIC/UPDATE BASED ON GROUP HEADER OFFSET, SO IF GROUP HEADER OFFSET CHANGES, THESE WILL FOLLOW.
+					rgb_widget.offset[1] = row.widget.offset[1]
+					rgb_widget.offset[2] = row.widget.offset[2]
+
 					replaced = replaced + 1
 				end
 			end
@@ -185,9 +172,6 @@ mod.inject_rgb_widgets = function(self, category)
 
 		i = i + 1
 	end
-
-	mod:echo("[RGB DEBUG] ===== Injection end =====")
-	mod:echo("[RGB DEBUG] Total replaced: " .. tostring(replaced))
 end
 
 -- ############################################################
@@ -196,7 +180,6 @@ end
 
 mod._addRgbSliders = function(self)
 	if mod.current_category ~= mod.last_category then
-		mod:echo("[RGB DEBUG] Category changed → injecting")
 		mod.inject_rgb_widgets(self, mod.current_category)
 	end
 end
