@@ -120,6 +120,12 @@ mod.localisation = {
 	enable_RGB_widget_tooltip = {
 		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible."
 	},
+	icon_dropdown_test = {
+		en = "Icon Dropdown Test"
+	},
+	icon_dropdown_test_tooltip = {
+		en = "A test dropdown with icon support. Options with an 'icon' field defined show an icon to the left of the text."
+	},
 }
 
 -- Group localisations so they can be managed easier.

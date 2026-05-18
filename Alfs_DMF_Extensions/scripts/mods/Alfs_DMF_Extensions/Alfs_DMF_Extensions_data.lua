@@ -38,6 +38,16 @@ table.insert(mod.settings_widgets, {
 			default_value = true,
 			tooltip = "enable_RGB_widget_tooltip",
 		},
+		{
+			setting_id = "icon_dropdown_test",
+			type = "dropdown",
+			default_value = "opt_a",
+			options = {
+				{ text = "Option A (no icon)", value = "opt_a" },
+				{ text = "Option with Aquila", value = "opt_b", icon = "content/ui/materials/icons/generic/aquila" },
+				{ text = "Option with Exclamation", value = "opt_c", icon = "content/ui/materials/icons/generic/exclamation_mark" },
+			},
+		},
 	},
 })
 

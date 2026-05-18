@@ -8,6 +8,7 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/load
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/save_scroll_position")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/dropdown_icons")
 
 mod.last_category = nil
 mod.current_category = nil
@@ -48,10 +49,15 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	}
 
 	-- ensure pivot nodes have explicit position so world_position is computed
-	if defs.scenegraph_definition.settings_grid_start and not defs.scenegraph_definition.settings_grid_start.position then
+	if
+		defs.scenegraph_definition.settings_grid_start and not defs.scenegraph_definition.settings_grid_start.position
+	then
 		defs.scenegraph_definition.settings_grid_start.position = { 0, 0, 0 }
 	end
-	if defs.scenegraph_definition.settings_grid_content_pivot and not defs.scenegraph_definition.settings_grid_content_pivot.position then
+	if
+		defs.scenegraph_definition.settings_grid_content_pivot
+		and not defs.scenegraph_definition.settings_grid_content_pivot.position
+	then
 		defs.scenegraph_definition.settings_grid_content_pivot.position = { 0, 0, 0 }
 	end
 
@@ -91,6 +97,8 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if mod:get("enable_RGB_widget") then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
+
+	mod._addDropdownIcons(self, dt, t, input_service)
 
 	mod.last_category = mod.current_category
 end)
