@@ -41,7 +41,7 @@ table.insert(mod.settings_widgets, {
 		{
 			setting_id = "reload_mods_keybind",
 			type = "keybind",
-			default_value = { "f5" },
+			default_value = { "f9" },
 			keybind_trigger = "pressed",
 			keybind_type = "function_call",
 			function_name = "reload_all_mods",

@@ -11,8 +11,12 @@ local function apply_preview_icon_color(icon_style, text_style, icon_colour)
 	if icon_style then
 		if icon_colour then
 			icon_style.color = copy_color(icon_colour)
+			icon_style.default_color = copy_color(icon_colour)
+			icon_style.selected_color = copy_color(icon_colour)
 		elseif text_style and text_style.text_color then
 			icon_style.color = copy_color(text_style.text_color)
+			icon_style.default_color = copy_color(text_style.text_color)
+			icon_style.selected_color = copy_color(text_style.text_color)
 		end
 	end
 end
@@ -35,10 +39,16 @@ end
 
 mod._addDropdownIcons = function(self, dt, t, input_service)
 	local category = mod.current_category
-	if not category then return end
+	if not category then
+		return
+	end
 
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
-	if not widgets then return end
+	if not widgets then
+		return
+	end
+
+	dbg_1 = widgets
 
 	for i = 1, #widgets do
 		local row = widgets[i]
@@ -60,7 +70,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						widget.style.icon.visible = true
 					end
 					if widget.style.text and widget.style.text.icon_offset then
-						widget.style.text.offset[1] = widget.style.text.icon_offset[1]
+						widget.style.text.offset[1] = widget.style.text.icon_offset[1] + 15
 					end
 				else
 					content.value_icon = nil
@@ -95,9 +105,10 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						apply_option_icon_color(icon_style, text_style, option.icon_colour)
 						if icon_style then
 							icon_style.visible = true
+							icon_style.offset[2] = text_style.offset[2]
 						end
 						if text_style and text_style.icon_offset then
-							text_style.offset[1] = text_style.icon_offset[1]
+							text_style.offset[1] = text_style.icon_offset[1] + 15
 						end
 					else
 						content[icon_id] = nil
