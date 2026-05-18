@@ -47,7 +47,14 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 		position = { 0, -10, 802 },
 	}
 
-	--defs.scenegraph_definition.settings_grid_background.size[1] = 1920
+	-- ensure pivot nodes have explicit position so world_position is computed
+	if defs.scenegraph_definition.settings_grid_start and not defs.scenegraph_definition.settings_grid_start.position then
+		defs.scenegraph_definition.settings_grid_start.position = { 0, 0, 0 }
+	end
+	if defs.scenegraph_definition.settings_grid_content_pivot and not defs.scenegraph_definition.settings_grid_content_pivot.position then
+		defs.scenegraph_definition.settings_grid_content_pivot.position = { 0, 0, 0 }
+	end
+
 	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
 	defs.scenegraph_definition.settings_grid_background.position[2] = 16
 	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012

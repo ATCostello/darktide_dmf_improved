@@ -7,7 +7,7 @@ local blueprints = {}
 local settings_grid_width = 850
 local widget_height = 190
 
-local BAR_WIDTH_RGB = 160 --240
+local BAR_WIDTH_RGB = 160
 local BAR_WIDTH_ARGB = 160
 local BAR_HEIGHT = 28
 
@@ -130,7 +130,7 @@ local function update_slider_visuals(widget, name, value)
 	widget["_" .. name .. "_fill"].size[1] = (value / 255) * BAR_WIDTH_RGB
 end
 
-local function slider_input(widget, content, cursor, left_hold, confirm_pressed, slider_name, entry)
+local function slider_input(parent, widget, content, cursor, left_hold, confirm_pressed, slider_name, entry)
 	local slider = sliders_cached[slider_name]
 
 	if content[slider_name .. "_editing"] then
@@ -139,6 +139,7 @@ local function slider_input(widget, content, cursor, left_hold, confirm_pressed,
 
 	local hotspot = content[slider.hotspot]
 	local value_hotspot = content[slider_name .. "_value_hotspot"]
+	local label_hotspot = content[slider_name .. "_label_hotspot"]
 
 	if not hotspot or not cursor then
 		return
@@ -146,23 +147,40 @@ local function slider_input(widget, content, cursor, left_hold, confirm_pressed,
 
 	local inside = hotspot.is_hover
 
-	-- prevent text hotspot from triggering slider drag
 	if value_hotspot and value_hotspot.is_hover then
 		inside = false
 	end
+
+	-- label hotspot only shows tooltip, don't start drag on it
+	if label_hotspot and label_hotspot.is_hover then
+		inside = false
+	end
+
+	local dragging = content[slider.dragging]
 
 	-- ############################################################
 	-- Start Drag
 	-- ############################################################
 
-	local dragging = content[slider.dragging]
-
 	if inside and (left_hold or confirm_pressed) and not dragging then
 		content[slider.dragging] = true
+		dragging = true
+
 		content[slider.start_x] = cursor[1]
 		content[slider.start_value] = get_value(entry)
 
-		dragging = true
+		-- click-to-value: compute absolute position for initial value
+		local pivot_pos = parent and parent:_scenegraph_world_position("settings_grid_content_pivot")
+
+		if pivot_pos then
+			local bg_style = widget.style[slider_name .. "_bg"]
+			local bar_screen_x = pivot_pos[1] + (widget.offset and widget.offset[1] or 0) + bg_style.offset[1]
+			local bar_cursor_x = cursor[1] - bar_screen_x
+			local click_value = math_clamp(math_floor((bar_cursor_x / BAR_WIDTH_RGB) * 255), 0, 255)
+
+			content[slider.start_value] = click_value
+			set_value(entry, click_value)
+		end
 	end
 
 	-- ############################################################
@@ -175,27 +193,25 @@ local function slider_input(widget, content, cursor, left_hold, confirm_pressed,
 	end
 
 	-- ############################################################
-	-- Mouse leaves area
-	-- ############################################################
-
-	if dragging and not inside then
-		content[slider.dragging] = false
-		return
-	end
-
-	-- ############################################################
 	-- Drag Update
 	-- ############################################################
 
 	if dragging then
-		local start_x = content[slider.start_x] or cursor[1]
-		local start_value = content[slider.start_value] or 0
+		local delta = cursor[1] - content[slider.start_x]
+		local value = math_clamp(math_floor(content[slider.start_value] + (delta / BAR_WIDTH_RGB) * 255), 0, 255)
 
-		local delta = cursor[1] - start_x
+		-- throttle: only set_value when value actually changes (avoids mod:set/mod:get spam)
+		if content[slider.value] ~= value then
+			content[slider.value] = value
 
-		local value = math_clamp(math_floor(start_value + (delta / BAR_WIDTH_RGB) * 255 + 0.5), 0, 255)
+			set_value(entry, value)
 
-		set_value(entry, value)
+			if not content[slider_name .. "_editing"] then
+				content[slider.value_text] = tostring(value)
+			end
+		end
+
+		widget["_" .. slider_name .. "_fill"].size[1] = (value / 255) * BAR_WIDTH_RGB
 	end
 end
 
@@ -215,7 +231,7 @@ local function value_text_input(widget, content, input_service, slider_name, ent
 	-- Begin Editing
 	-- ############################################################
 
-	if hotspot.on_pressed then
+	if hotspot.is_hover and input_service:get("confirm_pressed") and not content[editing_key] then
 		content[editing_key] = true
 
 		local current = tostring(get_value(entry))
@@ -318,6 +334,12 @@ local function create_slider(name, x, color, label)
 		},
 
 		{
+			pass_type = "hotspot",
+			content_id = name .. "_label_hotspot",
+			style_id = name .. "_label_hotspot_style",
+		},
+
+		{
 			pass_type = "rect",
 			style_id = name .. "_bg",
 		},
@@ -370,6 +392,8 @@ local function create_slider(name, x, color, label)
 		[name .. "_hotspot"] = {},
 		[name .. "_value_hotspot"] = {},
 
+		[name .. "_label_hotspot"] = {},
+
 		[name .. "_dragging"] = false,
 
 		[name .. "_label"] = label,
@@ -391,6 +415,12 @@ local function create_slider(name, x, color, label)
 		[name .. "_value_hotspot_style"] = {
 			offset = { PREVIEW_WIDTH + x + BAR_WIDTH_RGB + 2, 0, 10 },
 			size = { 60, BAR_HEIGHT },
+			visible = true,
+		},
+
+		[name .. "_label_hotspot_style"] = {
+			offset = { PREVIEW_WIDTH + x - 26, 0, 9 },
+			size = { 24, BAR_HEIGHT },
 			visible = true,
 		},
 
@@ -501,23 +531,9 @@ local function build_blueprint(has_alpha)
 		widget._preview_color = style.preview_style.color
 	end
 
-	local function get_values(content)
-		local values = {}
+	local function handle_inputs(parent, widget, content, cursor, left_hold, confirm_pressed, input_service)
 		for _, config in ipairs(slider_configs) do
-			values[config.name] = get_value(content[config.name .. "_entry"])
-		end
-		return values
-	end
-
-	local function update_visuals(widget, values)
-		for name, value in pairs(values) do
-			update_slider_visuals(widget, name, value)
-		end
-	end
-
-	local function handle_inputs(widget, content, cursor, left_hold, confirm_pressed, input_service)
-		for _, config in ipairs(slider_configs) do
-			slider_input(widget, content, cursor, left_hold, confirm_pressed, config.name, content[config.name .. "_entry"])
+			slider_input(parent, widget, content, cursor, left_hold, confirm_pressed, config.name, content[config.name .. "_entry"])
 		end
 	end
 
@@ -532,17 +548,29 @@ local function build_blueprint(has_alpha)
 		local style = widget.style
 
 		cache_fills(widget, style)
-
-		local values = get_values(content)
-
-		update_visuals(widget, values)
+		content.hotspot = {}
 
 		local preview_color = widget._preview_color
 
-		preview_color[1] = has_alpha and (values.a or 255) or 255
-		preview_color[2] = values.r
-		preview_color[3] = values.g
-		preview_color[4] = values.b
+		for _, config in ipairs(slider_configs) do
+			local value = get_value(content[config.name .. "_entry"])
+
+			update_slider_visuals(widget, config.name, value)
+
+			if config.name == "a" then
+				preview_color[1] = value
+			elseif config.name == "r" then
+				preview_color[2] = value
+			elseif config.name == "g" then
+				preview_color[3] = value
+			elseif config.name == "b" then
+				preview_color[4] = value
+			end
+		end
+
+		if not has_alpha then
+			preview_color[1] = 255
+		end
 	end
 
 	local update_fn = function(parent, widget, input_service, dt, t)
@@ -594,7 +622,7 @@ local function build_blueprint(has_alpha)
 		-- ############################################################
 		-- Slider Input
 		-- ############################################################
-		handle_inputs(widget, content, cursor, left_hold, confirm_pressed, input_service)
+		handle_inputs(parent, widget, content, cursor, left_hold, confirm_pressed, input_service)
 
 		-- ############################################################
 		-- Text Value Input
@@ -602,18 +630,85 @@ local function build_blueprint(has_alpha)
 		handle_text_inputs(widget, content, input_service)
 
 		-- ############################################################
+		-- Tooltip
+		-- ############################################################
+		local hovered_slider = nil
+		local any_hover = false
+
+		for _, config in ipairs(slider_configs) do
+			local label_hotspot = content[config.name .. "_label_hotspot"]
+
+			if label_hotspot and label_hotspot.is_hover then
+				hovered_slider = config.name
+				any_hover = true
+
+				break
+			end
+		end
+
+		content.hotspot.is_hover = any_hover
+
+		if any_hover and hovered_slider then
+			local entry = content[hovered_slider .. "_entry"]
+
+			if entry and (entry.tooltip_text or entry.disabled_by) then
+				local tooltip = parent._widgets_by_name and parent._widgets_by_name.tooltip
+
+				if tooltip then
+					tooltip.content.visible = true
+					tooltip.content.text = entry.tooltip_text or ""
+
+					local starting_point = parent:_scenegraph_world_position("settings_grid_start")
+
+					if starting_point then
+						local grid = parent._settings_content_grid
+
+						if grid then
+							local scroll_addition = grid:length_scrolled()
+							local new_y = starting_point[2] + widget.offset[2] - scroll_addition
+
+							tooltip.offset[1] = starting_point[1] + widget.offset[1] - (tooltip.content.size and tooltip.content.size[1] or 200) * 0.8
+							tooltip.offset[2] = math.max(new_y - 20, 20)
+						end
+					end
+				end
+
+				parent._tooltip_data = {
+					widget = widget,
+					text = entry.tooltip_text or "",
+				}
+			end
+		elseif parent._tooltip_data and parent._tooltip_data.widget == widget then
+			parent._tooltip_data = {}
+
+			local tooltip = parent._widgets_by_name and parent._widgets_by_name.tooltip
+
+			if tooltip then
+				tooltip.content.visible = false
+			end
+		end
+
+		-- ############################################################
 		-- Refresh Values
 		-- ############################################################
-		local values = get_values(content)
+		for _, config in ipairs(slider_configs) do
+			local value
 
-		update_visuals(widget, values)
+			if content[config.name .. "_dragging"] then
+				value = content[sliders_cached[config.name].value]
+			else
+				value = get_value(content[config.name .. "_entry"])
+			end
+
+			update_slider_visuals(widget, config.name, value)
+		end
 
 		local preview_color = widget._preview_color
 
-		preview_color[1] = has_alpha and (values.a or 255) or 255
-		preview_color[2] = values.r
-		preview_color[3] = values.g
-		preview_color[4] = values.b
+		preview_color[1] = has_alpha and (content.a_value or 255) or 255
+		preview_color[2] = content.r_value
+		preview_color[3] = content.g_value
+		preview_color[4] = content.b_value
 
 		return true
 	end
