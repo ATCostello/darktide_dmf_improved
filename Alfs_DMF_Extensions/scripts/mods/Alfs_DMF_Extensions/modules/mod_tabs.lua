@@ -365,11 +365,6 @@ mod.create_tab_bar = function(self, category)
 	self._mod_tab_widgets = widgets
 	self._mod_tab_grid = grid
 
-	local scrollbar_widget = self._widgets_by_name.settings_scrollbar
-
-	if scrollbar_widget then
-		grid:assign_scrollbar(scrollbar_widget, "mod_tab_content", "mod_tab_area", true)
-	end
 end
 
 -- ############################################################
@@ -432,6 +427,24 @@ mod.filter_settings = function(self, category)
 		end
 	end
 
+	-- fallback: if no widgets match (except forced first two), show everything
+	if #visible_widgets <= 2 then
+		for index, data in ipairs(category_widgets) do
+			local widget = data.widget
+			local alignment_widget = data.alignment_widget
+
+			if widget and alignment_widget then
+				if not widget.visible then
+					widget.visible = true
+					alignment_widget.visible = true
+
+					visible_widgets[#visible_widgets + 1] = widget
+					visible_alignment[#visible_alignment + 1] = alignment_widget
+				end
+			end
+		end
+	end
+
 	self._settings_content_widgets = visible_widgets
 	self._settings_alignment_list = visible_alignment
 
@@ -488,6 +501,14 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 		return
 	end
 
+	local using_gamepad = not self:using_cursor_navigation()
+
+	if using_gamepad then
+		self:_draw_grid(grid, self._mod_tab_widgets, nil, dt, t, input_service)
+
+		return
+	end
+
 	local interaction_widget = self._widgets_by_name.grid_interaction_widget
 		or self._widgets_by_name.grid_interaction
 		or self._widgets_by_name.settings_grid_interaction
@@ -505,19 +526,19 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 		hotspot.is_hover = true
 
 		for _, widget in ipairs(self._mod_tab_widgets) do
-			local hotspot = widget.content.hotspot
+			local w_hotspot = widget.content.hotspot
 
-			if hotspot and hotspot.on_pressed then
+			if w_hotspot and w_hotspot.on_pressed then
 				local tab_name = widget.content.text
 
 				if tab_name == "<" or tab_name == ">" then
-					hotspot.on_pressed = false
+					w_hotspot.on_pressed = false
 				else
 					mod.selected_tabs[mod_storage_key] = tab_name
 
 					mod.filter_settings(self, mod.current_category)
 
-					hotspot.on_pressed = false
+					w_hotspot.on_pressed = false
 				end
 			end
 		end
@@ -544,5 +565,55 @@ mod._addModTabs = function(self, dt, t, input_service)
 
 	if self._mod_tab_grid then
 		self._mod_tab_grid:update(dt, t, input_service)
+	end
+
+	if mod:get("enable_mod_tabs") and input_service then
+		local using_gamepad = not self:using_cursor_navigation()
+
+		if using_gamepad then
+			local navigate_left = input_service:get("navigate_left_continuous")
+			local navigate_right = input_service:get("navigate_right_continuous")
+
+			if navigate_left or navigate_right then
+				local tabs = mod.get_tabs(self, mod.current_category)
+
+				if #tabs > 1 then
+					local mod_storage_key = get_mod_storage_key(self, mod.current_category)
+					local current_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
+					local current_idx = 1
+
+					for i, tab in ipairs(tabs) do
+						if tab == current_tab then
+							current_idx = i
+							break
+						end
+					end
+
+					if navigate_right and current_idx < #tabs then
+						current_idx = current_idx + 1
+					elseif navigate_left and current_idx > 1 then
+						current_idx = current_idx - 1
+					end
+
+					local new_tab = tabs[current_idx]
+
+					if new_tab and new_tab ~= current_tab then
+						mod.selected_tabs[mod_storage_key] = new_tab
+
+						mod.filter_settings(self, mod.current_category)
+
+						local start_index = mod.tab_scroll_index[mod_storage_key] or 1
+
+						if current_idx < start_index then
+							mod.tab_scroll_index[mod_storage_key] = current_idx
+							mod.create_tab_bar(self, mod.current_category)
+						elseif current_idx > start_index + mod.max_visible_tabs - 1 then
+							mod.tab_scroll_index[mod_storage_key] = current_idx - mod.max_visible_tabs + 1
+							mod.create_tab_bar(self, mod.current_category)
+						end
+					end
+				end
+			end
+		end
 	end
 end

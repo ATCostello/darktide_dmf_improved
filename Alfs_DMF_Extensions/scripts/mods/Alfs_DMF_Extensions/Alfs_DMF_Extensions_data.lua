@@ -7,7 +7,6 @@ mod.settings_widgets = {}
 table.insert(mod.settings_widgets, {
 	setting_id = "general_settings",
 	type = "group",
-	tab = "General",
 	sub_widgets = {
 		{
 			setting_id = "mod_name_pizazz_toggle",

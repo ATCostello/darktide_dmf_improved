@@ -83,7 +83,7 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 		mod._saveScrollPosition(self)
 	end
 
-	mod._addModTabs(self)
+	mod._addModTabs(self, dt, t, input_service)
 
 	if mod:get("enable_RGB_widget") then
 		mod._addRgbSliders(self)

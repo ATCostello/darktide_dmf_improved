@@ -1,22 +1,19 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
 local UIWidget = require("scripts/managers/ui/ui_widget")
+local UIResolution = require("scripts/managers/ui/ui_resolution")
 
 local blueprints = {}
 
 local settings_grid_width = 850
 local widget_height = 190
 
-local BAR_WIDTH_RGB = 160
+local BAR_WIDTH_RGB = 240
 local BAR_WIDTH_ARGB = 160
 local BAR_HEIGHT = 28
 
 local PREVIEW_WIDTH = 40
 local PREVIEW_HEIGHT = 40
-
--- ############################################################
--- Colors
--- ############################################################
 
 local COLORS = {
 	text_normal = Color.terminal_text_header(nil, true),
@@ -34,13 +31,8 @@ local COLORS = {
 	divider = Color.terminal_frame(nil, true),
 }
 
--- ############################################################
--- Cached constants
--- ############################################################
-
 local math_clamp = math.clamp
 local math_floor = math.floor
-
 local tostring = tostring
 
 local sliders_cached = {
@@ -82,10 +74,6 @@ local sliders_cached = {
 	},
 }
 
--- ############################################################
--- Helpers
--- ############################################################
-
 local function get_value(entry)
 	if not entry or not entry.get_function then
 		return 255
@@ -114,11 +102,10 @@ local function set_value(entry, value)
 	end
 end
 
-local function update_slider_visuals(widget, name, value)
+local function update_slider_visuals(widget, name, value, bar_width)
 	local content = widget.content
 	local slider = sliders_cached[name]
 
-	-- only update text when changed
 	if content[slider.value] ~= value then
 		content[slider.value] = value
 		if not content[name .. "_editing"] then
@@ -126,11 +113,42 @@ local function update_slider_visuals(widget, name, value)
 		end
 	end
 
-	-- cached fill style reference
-	widget["_" .. name .. "_fill"].size[1] = (value / 255) * BAR_WIDTH_RGB
+	widget["_" .. name .. "_fill"].size[1] = (value / 255) * bar_width
 end
 
-local function slider_input(parent, widget, content, cursor, left_hold, confirm_pressed, slider_name, entry)
+local function cursor_to_ui_space(input_service, parent)
+	if not input_service then
+		return nil
+	end
+
+	local cursor = input_service:get("cursor")
+
+	if not cursor then
+		return nil
+	end
+
+	if IS_XBS or IS_PLAYSTATION then
+		return { cursor[1], cursor[2] }
+	end
+
+	local render_scale = parent and parent._render_scale or 1
+
+	return UIResolution.inverse_scale_vector(cursor, 1 / render_scale)
+end
+
+local function get_bar_ui_x(parent, widget, slider_name)
+	local pivot_pos = parent and parent:_scenegraph_world_position("settings_grid_content_pivot")
+
+	if not pivot_pos then
+		return nil
+	end
+
+	local bg_style = widget.style[slider_name .. "_bg"]
+
+	return pivot_pos[1] + (widget.offset and widget.offset[1] or 0) + bg_style.offset[1]
+end
+
+local function slider_input(parent, widget, content, cursor_ui, left_hold, confirm_pressed, slider_name, entry, bar_width)
 	local slider = sliders_cached[slider_name]
 
 	if content[slider_name .. "_editing"] then
@@ -141,7 +159,7 @@ local function slider_input(parent, widget, content, cursor, left_hold, confirm_
 	local value_hotspot = content[slider_name .. "_value_hotspot"]
 	local label_hotspot = content[slider_name .. "_label_hotspot"]
 
-	if not hotspot or not cursor then
+	if not hotspot or not cursor_ui then
 		return
 	end
 
@@ -151,59 +169,44 @@ local function slider_input(parent, widget, content, cursor, left_hold, confirm_
 		inside = false
 	end
 
-	-- label hotspot only shows tooltip, don't start drag on it
 	if label_hotspot and label_hotspot.is_hover then
 		inside = false
 	end
 
 	local dragging = content[slider.dragging]
 
-	-- ############################################################
-	-- Start Drag
-	-- ############################################################
-
 	if inside and (left_hold or confirm_pressed) and not dragging then
 		content[slider.dragging] = true
 		dragging = true
 
-		content[slider.start_x] = cursor[1]
+		content[slider.start_x] = cursor_ui[1]
 		content[slider.start_value] = get_value(entry)
 
-		-- click-to-value: compute absolute position for initial value
-		local pivot_pos = parent and parent:_scenegraph_world_position("settings_grid_content_pivot")
+		local bar_ui_x = get_bar_ui_x(parent, widget, slider_name)
 
-		if pivot_pos then
-			local bg_style = widget.style[slider_name .. "_bg"]
-			local bar_screen_x = pivot_pos[1] + (widget.offset and widget.offset[1] or 0) + bg_style.offset[1]
-			local bar_cursor_x = cursor[1] - bar_screen_x
-			local click_value = math_clamp(math_floor((bar_cursor_x / BAR_WIDTH_RGB) * 255), 0, 255)
+		if bar_ui_x then
+			local bar_cursor_x = cursor_ui[1] - bar_ui_x
+			local click_value = math_clamp(math_floor((bar_cursor_x / bar_width) * 255), 0, 255)
 
 			content[slider.start_value] = click_value
 			set_value(entry, click_value)
+
+			content[slider.start_x] = cursor_ui[1]
 		end
 	end
 
-	-- ############################################################
-	-- End Drag
-	-- ############################################################
-
 	if dragging and not left_hold then
 		content[slider.dragging] = false
+
 		return
 	end
 
-	-- ############################################################
-	-- Drag Update
-	-- ############################################################
-
 	if dragging then
-		local delta = cursor[1] - content[slider.start_x]
-		local value = math_clamp(math_floor(content[slider.start_value] + (delta / BAR_WIDTH_RGB) * 255), 0, 255)
+		local delta = cursor_ui[1] - content[slider.start_x]
+		local value = math_clamp(math_floor(content[slider.start_value] + (delta / bar_width) * 255), 0, 255)
 
-		-- throttle: only set_value when value actually changes (avoids mod:set/mod:get spam)
 		if content[slider.value] ~= value then
 			content[slider.value] = value
-
 			set_value(entry, value)
 
 			if not content[slider_name .. "_editing"] then
@@ -211,11 +214,28 @@ local function slider_input(parent, widget, content, cursor, left_hold, confirm_
 			end
 		end
 
-		widget["_" .. slider_name .. "_fill"].size[1] = (value / 255) * BAR_WIDTH_RGB
+		widget["_" .. slider_name .. "_fill"].size[1] = (value / 255) * bar_width
 	end
 end
 
-local function value_text_input(widget, content, input_service, slider_name, entry)
+local DIGIT_KEYS = {
+	[Keyboard.button_index("0")] = "0",
+	[Keyboard.button_index("1")] = "1",
+	[Keyboard.button_index("2")] = "2",
+	[Keyboard.button_index("3")] = "3",
+	[Keyboard.button_index("4")] = "4",
+	[Keyboard.button_index("5")] = "5",
+	[Keyboard.button_index("6")] = "6",
+	[Keyboard.button_index("7")] = "7",
+	[Keyboard.button_index("8")] = "8",
+	[Keyboard.button_index("9")] = "9",
+}
+
+local BACKSPACE_INDEX = Keyboard.button_index("backspace")
+local ENTER_INDEX = Keyboard.button_index("enter")
+local ESCAPE_INDEX = Keyboard.button_index("escape")
+
+local function value_text_input(widget, content, input_service, slider_name, entry, bar_width, keystrokes)
 	local editing_key = slider_name .. "_editing"
 	local buffer_key = slider_name .. "_edit_buffer"
 	local hotspot_key = slider_name .. "_value_hotspot"
@@ -226,10 +246,6 @@ local function value_text_input(widget, content, input_service, slider_name, ent
 	if not hotspot then
 		return
 	end
-
-	-- ############################################################
-	-- Begin Editing
-	-- ############################################################
 
 	if hotspot.is_hover and input_service:get("confirm_pressed") and not content[editing_key] then
 		content[editing_key] = true
@@ -242,147 +258,172 @@ local function value_text_input(widget, content, input_service, slider_name, ent
 		return
 	end
 
-	-- ############################################################
-	-- Not Editing
-	-- ############################################################
-
 	if not content[editing_key] then
 		return
 	end
 
-	-- ############################################################
-	-- Read Typed Characters
-	-- ############################################################
-
-	local keystrokes = Keyboard.keystrokes()
+	local buffer = content[buffer_key] or ""
+	local changed = false
 
 	if keystrokes then
-		local buffer = content[buffer_key]
-
 		for i = 1, #keystrokes do
-			local char = keystrokes[i]
+			local ks = keystrokes[i]
 
-			if char:match("%d") then
-				if #buffer < 3 then
-					buffer = buffer .. char
+			if type(ks) == "string" then
+				if ks:match("%d") and #buffer < 3 then
+					buffer = buffer .. ks
+					changed = true
 				end
+			elseif ks == Keyboard.BACKSPACE then
+				buffer = buffer:sub(1, #buffer - 1)
+				changed = true
 			end
 		end
-
-		content[buffer_key] = buffer
-		content[text_key] = buffer
 	end
 
-	-- ############################################################
-	-- Backspace
-	-- ############################################################
+	for idx, digit_char in pairs(DIGIT_KEYS) do
+		if Keyboard.pressed(idx) and #buffer < 3 then
+			buffer = buffer .. digit_char
+			changed = true
+		end
+	end
 
-	if Keyboard.pressed(Keyboard.button_index("backspace")) then
-		local buffer = content[buffer_key]
-
+	if Keyboard.pressed(BACKSPACE_INDEX) and #buffer > 0 then
 		buffer = buffer:sub(1, #buffer - 1)
+		changed = true
+	end
 
+	if changed then
 		content[buffer_key] = buffer
 		content[text_key] = buffer
 	end
 
-	-- ############################################################
-	-- Confirm
-	-- ############################################################
-
-	if Keyboard.pressed(Keyboard.button_index("enter")) then
+	if Keyboard.pressed(ENTER_INDEX) then
 		local value = tonumber(content[buffer_key])
 
 		if value then
 			value = math_clamp(value, 0, 255)
-
 			set_value(entry, value)
 		end
 
 		content[editing_key] = false
+		content[text_key] = tostring(get_value(entry))
+
+		return
 	end
 
-	-- ############################################################
-	-- Cancel
-	-- ############################################################
-
-	if Keyboard.pressed(Keyboard.button_index("escape")) then
+	if Keyboard.pressed(ESCAPE_INDEX) then
 		content[editing_key] = false
+		content[text_key] = tostring(get_value(entry))
 
-		local value = get_value(entry)
+		return
+	end
 
-		content[text_key] = tostring(value)
+	if input_service:get("confirm_pressed") then
+		local value = tonumber(content[buffer_key])
+
+		if value then
+			value = math_clamp(value, 0, 255)
+			set_value(entry, value)
+		end
+
+		content[editing_key] = false
+		content[text_key] = tostring(get_value(entry))
+
+		return
 	end
 end
 
--- ############################################################
--- Slider Pass Builder
--- ############################################################
+local _gamepad_slider_index = 0
 
-local function create_slider(name, x, color, label)
+local function slider_gamepad_input(parent, widget, content, input_service, slider_name, entry, bar_width, slider_index, num_sliders)
+	if content[slider_name .. "_editing"] then
+		return
+	end
+
+	if input_service:get("navigate_next") then
+		_gamepad_slider_index = (_gamepad_slider_index + 1) % num_sliders
+
+		return
+	end
+
+	if slider_index ~= _gamepad_slider_index then
+		return
+	end
+
+	local left = input_service:get("navigate_left_continuous_fast")
+	local right = input_service:get("navigate_right_continuous_fast")
+	local current = get_value(entry)
+
+	if left then
+		local new_value = math_clamp(current - 1, 0, 255)
+
+		if new_value ~= current then
+			set_value(entry, new_value)
+			content[sliders_cached[slider_name].value] = new_value
+			content[sliders_cached[slider_name].value_text] = tostring(new_value)
+			widget["_" .. slider_name .. "_fill"].size[1] = (new_value / 255) * bar_width
+		end
+	elseif right then
+		local new_value = math_clamp(current + 1, 0, 255)
+
+		if new_value ~= current then
+			set_value(entry, new_value)
+			content[sliders_cached[slider_name].value] = new_value
+			content[sliders_cached[slider_name].value_text] = tostring(new_value)
+			widget["_" .. slider_name .. "_fill"].size[1] = (new_value / 255) * bar_width
+		end
+	end
+end
+
+local function create_slider(name, x, color, label, bar_width)
 	return {
 		{
 			pass_type = "hotspot",
 			content_id = name .. "_hotspot",
 			style_id = name .. "_hotspot_style",
 		},
-
 		{
 			pass_type = "hotspot",
 			content_id = name .. "_value_hotspot",
 			style_id = name .. "_value_hotspot_style",
 		},
-
 		{
 			pass_type = "hotspot",
 			content_id = name .. "_label_hotspot",
 			style_id = name .. "_label_hotspot_style",
 		},
-
 		{
 			pass_type = "rect",
 			style_id = name .. "_bg",
 		},
-
 		{
 			pass_type = "texture",
-
 			value_id = name .. "_frame_texture",
-
 			style_id = name .. "_frame",
-
 			visibility_function = function(content, style)
 				local hotspot = content[name .. "_hotspot"]
-
 				return hotspot and hotspot.is_hover
 			end,
 		},
-
 		{
 			pass_type = "texture",
-
 			value_id = name .. "_frame_texture",
-
 			style_id = name .. "_value_frame",
-
 			visibility_function = function(content, style)
 				local hotspot = content[name .. "_value_hotspot"]
-
 				return hotspot and hotspot.is_hover
 			end,
 		},
-
 		{
 			pass_type = "rect",
 			style_id = name .. "_fill",
 		},
-
 		{
 			pass_type = "text",
 			value_id = name .. "_label",
 			style_id = name .. "_label_style",
 		},
-
 		{
 			pass_type = "text",
 			value_id = name .. "_value_text",
@@ -391,71 +432,52 @@ local function create_slider(name, x, color, label)
 	}, {
 		[name .. "_hotspot"] = {},
 		[name .. "_value_hotspot"] = {},
-
 		[name .. "_label_hotspot"] = {},
-
 		[name .. "_dragging"] = false,
-
 		[name .. "_label"] = label,
-
 		[name .. "_frame_texture"] = "content/ui/materials/frames/frame_tile_1px",
-
 		[name .. "_value"] = -1,
 		[name .. "_value_text"] = "0",
-
 		[name .. "_editing"] = false,
 		[name .. "_edit_buffer"] = "",
 	}, {
 		[name .. "_hotspot_style"] = {
 			offset = { x, 0, 10 },
-			size = { PREVIEW_WIDTH + BAR_WIDTH_RGB, BAR_HEIGHT },
+			size = { PREVIEW_WIDTH + bar_width, BAR_HEIGHT },
 			visible = true,
 		},
-
 		[name .. "_value_hotspot_style"] = {
-			offset = { PREVIEW_WIDTH + x + BAR_WIDTH_RGB + 2, 0, 10 },
+			offset = { PREVIEW_WIDTH + x + bar_width + 2, 0, 10 },
 			size = { 60, BAR_HEIGHT },
 			visible = true,
 		},
-
 		[name .. "_label_hotspot_style"] = {
 			offset = { PREVIEW_WIDTH + x - 26, 0, 9 },
 			size = { 24, BAR_HEIGHT },
 			visible = true,
 		},
-
 		[name .. "_bg"] = {
 			color = COLORS.background,
 			offset = { PREVIEW_WIDTH + x, 0, 0 },
-			size = { BAR_WIDTH_RGB, BAR_HEIGHT },
+			size = { bar_width, BAR_HEIGHT },
 		},
-
 		[name .. "_frame"] = {
 			scale_to_material = true,
-
 			color = COLORS.frame_hover,
-
 			offset = { PREVIEW_WIDTH + x - 2, -2, 4 },
-
-			size = { BAR_WIDTH_RGB + 4, BAR_HEIGHT + 4 },
+			size = { bar_width + 4, BAR_HEIGHT + 4 },
 		},
-
 		[name .. "_value_frame"] = {
 			scale_to_material = true,
-
 			color = COLORS.frame_hover,
-
-			offset = { PREVIEW_WIDTH + x + BAR_WIDTH_RGB, -2, 4 },
-
+			offset = { PREVIEW_WIDTH + x + bar_width, -2, 4 },
 			size = { 55, BAR_HEIGHT + 4 },
 		},
-
 		[name .. "_fill"] = {
 			color = color,
 			offset = { PREVIEW_WIDTH + x, 0, 1 },
 			size = { 0, BAR_HEIGHT },
 		},
-
 		[name .. "_label_style"] = {
 			font_type = "proxima_nova_bold",
 			horizontal_alignment = "left",
@@ -464,21 +486,16 @@ local function create_slider(name, x, color, label)
 			text_color = { 255, 255, 255, 255 },
 			offset = { PREVIEW_WIDTH + x - 22, -2, 2 },
 		},
-
 		[name .. "_value_style"] = {
 			font_type = "proxima_nova_bold",
 			horizontal_alignment = "left",
 			vertical_alignment = "center",
 			font_size = 24,
 			text_color = { 255, 255, 255, 255 },
-			offset = { PREVIEW_WIDTH + x + BAR_WIDTH_RGB + 5, -2, 2 },
+			offset = { PREVIEW_WIDTH + x + bar_width + 5, -2, 2 },
 		},
 	}
 end
-
--- ############################################################
--- Blueprint builder
--- ############################################################
 
 local function build_blueprint(has_alpha)
 	local slider_configs = has_alpha and {
@@ -492,13 +509,15 @@ local function build_blueprint(has_alpha)
 		{ name = "b", label = "B" },
 	}
 
+	local bar_width = has_alpha and BAR_WIDTH_ARGB or BAR_WIDTH_RGB
+
 	local passes = {}
 	local content = {}
 	local style = {}
 
 	for i, config in ipairs(slider_configs) do
-		local x = PREVIEW_WIDTH + 5 + (BAR_WIDTH_RGB + 85) * (i - 1)
-		local p, c, s = create_slider(config.name, x, COLORS.frame, config.label)
+		local x = PREVIEW_WIDTH + 5 + (bar_width + 85) * (i - 1)
+		local p, c, s = create_slider(config.name, x, COLORS.frame, config.label, bar_width)
 
 		for j = 1, #p do
 			passes[#passes + 1] = p[j]
@@ -531,15 +550,34 @@ local function build_blueprint(has_alpha)
 		widget._preview_color = style.preview_style.color
 	end
 
-	local function handle_inputs(parent, widget, content, cursor, left_hold, confirm_pressed, input_service)
+	local function handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
 		for _, config in ipairs(slider_configs) do
-			slider_input(parent, widget, content, cursor, left_hold, confirm_pressed, config.name, content[config.name .. "_entry"])
+			slider_input(parent, widget, content, cursor_ui, left_hold, confirm_pressed, config.name, content[config.name .. "_entry"], bar_width)
 		end
 	end
 
 	local function handle_text_inputs(widget, content, input_service)
+		local any_editing = false
+
 		for _, config in ipairs(slider_configs) do
-			value_text_input(widget, content, input_service, config.name, content[config.name .. "_entry"])
+			if content[config.name .. "_editing"] then
+				any_editing = true
+				break
+			end
+		end
+
+		local keystrokes = any_editing and Keyboard.keystrokes()
+
+		for _, config in ipairs(slider_configs) do
+			value_text_input(widget, content, input_service, config.name, content[config.name .. "_entry"], bar_width, keystrokes)
+		end
+	end
+
+	local function handle_gamepad_inputs(parent, widget, content, input_service)
+		local num_sliders = #slider_configs
+
+		for i, config in ipairs(slider_configs) do
+			slider_gamepad_input(parent, widget, content, input_service, config.name, content[config.name .. "_entry"], bar_width, i - 1, num_sliders)
 		end
 	end
 
@@ -555,7 +593,7 @@ local function build_blueprint(has_alpha)
 		for _, config in ipairs(slider_configs) do
 			local value = get_value(content[config.name .. "_entry"])
 
-			update_slider_visuals(widget, config.name, value)
+			update_slider_visuals(widget, config.name, value, bar_width)
 
 			if config.name == "a" then
 				preview_color[1] = value
@@ -576,25 +614,19 @@ local function build_blueprint(has_alpha)
 	local update_fn = function(parent, widget, input_service, dt, t)
 		local content = widget.content
 
-		local cursor = input_service:get("cursor")
+		local cursor_ui = cursor_to_ui_space(input_service, parent)
 
-		if not cursor then
+		if not cursor_ui then
 			return true
 		end
 
 		local left_hold = input_service:get("left_hold")
 		local confirm_pressed = input_service:get("confirm_pressed")
 
-		-- ############################################################
-		-- Dynamic Layout Tracking
-		-- ############################################################
-
 		local offset = widget.offset
-
 		local alignment = widget._alignment_widget
 		local anchor = widget._anchor_widget
 		local group = widget._group_widget
-
 		local target_offset = nil
 
 		if alignment and alignment.offset then
@@ -619,19 +651,15 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		-- ############################################################
-		-- Slider Input
-		-- ############################################################
-		handle_inputs(parent, widget, content, cursor, left_hold, confirm_pressed, input_service)
-
-		-- ############################################################
-		-- Text Value Input
-		-- ############################################################
+		handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
 		handle_text_inputs(widget, content, input_service)
 
-		-- ############################################################
-		-- Tooltip
-		-- ############################################################
+		local using_gamepad = not parent:using_cursor_navigation()
+
+		if using_gamepad then
+			handle_gamepad_inputs(parent, widget, content, input_service)
+		end
+
 		local hovered_slider = nil
 		local any_hover = false
 
@@ -641,7 +669,6 @@ local function build_blueprint(has_alpha)
 			if label_hotspot and label_hotspot.is_hover then
 				hovered_slider = config.name
 				any_hover = true
-
 				break
 			end
 		end
@@ -658,19 +685,10 @@ local function build_blueprint(has_alpha)
 					tooltip.content.visible = true
 					tooltip.content.text = entry.tooltip_text or ""
 
-					local starting_point = parent:_scenegraph_world_position("settings_grid_start")
+					local tooltip_width = tooltip.content.size and tooltip.content.size[1] or 200
 
-					if starting_point then
-						local grid = parent._settings_content_grid
-
-						if grid then
-							local scroll_addition = grid:length_scrolled()
-							local new_y = starting_point[2] + widget.offset[2] - scroll_addition
-
-							tooltip.offset[1] = starting_point[1] + widget.offset[1] - (tooltip.content.size and tooltip.content.size[1] or 200) * 0.8
-							tooltip.offset[2] = math.max(new_y - 20, 20)
-						end
-					end
+					tooltip.offset[1] = cursor_ui[1] - tooltip_width * 0.5
+					tooltip.offset[2] = cursor_ui[2] - 60
 				end
 
 				parent._tooltip_data = {
@@ -688,9 +706,6 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		-- ############################################################
-		-- Refresh Values
-		-- ############################################################
 		for _, config in ipairs(slider_configs) do
 			local value
 
@@ -700,7 +715,7 @@ local function build_blueprint(has_alpha)
 				value = get_value(content[config.name .. "_entry"])
 			end
 
-			update_slider_visuals(widget, config.name, value)
+			update_slider_visuals(widget, config.name, value, bar_width)
 		end
 
 		local preview_color = widget._preview_color
@@ -718,7 +733,6 @@ local function build_blueprint(has_alpha)
 			settings_grid_width,
 			widget_height,
 		},
-
 		pass_template = passes,
 		content = content,
 		style = style,
@@ -726,10 +740,6 @@ local function build_blueprint(has_alpha)
 		update = update_fn,
 	}
 end
-
--- ############################################################
--- Blueprints
--- ############################################################
 
 blueprints = {
 	rgb_widget = build_blueprint(false),
