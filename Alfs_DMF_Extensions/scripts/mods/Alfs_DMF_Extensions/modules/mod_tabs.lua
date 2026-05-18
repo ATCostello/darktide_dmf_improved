@@ -66,9 +66,12 @@ mod.inject_tabs_into_widgets = function(self, category)
 		if widget and widget.content then
 			local content = widget.content
 			local widget_text = content.text or content.display_name
-			local tab = template_data[widget_text]
 
-			content.tab = tab or fallback_tab
+			if widget_text then
+				local tab = template_data[widget_text]
+
+				content.tab = tab or fallback_tab
+			end
 		end
 	end
 end
@@ -96,7 +99,6 @@ mod.get_tabs = function(self, category)
 			else
 				local tab = current_group_tab or fallback_tab
 
-				-- count REAL settings only
 				-- ignore descriptions/titles/spacers
 				local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
 
@@ -121,7 +123,7 @@ mod.get_tabs = function(self, category)
 		end
 	end
 
-	-- only include default tab if it has real settings
+	-- only include default tab if it has settings
 	if (tab_counts[fallback_tab] or 0) > 0 then
 		table.insert(filtered_tabs, 1, fallback_tab)
 	end
@@ -377,11 +379,7 @@ end
 mod.filter_settings = function(self, category)
 	local mod_storage_key = get_mod_storage_key(self, category)
 
-	local selected_tab = mod.selected_tabs[mod_storage_key]
-
-	if not selected_tab then
-		return
-	end
+	local selected_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
 
 	local category_widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 
@@ -536,10 +534,11 @@ end)
 
 mod._addModTabs = function(self, dt, t, input_service)
 	if mod.current_category ~= mod.last_category then
+		if mod:get("enable_mod_tabs") then
+			mod.create_tab_bar(self, mod.current_category)
+		end
+
 		mod.inject_tabs_into_widgets(self, mod.current_category)
-
-		mod.create_tab_bar(self, mod.current_category)
-
 		mod.filter_settings(self, mod.current_category)
 	end
 

@@ -71,18 +71,17 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	mod.current_category = self._selected_category
 
 	self.dmf = mod.dmf
-	dbg_self = self
 
 	if mod:get("enable_scroll_position_saving") then
 		mod._saveScrollPosition(self)
 	end
 
-	if mod:get("enable_mod_tabs") then
-		mod._addModTabs(self)
-	end
+	mod._addModTabs(self)
 
 	if mod:get("enable_RGB_widget") then
 		mod._addRgbSliders(self)
+	end
+	if mod:get("enable_RGB_widget") then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 

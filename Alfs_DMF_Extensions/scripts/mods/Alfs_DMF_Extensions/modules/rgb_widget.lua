@@ -77,7 +77,8 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 		return nil
 	end
 
-	local template = rgb_blueprints.rgb_widget
+	local has_alpha = rgb_entries.A ~= nil
+	local template = has_alpha and rgb_blueprints.rgb_widget_argb or rgb_blueprints.rgb_widget
 
 	local widget_def =
 		UIWidget.create_definition(template.pass_template, "settings_grid_content_pivot", nil, template.size)
@@ -99,7 +100,9 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 	widget.content.b_entry = rgb_entries.B
 	widget.content.a_entry = rgb_entries.A
 
-	widget.content.tab = group_widget.content.tab or rgb_entries.R.tab or mod.default_tab
+	if not widget.content.tab then
+		widget.content.tab = group_widget.content.tab or rgb_entries.R.tab or mod.default_tab
+	end
 
 	template.init(self, widget, rgb_entries.R)
 
@@ -137,6 +140,8 @@ mod.inject_rgb_widgets = function(self, category)
 				local rgb_widget = create_rgb_widget(self, r_row.widget, rgb)
 
 				if rgb_widget then
+					rgb_widget.content.tab = row.widget.content.tab
+
 					widgets[i + 1] = {
 						widget = rgb_widget,
 						alignment_widget = r_row.alignment_widget,
@@ -162,9 +167,6 @@ mod.inject_rgb_widgets = function(self, category)
 						table.remove(widgets, remove[k])
 					end
 
-					-- set rgb widget offset to that of the group header
-					-- NEED TO CHANGE THIS TO BE DYNAMIC/UPDATE BASED ON THE ORIGINAL _R/TOP WIDGET UNDER THE GROUP'S POSITION, AND MOVE TO FOLLOW THE GROUP HEADER AS THAT CHANGES POSITION
-					-- store dynamic anchor refs
 					rgb_widget._group_widget = row.widget
 					rgb_widget._anchor_widget = r_row.widget
 					rgb_widget._alignment_widget = r_row.alignment_widget
@@ -204,7 +206,6 @@ mod._updateRGBSliders = function(self, input_service, dt, t)
 end
 
 mod._addRgbSliders = function(self)
-	-- NEED TO RE-RUN THIS WHEN THE TABS CHANGES, IF CUSTOM TABS ARE ENABLED...
 	if mod.current_category ~= mod.last_category then
 		mod.inject_rgb_widgets(self, mod.current_category)
 		mod.filter_settings(self, mod.current_category)
