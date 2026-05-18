@@ -12,6 +12,25 @@ local _content_blueprints =
 mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
 
+local function truncate_tab_title(text)
+	if not text then return text end
+	local words = {}
+	for word in text:gmatch("%S+") do
+		words[#words + 1] = word
+	end
+	if #words <= 3 then
+		return text
+	end
+	local result = ""
+	for i = 1, 3 do
+		result = result .. words[i]
+		if i < 3 then
+			result = result .. " "
+		end
+	end
+	return result .. ".."
+end
+
 local function get_current_mod_name(self, category)
 	if not self._selected_category then
 		return "unknown_mod"
@@ -24,6 +43,19 @@ local function get_mod_storage_key(self, category)
 	local mod_name = get_current_mod_name(self, category)
 
 	return string.format("%s_%s", tostring(mod_name), tostring(category or "unknown_category"))
+end
+
+local function category_has_explicit_tabs(self, category)
+	local templates = self._options_templates and self._options_templates.settings
+	if not templates then return false end
+
+	for _, template in ipairs(templates) do
+		if template.category == category and template.tab then
+			return true
+		end
+	end
+
+	return false
 end
 
 -- horizontal scrolling state
@@ -81,60 +113,57 @@ end
 -- ############################################################
 
 mod.inject_generalised_tabs = function(self, category)
+	if category_has_explicit_tabs(self, category) then
+		mod.inject_tabs_into_widgets(self, category)
+		return
+	end
+
 	local templates = self._options_templates and self._options_templates.settings
 	if not templates then return end
-
-	local tab_lookup = {}
-	local current_tab = mod.default_tab
-
-	for i, template in ipairs(templates) do
-		if template.category == category then
-			local widget_type = template.widget_type
-
-			if widget_type == "group_header" then
-				local next_indentation = nil
-				for j = i + 1, math.min(i + 5, #templates) do
-					local next_tpl = templates[j]
-					if next_tpl.category == category then
-						local nt = next_tpl.widget_type
-						if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
-							next_indentation = next_tpl.indentation_level or 0
-							break
-						end
-					end
-				end
-
-				if next_indentation == 2 then
-					current_tab = template.display_name
-				end
-			end
-
-			local ignore_types = { group_header = true, spacer = true, description = true, title = true, spacing_vertical = true }
-			if not ignore_types[widget_type] then
-				local tab = current_tab or mod.default_tab
-				if template.display_name then
-					tab_lookup[template.display_name] = tab
-				end
-				if template.setting_id then
-					tab_lookup[template.setting_id] = tab
-				end
-			end
-		end
-	end
 
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 	if not widgets then return end
 
+	local current_tab = mod.default_tab
+	local ti = 1
+	local widget_count = 0
+
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
-		if widget and widget.content then
-			local content = widget.content
-			local widget_text = content.text or content.display_name
-			if widget_text then
-				local tab = tab_lookup[widget_text]
-				content.tab = tab or mod.default_tab
+		if not (widget and widget.content) then goto continue end
+
+		widget_count = widget_count + 1
+
+		while ti <= #templates do
+			local tpl = templates[ti]
+			ti = ti + 1
+
+			if tpl.category == category then
+				if widget_count > 2 and tpl.widget_type == "group_header" then
+					local next_indentation = nil
+					for j = ti, math.min(ti + 4, #templates) do
+						local next_tpl = templates[j]
+						if next_tpl and next_tpl.category == category then
+							local nt = next_tpl.widget_type
+							if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
+								next_indentation = next_tpl.indentation_level or 0
+								break
+							end
+						end
+					end
+
+					if next_indentation == 1 then
+						current_tab = tpl.display_name or current_tab
+					end
+				end
+
+				break
 			end
 		end
+
+		widget.content.tab = current_tab or mod.default_tab
+
+		::continue::
 	end
 end
 
@@ -149,16 +178,19 @@ mod.get_tabs = function(self, category)
 
 	local fallback_tab = mod.default_tab
 
-	if mod:get("enable_generalised_mod_tabs") then
+	if mod:get("enable_generalised_mod_tabs") and not category_has_explicit_tabs(self, category) then
 		local current_tab = nil
-		local current_group_header = nil
+		local entry_count = 0
 
 		for i, setting in ipairs(self._options_templates.settings or {}) do
 			if setting.category == category then
+				entry_count = entry_count + 1
+				if entry_count <= 2 then goto skip_entry end
+
 				local setting_type = setting.widget_type
 
 				if setting_type == "group_header" then
-					current_group_header = setting.display_name
+					local group_name = setting.display_name
 
 					local next_indentation = nil
 					for j = i + 1, math.min(i + 5, #self._options_templates.settings) do
@@ -172,14 +204,14 @@ mod.get_tabs = function(self, category)
 						end
 					end
 
-					if next_indentation == 2 then
-						current_tab = current_group_header
+					if next_indentation == 1 then
+						current_tab = group_name
 
 						if not found[current_tab] then
 							found[current_tab] = true
 							tabs[#tabs + 1] = current_tab
 						end
-					elseif next_indentation and next_indentation > 2 then
+					elseif next_indentation and next_indentation > 1 then
 						-- subheader, keep current tab
 					end
 				else
@@ -190,6 +222,8 @@ mod.get_tabs = function(self, category)
 						tab_counts[tab] = (tab_counts[tab] or 0) + 1
 					end
 				end
+
+				::skip_entry::
 			end
 		end
 	else
@@ -228,7 +262,17 @@ mod.get_tabs = function(self, category)
 	end
 
 	if (tab_counts[fallback_tab] or 0) > 0 then
-		table.insert(filtered_tabs, 1, fallback_tab)
+		local already_present = false
+		for _, t in ipairs(filtered_tabs) do
+			if t == fallback_tab then
+				already_present = true
+				break
+			end
+		end
+
+		if not already_present then
+			table.insert(filtered_tabs, 1, fallback_tab)
+		end
 	end
 
 	return filtered_tabs
@@ -400,7 +444,7 @@ mod.create_tab_bar = function(self, category)
 
 		local entry = {
 			widget_type = "settings_button",
-			display_name = tab_name,
+			display_name = truncate_tab_title(tab_name),
 		}
 
 		local widget, alignment_widget =
@@ -412,6 +456,7 @@ mod.create_tab_bar = function(self, category)
 		alignment_widget.size = { width, height }
 		if widget then
 			widget.content.size = { width, height }
+			widget.content._tab_key = tab_name
 			local hotspot = widget.content.hotspot
 
 			if hotspot then
@@ -632,12 +677,12 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 			local w_hotspot = widget.content.hotspot
 
 			if w_hotspot and w_hotspot.on_pressed then
-				local tab_name = widget.content.text
+				local tab_key = widget.content._tab_key or widget.content.text
 
-				if tab_name == "<" or tab_name == ">" then
+				if tab_key == "<" or tab_key == ">" then
 					w_hotspot.on_pressed = false
 				else
-					mod.selected_tabs[mod_storage_key] = tab_name
+					mod.selected_tabs[mod_storage_key] = tab_key
 
 					mod.filter_settings(self, mod.current_category)
 
