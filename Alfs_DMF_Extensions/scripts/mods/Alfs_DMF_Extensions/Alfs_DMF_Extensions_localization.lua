@@ -120,6 +120,12 @@ mod.localisation = {
 	enable_RGB_widget_tooltip = {
 		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible."
 	},
+	reload_mods_keybind = {
+		en = "Reload Mods Keybind"
+	},
+	reload_mods_keybind_tooltip = {
+		en = "Keybind to trigger a full mod reload (Ctrl+Shift+R in developer mode by default)."
+	},
 	icon_dropdown_test = {
 		en = "Icon Dropdown Test"
 	},

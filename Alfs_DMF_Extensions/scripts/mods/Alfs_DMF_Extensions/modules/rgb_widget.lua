@@ -12,7 +12,36 @@ local rgb_blueprints =
 -- ############################################################
 
 local function ends_with(str, ending)
-	return str and ending ~= "" and str:sub(-#ending) == ending
+	return str and ending ~= "" and str:sub(-#ending):lower() == ending:lower()
+end
+
+local SUFFIX_MAP = {
+	["_R"] = "R",
+	["_red"] = "R",
+	["_G"] = "G",
+	["_green"] = "G",
+	["_B"] = "B",
+	["_blue"] = "B",
+	["_A"] = "A",
+	["_alpha"] = "A",
+}
+
+local function get_suffix_type(id)
+	for suffix, type in pairs(SUFFIX_MAP) do
+		if ends_with(id, suffix) then
+			return type
+		end
+	end
+	return nil
+end
+
+local function strip_suffix(id)
+	for suffix, _ in pairs(SUFFIX_MAP) do
+		if ends_with(id, suffix) then
+			return id:sub(1, -#suffix - 1)
+		end
+	end
+	return id
 end
 
 local function is_group(widget)
@@ -32,8 +61,7 @@ local function is_rgb_child(entry)
 		return false
 	end
 
-	local id = entry.setting_id
-	return ends_with(id, "_R") or ends_with(id, "_G") or ends_with(id, "_B") or ends_with(id, "_A")
+	return get_suffix_type(entry.setting_id) ~= nil
 end
 
 -- ############################################################
@@ -50,14 +78,10 @@ local function extract_rgb_group(widgets, start_index)
 			local e = row.widget.content.entry
 
 			if e and e.setting_id then
-				if ends_with(e.setting_id, "_R") then
-					found.R = e
-				elseif ends_with(e.setting_id, "_G") then
-					found.G = e
-				elseif ends_with(e.setting_id, "_B") then
-					found.B = e
-				elseif ends_with(e.setting_id, "_A") then
-					found.A = e
+				local suffix_type = get_suffix_type(e.setting_id)
+
+				if suffix_type then
+					found[suffix_type] = e
 				end
 			end
 		end
@@ -69,11 +93,66 @@ local function extract_rgb_group(widgets, start_index)
 end
 
 -- ############################################################
+-- Extract non-group RGB cluster (consecutive same-base entries)
+-- ############################################################
+
+local function extract_rgb_cluster(widgets, start_index)
+	local found = {}
+	local base_name = nil
+	local skipped = 0
+
+	for j = start_index, math.min(start_index + 7, #widgets) do
+		local row = widgets[j]
+
+		if not row or not row.widget or not row.widget.content then
+			break
+		end
+
+		local e = row.widget.content.entry
+
+		if not e or not e.setting_id then
+			break
+		end
+
+		local suffix_type = get_suffix_type(e.setting_id)
+
+		if not suffix_type then
+			skipped = skipped + 1
+			if skipped > 1 then
+				break
+			end
+		else
+			local name = strip_suffix(e.setting_id)
+
+			if not base_name then
+				base_name = name
+			elseif name ~= base_name then
+				break
+			end
+
+			if found[suffix_type] then
+				break
+			end
+
+			found[suffix_type] = e
+		end
+
+		if found.R and found.G and found.B then
+			break
+		end
+	end
+
+	if found.R and found.G and found.B then
+		return found, base_name
+	end
+end
+
+-- ############################################################
 -- Widget creation
 -- ############################################################
 
 local function create_rgb_widget(self, group_widget, rgb_entries)
-	if not group_widget or not rgb_entries then
+	if not rgb_entries then
 		return nil
 	end
 
@@ -101,7 +180,7 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 	widget.content.a_entry = rgb_entries.A
 
 	if not widget.content.tab then
-		widget.content.tab = group_widget.content.tab or rgb_entries.R.tab or mod.default_tab
+		widget.content.tab = group_widget and group_widget.content.tab or rgb_entries.R.tab or mod.default_tab
 	end
 
 	template.init(self, widget, rgb_entries.R)
@@ -110,27 +189,16 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 end
 
 -- ############################################################
--- Main injection pass
+-- Inject group-based RGB widgets
 -- ############################################################
 
-mod.inject_rgb_widgets = function(self, category)
-	if not self._settings_category_widgets then
-		return
-	end
-
-	local widgets = self._settings_category_widgets[category]
-
-	if not widgets then
-		return
-	end
-
+local function inject_group_rgb_widgets(self, widgets)
 	local i = 1
 	local replaced = 0
 
 	while i <= #widgets do
-		local row = widgets[i] -- get group header widget
+		local row = widgets[i]
 
-		-- ONLY group headers
 		if is_group(row.widget) then
 			local rgb = extract_rgb_group(widgets, i + 1)
 
@@ -147,7 +215,6 @@ mod.inject_rgb_widgets = function(self, category)
 						alignment_widget = r_row.alignment_widget,
 					}
 
-					-- remove sub widgets
 					local remove = {}
 
 					for j = i + 2, #widgets do
@@ -178,11 +245,98 @@ mod.inject_rgb_widgets = function(self, category)
 
 		i = i + 1
 	end
+
+	return replaced
+end
+
+-- ############################################################
+-- Inject non-group RGB cluster widgets
+-- ############################################################
+
+local function inject_cluster_rgb_widgets(self, widgets)
+	local i = 1
+
+	while i <= #widgets do
+		local row = widgets[i]
+
+		if row and row.widget then
+			if not is_group(row.widget) then
+				local entry = row.widget.content and row.widget.content.entry
+
+				if entry and entry.setting_id and get_suffix_type(entry.setting_id) == "R" then
+					local rgb, base_name = extract_rgb_cluster(widgets, i)
+
+					if rgb then
+						local r_row = widgets[i]
+
+						local rgb_widget = create_rgb_widget(self, nil, rgb)
+
+						if rgb_widget then
+							widgets[i] = {
+								widget = rgb_widget,
+								alignment_widget = r_row.alignment_widget,
+							}
+
+							local remove = {}
+
+							for j = i + 1, #widgets do
+								local e2 = widgets[j]
+									and widgets[j].widget
+									and widgets[j].widget.content
+									and widgets[j].widget.content.entry
+
+								if e2 and e2.setting_id and get_suffix_type(e2.setting_id) then
+									local name = strip_suffix(e2.setting_id)
+
+									if name == base_name then
+										remove[#remove + 1] = j
+									else
+										break
+									end
+								else
+									break
+								end
+							end
+
+							for k = #remove, 1, -1 do
+								table.remove(widgets, remove[k])
+							end
+
+							rgb_widget._anchor_widget = r_row.widget
+							rgb_widget._alignment_widget = r_row.alignment_widget
+						end
+					end
+				end
+			end
+		end
+
+		i = i + 1
+	end
+end
+
+-- ############################################################
+-- Main injection pass
+-- ############################################################
+
+mod.inject_rgb_widgets = function(self, category)
+	if not self._settings_category_widgets then
+		return
+	end
+
+	local widgets = self._settings_category_widgets[category]
+
+	if not widgets then
+		return
+	end
+
+	inject_group_rgb_widgets(self, widgets)
+	inject_cluster_rgb_widgets(self, widgets)
 end
 
 -- ############################################################
 -- Hook entry point
 -- ############################################################
+
 mod._updateRGBSliders = function(self, input_service, dt, t)
 	local category = mod.current_category
 

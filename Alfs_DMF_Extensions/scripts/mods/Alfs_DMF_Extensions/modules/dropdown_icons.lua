@@ -1,5 +1,38 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
+local function copy_color(color)
+	if not color then
+		return nil
+	end
+	return { color[1], color[2], color[3], color[4] }
+end
+
+local function apply_preview_icon_color(icon_style, text_style, icon_colour)
+	if icon_style then
+		if icon_colour then
+			icon_style.color = copy_color(icon_colour)
+		elseif text_style and text_style.text_color then
+			icon_style.color = copy_color(text_style.text_color)
+		end
+	end
+end
+
+local function apply_option_icon_color(icon_style, text_style, icon_colour)
+	if icon_style then
+		if icon_colour then
+			icon_style.default_color = copy_color(icon_colour)
+			icon_style.hover_color = copy_color(icon_colour)
+		elseif text_style and text_style.text_color then
+			icon_style.default_color = copy_color(text_style.text_color)
+			if text_style.hover_color then
+				icon_style.hover_color = copy_color(text_style.hover_color)
+			else
+				icon_style.hover_color = copy_color(text_style.text_color)
+			end
+		end
+	end
+end
+
 mod._addDropdownIcons = function(self, dt, t, input_service)
 	local category = mod.current_category
 	if not category then return end
@@ -22,6 +55,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 
 				if preview_option and preview_option.icon then
 					content.value_icon = preview_option.icon
+					apply_preview_icon_color(widget.style.icon, widget.style.list_header, preview_option.icon_colour)
 					if widget.style.icon then
 						widget.style.icon.visible = true
 					end
@@ -58,6 +92,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 
 					if option and option.icon then
 						content[icon_id] = option.icon
+						apply_option_icon_color(icon_style, text_style, option.icon_colour)
 						if icon_style then
 							icon_style.visible = true
 						end

@@ -771,7 +771,7 @@ local function build_blueprint(has_alpha)
 		if target_offset then
 			local y = target_offset[2]
 
-			if target_offset == group.offset then
+			if group and target_offset == group.offset then
 				y = y - 50
 			end
 

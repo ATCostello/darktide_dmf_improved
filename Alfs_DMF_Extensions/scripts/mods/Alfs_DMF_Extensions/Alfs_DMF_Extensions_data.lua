@@ -39,13 +39,36 @@ table.insert(mod.settings_widgets, {
 			tooltip = "enable_RGB_widget_tooltip",
 		},
 		{
+			setting_id = "reload_mods_keybind",
+			type = "keybind",
+			default_value = { "f5" },
+			keybind_trigger = "pressed",
+			keybind_type = "function_call",
+			function_name = "reload_all_mods",
+			keybind_global = true,
+		},
+		{
 			setting_id = "icon_dropdown_test",
 			type = "dropdown",
 			default_value = "opt_a",
 			options = {
 				{ text = "Option A (no icon)", value = "opt_a" },
-				{ text = "{#font(header_1)}Option with Aquila{#reset()}", value = "opt_b", icon = "content/ui/materials/icons/generic/aquila" },
-				{ text = "Option with Exclamation", value = "opt_c", icon = "content/ui/materials/icons/generic/exclamation_mark" },
+				{
+					text = "{#font(header_1)}Option with Aquila{#reset()}",
+					value = "opt_b",
+					icon = "content/ui/materials/icons/generic/aquila",
+				},
+				{
+					text = "Option with Exclamation",
+					value = "opt_c",
+					icon = "content/ui/materials/icons/generic/exclamation_mark",
+				},
+				{
+					text = "Red-tinted Aquila",
+					value = "opt_d",
+					icon = "content/ui/materials/icons/generic/aquila",
+					icon_colour = { 255, 255, 0, 0 },
+				},
 			},
 		},
 	},

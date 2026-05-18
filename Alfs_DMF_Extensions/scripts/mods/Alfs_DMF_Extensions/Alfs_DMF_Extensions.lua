@@ -10,6 +10,8 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/dropdown_icons")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
 
 mod.last_category = nil
 mod.current_category = nil
@@ -101,6 +103,7 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod._addDropdownIcons(self, dt, t, input_service)
 	mod._addFontSupport(self, dt, t, input_service)
+	mod._addScrollableDropdown(self, dt, t, input_service)
 
 	mod.last_category = mod.current_category
 end)

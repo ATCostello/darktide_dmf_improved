@@ -1,0 +1,11 @@
+local mod = get_mod("Alfs_DMF_Extensions")
+
+mod.reload_all_mods = function()
+	if Managers and Managers.mod then
+		Managers.mod._reload_requested = true
+	end
+end
+
+mod:hook(CLASS.ModManager, "_check_reload", function(func, self)
+	return false
+end)
