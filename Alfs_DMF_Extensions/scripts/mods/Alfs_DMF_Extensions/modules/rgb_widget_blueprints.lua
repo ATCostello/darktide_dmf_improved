@@ -148,7 +148,17 @@ local function get_bar_ui_x(parent, widget, slider_name)
 	return pivot_pos[1] + (widget.offset and widget.offset[1] or 0) + bg_style.offset[1]
 end
 
-local function slider_input(parent, widget, content, cursor_ui, left_hold, confirm_pressed, slider_name, entry, bar_width)
+local function slider_input(
+	parent,
+	widget,
+	content,
+	cursor_ui,
+	left_hold,
+	confirm_pressed,
+	slider_name,
+	entry,
+	bar_width
+)
 	local slider = sliders_cached[slider_name]
 
 	if content[slider_name .. "_editing"] then
@@ -218,44 +228,76 @@ local function slider_input(parent, widget, content, cursor_ui, left_hold, confi
 	end
 end
 
-local DIGIT_KEYS = {
-	[Keyboard.button_index("0")] = "0",
-	[Keyboard.button_index("1")] = "1",
-	[Keyboard.button_index("2")] = "2",
-	[Keyboard.button_index("3")] = "3",
-	[Keyboard.button_index("4")] = "4",
-	[Keyboard.button_index("5")] = "5",
-	[Keyboard.button_index("6")] = "6",
-	[Keyboard.button_index("7")] = "7",
-	[Keyboard.button_index("8")] = "8",
-	[Keyboard.button_index("9")] = "9",
-}
-
-local BACKSPACE_INDEX = Keyboard.button_index("backspace")
 local ENTER_INDEX = Keyboard.button_index("enter")
 local ESCAPE_INDEX = Keyboard.button_index("escape")
 
-local function value_text_input(widget, content, input_service, slider_name, entry, bar_width, keystrokes)
+local _editing_context = nil
+
+local function stop_editing(content, slider_name)
+	if _editing_context and (_editing_context.content ~= content or _editing_context.slider_name ~= slider_name) then
+		return
+	end
+
+	local entry = content[slider_name .. "_entry"]
+
+	content[slider_name .. "_editing"] = false
+
+	local new_value = entry and tostring(get_value(entry))
+	if not new_value or new_value == "" then
+		new_value = content[content.slider_name .. "_prev_value_text"]
+	end
+
+	content[slider_name .. "_value_text"] = new_value
+	content._last_input_time = nil
+	_editing_context = nil
+end
+
+local function start_editing(content, slider_name)
+	if _editing_context and _editing_context.content ~= content then
+		local prev = _editing_context
+		local prev_entry = prev.content[prev.slider_name .. "_entry"]
+
+		prev.content[prev.slider_name .. "_editing"] = false
+		prev.content[prev.slider_name .. "_value_text"] = "" --prev_entry and tostring(get_value(prev_entry)) or "0"
+	end
+
+	content[slider_name .. "_editing"] = true
+
+	local entry = content[slider_name .. "_entry"]
+	local current = "" --entry and tostring(get_value(entry)) or "0"
+
+	content[slider_name .. "_edit_buffer"] = current
+	content[slider_name .. "_value_text"] = current
+	content[slider_name .. "_prev_value_text"] = entry and tostring(get_value(entry)) or "0"
+
+	_editing_context = { content = content, slider_name = slider_name }
+end
+
+local function confirm_value(content, slider_name, buffer)
+	local entry = content[slider_name .. "_entry"]
+	local value = tonumber(buffer)
+
+	if value then
+		value = math_clamp(value, 0, 255)
+		set_value(entry, value)
+	end
+
+	content._last_input_time = nil
+end
+
+local function value_text_input(parent, widget, content, input_service, slider_name, entry, bar_width, keystrokes, t)
 	local editing_key = slider_name .. "_editing"
 	local buffer_key = slider_name .. "_edit_buffer"
-	local hotspot_key = slider_name .. "_value_hotspot"
 	local text_key = slider_name .. "_value_text"
-
-	local hotspot = content[hotspot_key]
+	local hotspot = content[slider_name .. "_value_hotspot"]
 
 	if not hotspot then
 		return
 	end
 
-	if hotspot.is_hover and input_service:get("confirm_pressed") and not content[editing_key] then
-		content[editing_key] = true
-
-		local current = tostring(get_value(entry))
-
-		content[buffer_key] = current
-		content[text_key] = current
-
-		return
+	-- click detection (on_pressed persists from previous draw)
+	if hotspot.on_pressed and not content[editing_key] then
+		start_editing(content, slider_name)
 	end
 
 	if not content[editing_key] then
@@ -269,9 +311,12 @@ local function value_text_input(widget, content, input_service, slider_name, ent
 		for i = 1, #keystrokes do
 			local ks = keystrokes[i]
 
-			if type(ks) == "string" then
-				if ks:match("%d") and #buffer < 3 then
+			if type(ks) == "string" and ks:match("^%d$") then
+				if #buffer < 3 then
 					buffer = buffer .. ks
+					changed = true
+				elseif #buffer >= 3 then
+					buffer = buffer:sub(1, 2) .. ks
 					changed = true
 				end
 			elseif ks == Keyboard.BACKSPACE then
@@ -281,62 +326,42 @@ local function value_text_input(widget, content, input_service, slider_name, ent
 		end
 	end
 
-	for idx, digit_char in pairs(DIGIT_KEYS) do
-		if Keyboard.pressed(idx) and #buffer < 3 then
-			buffer = buffer .. digit_char
-			changed = true
-		end
-	end
-
-	if Keyboard.pressed(BACKSPACE_INDEX) and #buffer > 0 then
-		buffer = buffer:sub(1, #buffer - 1)
-		changed = true
-	end
-
 	if changed then
 		content[buffer_key] = buffer
 		content[text_key] = buffer
+
+		if t then
+			content._last_input_time = t
+		end
 	end
 
+	-- Enter to confirm
 	if Keyboard.pressed(ENTER_INDEX) then
-		local value = tonumber(content[buffer_key])
-
-		if value then
-			value = math_clamp(value, 0, 255)
-			set_value(entry, value)
-		end
-
-		content[editing_key] = false
-		content[text_key] = tostring(get_value(entry))
-
+		confirm_value(content, slider_name, buffer)
+		stop_editing(content, slider_name)
 		return
 	end
 
+	-- Escape to cancel
 	if Keyboard.pressed(ESCAPE_INDEX) then
-		content[editing_key] = false
-		content[text_key] = tostring(get_value(entry))
-
-		return
-	end
-
-	if input_service:get("confirm_pressed") then
-		local value = tonumber(content[buffer_key])
-
-		if value then
-			value = math_clamp(value, 0, 255)
-			set_value(entry, value)
-		end
-
-		content[editing_key] = false
-		content[text_key] = tostring(get_value(entry))
-
+		stop_editing(content, slider_name)
 		return
 	end
 end
 
 local _gamepad_slider_index = 0
 
-local function slider_gamepad_input(parent, widget, content, input_service, slider_name, entry, bar_width, slider_index, num_sliders)
+local function slider_gamepad_input(
+	parent,
+	widget,
+	content,
+	input_service,
+	slider_name,
+	entry,
+	bar_width,
+	slider_index,
+	num_sliders
+)
 	if content[slider_name .. "_editing"] then
 		return
 	end
@@ -376,7 +401,7 @@ local function slider_gamepad_input(parent, widget, content, input_service, slid
 	end
 end
 
-local function create_slider(name, x, color, label, bar_width)
+local function create_slider(name, x, color, label, bar_width, label_color)
 	return {
 		{
 			pass_type = "hotspot",
@@ -387,6 +412,12 @@ local function create_slider(name, x, color, label, bar_width)
 			pass_type = "hotspot",
 			content_id = name .. "_value_hotspot",
 			style_id = name .. "_value_hotspot_style",
+			change_function = function(hotspot_content, style)
+				if hotspot_content.on_pressed then
+					local content = hotspot_content.parent
+					start_editing(content, name)
+				end
+			end,
 		},
 		{
 			pass_type = "hotspot",
@@ -412,7 +443,26 @@ local function create_slider(name, x, color, label, bar_width)
 			style_id = name .. "_value_frame",
 			visibility_function = function(content, style)
 				local hotspot = content[name .. "_value_hotspot"]
-				return hotspot and hotspot.is_hover
+				return content[name .. "_editing"] or (hotspot and hotspot.is_hover)
+			end,
+		},
+		{
+			pass_type = "rect",
+			style_id = name .. "_edit_bg",
+			visibility_function = function(content, style)
+				return content[name .. "_editing"]
+			end,
+		},
+		{
+			pass_type = "rect",
+			style_id = name .. "_caret",
+			visibility_function = function(content, style)
+				return content[name .. "_editing"]
+			end,
+			change_function = function(content, style)
+				local buf = content[name .. "_edit_buffer"] or ""
+				local pos = math.min(#buf + 1, 4)
+				style.offset[1] = PREVIEW_WIDTH + x + bar_width + 5 + (pos - 1) * 16
 			end,
 		},
 		{
@@ -428,6 +478,17 @@ local function create_slider(name, x, color, label, bar_width)
 			pass_type = "text",
 			value_id = name .. "_value_text",
 			style_id = name .. "_value_style",
+			change_function = function(content, style)
+				if content[name .. "_editing"] then
+					style.text_color[2] = COLORS.text_selected[2]
+					style.text_color[3] = COLORS.text_selected[3]
+					style.text_color[4] = COLORS.text_selected[4]
+				else
+					style.text_color[2] = COLORS.text_normal[2]
+					style.text_color[3] = COLORS.text_normal[3]
+					style.text_color[4] = COLORS.text_normal[4]
+				end
+			end,
 		},
 	}, {
 		[name .. "_hotspot"] = {},
@@ -473,6 +534,16 @@ local function create_slider(name, x, color, label, bar_width)
 			offset = { PREVIEW_WIDTH + x + bar_width, -2, 4 },
 			size = { 55, BAR_HEIGHT + 4 },
 		},
+		[name .. "_edit_bg"] = {
+			color = COLORS.background_hover,
+			offset = { PREVIEW_WIDTH + x + bar_width + 2, 0, 0 },
+			size = { 53, BAR_HEIGHT },
+		},
+		[name .. "_caret"] = {
+			color = COLORS.text_selected,
+			offset = { PREVIEW_WIDTH + x + bar_width + 5, 2, 5 },
+			size = { 2, 24 },
+		},
 		[name .. "_fill"] = {
 			color = color,
 			offset = { PREVIEW_WIDTH + x, 0, 1 },
@@ -483,7 +554,7 @@ local function create_slider(name, x, color, label, bar_width)
 			horizontal_alignment = "left",
 			vertical_alignment = "center",
 			font_size = 24,
-			text_color = { 255, 255, 255, 255 },
+			text_color = label_color or COLORS.text_selected,
 			offset = { PREVIEW_WIDTH + x - 22, -2, 2 },
 		},
 		[name .. "_value_style"] = {
@@ -491,23 +562,32 @@ local function create_slider(name, x, color, label, bar_width)
 			horizontal_alignment = "left",
 			vertical_alignment = "center",
 			font_size = 24,
-			text_color = { 255, 255, 255, 255 },
+			text_color = COLORS.text_selected,
 			offset = { PREVIEW_WIDTH + x + bar_width + 5, -2, 2 },
 		},
 	}
 end
 
 local function build_blueprint(has_alpha)
-	local slider_configs = has_alpha and {
-		{ name = "a", label = "A" },
-		{ name = "r", label = "R" },
-		{ name = "g", label = "G" },
-		{ name = "b", label = "B" },
-	} or {
-		{ name = "r", label = "R" },
-		{ name = "g", label = "G" },
-		{ name = "b", label = "B" },
+	local label_colors = {
+		a = { 255, 200, 200, 200 },
+		r = { 255, 255, 60, 60 },
+		g = { 255, 60, 200, 60 },
+		b = { 255, 60, 60, 255 },
 	}
+
+	local slider_configs = has_alpha
+			and {
+				{ name = "a", label = "A" },
+				{ name = "r", label = "R" },
+				{ name = "g", label = "G" },
+				{ name = "b", label = "B" },
+			}
+		or {
+			{ name = "r", label = "R" },
+			{ name = "g", label = "G" },
+			{ name = "b", label = "B" },
+		}
 
 	local bar_width = has_alpha and BAR_WIDTH_ARGB or BAR_WIDTH_RGB
 
@@ -517,7 +597,7 @@ local function build_blueprint(has_alpha)
 
 	for i, config in ipairs(slider_configs) do
 		local x = PREVIEW_WIDTH + 5 + (bar_width + 85) * (i - 1)
-		local p, c, s = create_slider(config.name, x, COLORS.frame, config.label, bar_width)
+		local p, c, s = create_slider(config.name, x, COLORS.frame, config.label, bar_width, label_colors[config.name])
 
 		for j = 1, #p do
 			passes[#passes + 1] = p[j]
@@ -552,11 +632,37 @@ local function build_blueprint(has_alpha)
 
 	local function handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
 		for _, config in ipairs(slider_configs) do
-			slider_input(parent, widget, content, cursor_ui, left_hold, confirm_pressed, config.name, content[config.name .. "_entry"], bar_width)
+			slider_input(
+				parent,
+				widget,
+				content,
+				cursor_ui,
+				left_hold,
+				confirm_pressed,
+				config.name,
+				content[config.name .. "_entry"],
+				bar_width
+			)
 		end
 	end
 
-	local function handle_text_inputs(widget, content, input_service)
+	local function handle_text_inputs(parent, widget, content, input_service, dt, t)
+		-- first pass: detect clicks (start editing) without consuming keystrokes
+		for _, config in ipairs(slider_configs) do
+			value_text_input(
+				parent,
+				widget,
+				content,
+				input_service,
+				config.name,
+				content[config.name .. "_entry"],
+				bar_width,
+				nil,
+				t
+			)
+		end
+
+		-- check if any slider is now editing
 		local any_editing = false
 
 		for _, config in ipairs(slider_configs) do
@@ -566,10 +672,25 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		local keystrokes = any_editing and Keyboard.keystrokes()
+		-- second pass: process keystrokes for editing sliders
+		if any_editing then
+			local keystrokes = Keyboard.keystrokes()
 
-		for _, config in ipairs(slider_configs) do
-			value_text_input(widget, content, input_service, config.name, content[config.name .. "_entry"], bar_width, keystrokes)
+			for _, config in ipairs(slider_configs) do
+				if content[config.name .. "_editing"] then
+					value_text_input(
+						parent,
+						widget,
+						content,
+						input_service,
+						config.name,
+						content[config.name .. "_entry"],
+						bar_width,
+						keystrokes,
+						t
+					)
+				end
+			end
 		end
 	end
 
@@ -577,7 +698,17 @@ local function build_blueprint(has_alpha)
 		local num_sliders = #slider_configs
 
 		for i, config in ipairs(slider_configs) do
-			slider_gamepad_input(parent, widget, content, input_service, config.name, content[config.name .. "_entry"], bar_width, i - 1, num_sliders)
+			slider_gamepad_input(
+				parent,
+				widget,
+				content,
+				input_service,
+				config.name,
+				content[config.name .. "_entry"],
+				bar_width,
+				i - 1,
+				num_sliders
+			)
 		end
 	end
 
@@ -652,7 +783,35 @@ local function build_blueprint(has_alpha)
 		end
 
 		handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
-		handle_text_inputs(widget, content, input_service)
+		handle_text_inputs(parent, widget, content, input_service, dt, t)
+
+		-- auto-accept checks for editing sliders
+		local prev_left_hold = content._prev_left_hold
+		content._prev_left_hold = left_hold
+
+		for _, config in ipairs(slider_configs) do
+			if content[config.name .. "_editing"] then
+				local value_hotspot = content[config.name .. "_value_hotspot"]
+
+				-- click-off: left mouse pressed while not over value hotspot
+				if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
+					local buffer = content[config.name .. "_edit_buffer"]
+					confirm_value(content, config.name, buffer)
+					stop_editing(content, config.name)
+				end
+
+				-- timeout: 5 seconds without input
+				if not content._last_input_time then
+					content._last_input_time = t
+				end
+
+				if t - content._last_input_time > 5 then
+					local buffer = content[config.name .. "_edit_buffer"]
+					confirm_value(content, config.name, buffer)
+					stop_editing(content, config.name)
+				end
+			end
+		end
 
 		local using_gamepad = not parent:using_cursor_navigation()
 
@@ -685,10 +844,12 @@ local function build_blueprint(has_alpha)
 					tooltip.content.visible = true
 					tooltip.content.text = entry.tooltip_text or ""
 
+					local pivot_pos = parent:_scenegraph_world_position("settings_grid_content_pivot")
 					local tooltip_width = tooltip.content.size and tooltip.content.size[1] or 200
+					local left_edge_x = pivot_pos and pivot_pos[1] + (widget.offset and widget.offset[1] or 0) or 0
 
-					tooltip.offset[1] = cursor_ui[1] - tooltip_width * 0.5
-					tooltip.offset[2] = cursor_ui[2] - 60
+					tooltip.offset[1] = left_edge_x - tooltip_width - 10
+					tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (widget.offset and widget.offset[2] or 0) - 60
 				end
 
 				parent._tooltip_data = {

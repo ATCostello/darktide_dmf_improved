@@ -77,6 +77,68 @@ mod.inject_tabs_into_widgets = function(self, category)
 end
 
 -- ############################################################
+-- Auto-generate tabs from group_header + indentation_level
+-- ############################################################
+
+mod.inject_generalised_tabs = function(self, category)
+	local templates = self._options_templates and self._options_templates.settings
+	if not templates then return end
+
+	local tab_lookup = {}
+	local current_tab = mod.default_tab
+
+	for i, template in ipairs(templates) do
+		if template.category == category then
+			local widget_type = template.widget_type
+
+			if widget_type == "group_header" then
+				local next_indentation = nil
+				for j = i + 1, math.min(i + 5, #templates) do
+					local next_tpl = templates[j]
+					if next_tpl.category == category then
+						local nt = next_tpl.widget_type
+						if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
+							next_indentation = next_tpl.indentation_level or 0
+							break
+						end
+					end
+				end
+
+				if next_indentation == 2 then
+					current_tab = template.display_name
+				end
+			end
+
+			local ignore_types = { group_header = true, spacer = true, description = true, title = true, spacing_vertical = true }
+			if not ignore_types[widget_type] then
+				local tab = current_tab or mod.default_tab
+				if template.display_name then
+					tab_lookup[template.display_name] = tab
+				end
+				if template.setting_id then
+					tab_lookup[template.setting_id] = tab
+				end
+			end
+		end
+	end
+
+	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+	if not widgets then return end
+
+	for _, data in ipairs(widgets) do
+		local widget = data.widget
+		if widget and widget.content then
+			local content = widget.content
+			local widget_text = content.text or content.display_name
+			if widget_text then
+				local tab = tab_lookup[widget_text]
+				content.tab = tab or mod.default_tab
+			end
+		end
+	end
+end
+
+-- ############################################################
 -- Get tabs
 -- ############################################################
 
@@ -87,27 +149,70 @@ mod.get_tabs = function(self, category)
 
 	local fallback_tab = mod.default_tab
 
-	local current_group_tab = nil
+	if mod:get("enable_generalised_mod_tabs") then
+		local current_tab = nil
+		local current_group_header = nil
 
-	for _, setting in ipairs(self._options_templates.settings or {}) do
-		if setting.category == category then
-			local setting_type = setting.widget_type
+		for i, setting in ipairs(self._options_templates.settings or {}) do
+			if setting.category == category then
+				local setting_type = setting.widget_type
 
-			-- track active group tab
-			if setting_type == "group_header" then
-				current_group_tab = setting.tab
-			else
-				local tab = current_group_tab or fallback_tab
+				if setting_type == "group_header" then
+					current_group_header = setting.display_name
 
-				-- ignore descriptions/titles/spacers
-				local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
+					local next_indentation = nil
+					for j = i + 1, math.min(i + 5, #self._options_templates.settings) do
+						local next_tpl = self._options_templates.settings[j]
+						if next_tpl.category == category then
+							local nt = next_tpl.widget_type
+							if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
+								next_indentation = next_tpl.indentation_level or 0
+								break
+							end
+						end
+					end
 
-				if not ignore then
-					tab_counts[tab] = (tab_counts[tab] or 0) + 1
+					if next_indentation == 2 then
+						current_tab = current_group_header
 
-					if not found[tab] then
-						found[tab] = true
-						tabs[#tabs + 1] = tab
+						if not found[current_tab] then
+							found[current_tab] = true
+							tabs[#tabs + 1] = current_tab
+						end
+					elseif next_indentation and next_indentation > 2 then
+						-- subheader, keep current tab
+					end
+				else
+					local tab = current_tab or fallback_tab
+					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
+
+					if not ignore then
+						tab_counts[tab] = (tab_counts[tab] or 0) + 1
+					end
+				end
+			end
+		end
+	else
+		local current_group_tab = nil
+
+		for _, setting in ipairs(self._options_templates.settings or {}) do
+			if setting.category == category then
+				local setting_type = setting.widget_type
+
+				if setting_type == "group_header" then
+					current_group_tab = setting.tab
+				else
+					local tab = current_group_tab or fallback_tab
+
+					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
+
+					if not ignore then
+						tab_counts[tab] = (tab_counts[tab] or 0) + 1
+
+						if not found[tab] then
+							found[tab] = true
+							tabs[#tabs + 1] = tab
+						end
 					end
 				end
 			end
@@ -116,14 +221,12 @@ mod.get_tabs = function(self, category)
 
 	local filtered_tabs = {}
 
-	-- add non-default tabs
 	for _, tab in ipairs(tabs) do
 		if tab ~= fallback_tab then
 			filtered_tabs[#filtered_tabs + 1] = tab
 		end
 	end
 
-	-- only include default tab if it has settings
 	if (tab_counts[fallback_tab] or 0) > 0 then
 		table.insert(filtered_tabs, 1, fallback_tab)
 	end
@@ -559,7 +662,11 @@ mod._addModTabs = function(self, dt, t, input_service)
 			mod.create_tab_bar(self, mod.current_category)
 		end
 
-		mod.inject_tabs_into_widgets(self, mod.current_category)
+		if mod:get("enable_generalised_mod_tabs") then
+			mod.inject_generalised_tabs(self, mod.current_category)
+		else
+			mod.inject_tabs_into_widgets(self, mod.current_category)
+		end
 		mod.filter_settings(self, mod.current_category)
 	end
 
