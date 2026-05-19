@@ -10,17 +10,14 @@ mod._saveScrollPosition = function(self)
 
 	local scrollbar_widget = grid[2]._scrollbar_widget
 
-	-- set default status if not already initialised
 	if not scroll_settings[mod.current_category] then
 		scroll_settings[mod.current_category] = {
 			last_scroll_amount = 0,
 		}
 	end
 
-	-- grab the current mod's scroll amount
 	local last_scroll_amount = scroll_settings[mod.current_category].last_scroll_amount
 
-	--  Detect category switch, and set current scroll to saved amount
 	if mod.last_category ~= mod.current_category or mod.last_category == nil then
 		if last_scroll_amount then
 			scrollbar_widget.content.scroll_value = last_scroll_amount
@@ -28,7 +25,6 @@ mod._saveScrollPosition = function(self)
 		end
 	end
 
-	--  Save current scrolled amount
 	if grid[2]._scroll_progress and last_scroll_amount ~= grid[2]._scroll_progress then
 		scroll_settings[mod.current_category] = {
 			last_scroll_amount = grid[2]._scroll_progress,

@@ -295,7 +295,6 @@ local function value_text_input(parent, widget, content, input_service, slider_n
 		return
 	end
 
-	-- click detection (on_pressed persists from previous draw)
 	if hotspot.on_pressed and not content[editing_key] then
 		start_editing(content, slider_name)
 	end
@@ -335,14 +334,12 @@ local function value_text_input(parent, widget, content, input_service, slider_n
 		end
 	end
 
-	-- Enter to confirm
 	if Keyboard.pressed(ENTER_INDEX) then
 		confirm_value(content, slider_name, buffer)
 		stop_editing(content, slider_name)
 		return
 	end
 
-	-- Escape to cancel
 	if Keyboard.pressed(ESCAPE_INDEX) then
 		stop_editing(content, slider_name)
 		return
@@ -647,7 +644,6 @@ local function build_blueprint(has_alpha)
 	end
 
 	local function handle_text_inputs(parent, widget, content, input_service, dt, t)
-		-- first pass: detect clicks (start editing) without consuming keystrokes
 		for _, config in ipairs(slider_configs) do
 			value_text_input(
 				parent,
@@ -662,7 +658,6 @@ local function build_blueprint(has_alpha)
 			)
 		end
 
-		-- check if any slider is now editing
 		local any_editing = false
 
 		for _, config in ipairs(slider_configs) do
@@ -672,7 +667,6 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		-- second pass: process keystrokes for editing sliders
 		if any_editing then
 			local keystrokes = Keyboard.keystrokes()
 
@@ -785,7 +779,6 @@ local function build_blueprint(has_alpha)
 		handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
 		handle_text_inputs(parent, widget, content, input_service, dt, t)
 
-		-- auto-accept checks for editing sliders
 		local prev_left_hold = content._prev_left_hold
 		content._prev_left_hold = left_hold
 
@@ -793,14 +786,12 @@ local function build_blueprint(has_alpha)
 			if content[config.name .. "_editing"] then
 				local value_hotspot = content[config.name .. "_value_hotspot"]
 
-				-- click-off: left mouse pressed while not over value hotspot
 				if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
 					local buffer = content[config.name .. "_edit_buffer"]
 					confirm_value(content, config.name, buffer)
 					stop_editing(content, config.name)
 				end
 
-				-- timeout: 5 seconds without input
 				if not content._last_input_time then
 					content._last_input_time = t
 				end
@@ -854,7 +845,10 @@ local function build_blueprint(has_alpha)
 
 					local left_edge_x = pivot_pos and pivot_pos[1] + (widget.offset and widget.offset[1] or 0) or 0
 					tooltip.offset[1] = left_edge_x - tooltip_width - 10
-					tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (widget.offset and widget.offset[2] or 0) - height - 10
+					tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0)
+						+ (widget.offset and widget.offset[2] or 0)
+						- height
+						- 10
 				end
 
 				parent._tooltip_data = {

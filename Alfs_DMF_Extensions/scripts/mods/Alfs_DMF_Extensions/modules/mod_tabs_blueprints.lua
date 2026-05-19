@@ -13,10 +13,6 @@ local grid_width = grid_size[1]
 local settings_grid_width = 1000
 local settings_value_height = 48
 
--- ############################################################
--- Colors
--- ############################################################
-
 local COLORS = {
 	normal = Color.terminal_text_header(nil, true),
 	hover = Color.terminal_text_header_selected(nil, true),
@@ -32,10 +28,6 @@ local COLORS = {
 
 	divider = Color.terminal_frame(nil, true),
 }
-
--- ############################################################
--- Font
--- ############################################################
 
 local tab_font_style = table.clone(UIFontSettings.button_primary)
 
@@ -60,19 +52,11 @@ tab_font_style.offset = {
 
 tab_font_style.drop_shadow = true
 
--- ############################################################
--- Shared helper
--- ############################################################
-
 local function is_selected(widget)
 	local content = widget.content
 
 	return content.selected == true
 end
-
--- ############################################################
--- Blueprint
--- ############################################################
 
 local blueprints = {
 	spacing_vertical = {

@@ -13,7 +13,9 @@ mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
 
 local function truncate_tab_title(text)
-	if not text then return text end
+	if not text then
+		return text
+	end
 	local words = {}
 	for word in text:gmatch("%S+") do
 		words[#words + 1] = word
@@ -47,7 +49,9 @@ end
 
 local function category_has_explicit_tabs(self, category)
 	local templates = self._options_templates and self._options_templates.settings
-	if not templates then return false end
+	if not templates then
+		return false
+	end
 
 	for _, template in ipairs(templates) do
 		if template.category == category and template.tab then
@@ -58,12 +62,7 @@ local function category_has_explicit_tabs(self, category)
 	return false
 end
 
--- horizontal scrolling state
 mod.max_visible_tabs = 5
-
--- ############################################################
--- Inject tabs into widgets
--- ############################################################
 
 mod.inject_tabs_into_widgets = function(self, category)
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
@@ -113,10 +112,6 @@ mod.inject_tabs_into_widgets = function(self, category)
 	end
 end
 
--- ############################################################
--- Auto-generate tabs from group_header + indentation_level
--- ############################################################
-
 mod.inject_generalised_tabs = function(self, category)
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 
@@ -130,9 +125,13 @@ mod.inject_generalised_tabs = function(self, category)
 	end
 
 	local templates = self._options_templates and self._options_templates.settings
-	if not templates then return end
+	if not templates then
+		return
+	end
 
-	if not widgets then return end
+	if not widgets then
+		return
+	end
 
 	if widgets._tabs_injected then
 		return
@@ -146,7 +145,9 @@ mod.inject_generalised_tabs = function(self, category)
 
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
-		if not (widget and widget.content) then goto continue end
+		if not (widget and widget.content) then
+			goto continue
+		end
 
 		widget_count = widget_count + 1
 
@@ -161,7 +162,13 @@ mod.inject_generalised_tabs = function(self, category)
 						local next_tpl = templates[j]
 						if next_tpl and next_tpl.category == category then
 							local nt = next_tpl.widget_type
-							if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
+							if
+								nt ~= "group_header"
+								and nt ~= "spacer"
+								and nt ~= "description"
+								and nt ~= "title"
+								and nt ~= "spacing_vertical"
+							then
 								next_indentation = next_tpl.indentation_level or 0
 								break
 							end
@@ -183,10 +190,6 @@ mod.inject_generalised_tabs = function(self, category)
 	end
 end
 
--- ############################################################
--- Get tabs
--- ############################################################
-
 mod.get_tabs = function(self, category)
 	local found = {}
 	local tab_counts = {}
@@ -201,7 +204,9 @@ mod.get_tabs = function(self, category)
 		for i, setting in ipairs(self._options_templates.settings or {}) do
 			if setting.category == category then
 				entry_count = entry_count + 1
-				if entry_count <= 2 then goto skip_entry end
+				if entry_count <= 2 then
+					goto skip_entry
+				end
 
 				local setting_type = setting.widget_type
 
@@ -213,21 +218,27 @@ mod.get_tabs = function(self, category)
 						local next_tpl = self._options_templates.settings[j]
 						if next_tpl.category == category then
 							local nt = next_tpl.widget_type
-							if nt ~= "group_header" and nt ~= "spacer" and nt ~= "description" and nt ~= "title" and nt ~= "spacing_vertical" then
+							if
+								nt ~= "group_header"
+								and nt ~= "spacer"
+								and nt ~= "description"
+								and nt ~= "title"
+								and nt ~= "spacing_vertical"
+							then
 								next_indentation = next_tpl.indentation_level or 0
 								break
 							end
 						end
 					end
 
-				if next_indentation and next_indentation >= 1 then
-					current_tab = group_name
+					if next_indentation and next_indentation >= 1 then
+						current_tab = group_name
 
-					if not found[current_tab] then
-						found[current_tab] = true
-						tabs[#tabs + 1] = current_tab
+						if not found[current_tab] then
+							found[current_tab] = true
+							tabs[#tabs + 1] = current_tab
+						end
 					end
-				end
 				else
 					local tab = current_tab or fallback_tab
 					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
@@ -292,10 +303,6 @@ mod.get_tabs = function(self, category)
 	return filtered_tabs
 end
 
--- ############################################################
--- Create widget helper
--- ############################################################
-
 local _create_settings_widget_from_config = function(
 	self,
 	config,
@@ -355,10 +362,6 @@ local _create_settings_widget_from_config = function(
 	end
 end
 
--- ############################################################
--- Create arrow button
--- ############################################################
-
 local function create_arrow_button(self, category, text, callback)
 	local entry = {
 		widget_type = "settings_button",
@@ -377,11 +380,9 @@ local function create_arrow_button(self, category, text, callback)
 	if widget then
 		widget.content.size = { width, height }
 
-		-- Override the font/style only for arrow buttons
 		if entry.is_arrow then
 			for _, pass in ipairs(widget.passes) do
 				if pass.pass_type == "text" and pass.value_id == "text" then
-					-- Change the style
 					widget.style[pass.style_id] = table.clone(UIFontSettings.header_1)
 					widget.style[pass.style_id].text_horizontal_alignment = "center"
 				end
@@ -397,10 +398,6 @@ local function create_arrow_button(self, category, text, callback)
 
 	return widget, alignment_widget
 end
-
--- ############################################################
--- Create tab bar
--- ############################################################
 
 mod.create_tab_bar = function(self, category)
 	local tabs = mod.get_tabs(self, category)
@@ -425,18 +422,19 @@ mod.create_tab_bar = function(self, category)
 
 	local end_index = math.min(start_index + mod.max_visible_tabs - 1, total_tabs)
 
-	-- ############################################################
-	-- LEFT ARROW
-	-- ############################################################
-
 	if total_tabs > mod.max_visible_tabs then
-		local left_widget, left_alignment = create_arrow_button(self, category, mod:localize("tab_arrow_left"), function()
-			local current = mod.tab_scroll_index[mod_storage_key]
+		local left_widget, left_alignment = create_arrow_button(
+			self,
+			category,
+			mod:localize("tab_arrow_left"),
+			function()
+				local current = mod.tab_scroll_index[mod_storage_key]
 
-			mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
+				mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
 
-			mod.create_tab_bar(self, category)
-		end)
+				mod.create_tab_bar(self, category)
+			end
+		)
 
 		local left_hotspot = left_widget.content.hotspot
 
@@ -448,10 +446,6 @@ mod.create_tab_bar = function(self, category)
 		widgets[#widgets + 1] = left_widget
 		alignment_list[#alignment_list + 1] = left_alignment
 	end
-
-	-- ############################################################
-	-- TABS
-	-- ############################################################
 
 	for i = start_index, end_index do
 		local tab_name = tabs[i]
@@ -488,18 +482,19 @@ mod.create_tab_bar = function(self, category)
 		alignment_list[#alignment_list + 1] = alignment_widget
 	end
 
-	-- ############################################################
-	-- RIGHT ARROW
-	-- ############################################################
-
 	if total_tabs > mod.max_visible_tabs then
-		local right_widget, right_alignment = create_arrow_button(self, category, mod:localize("tab_arrow_right"), function()
-			local current = mod.tab_scroll_index[mod_storage_key]
+		local right_widget, right_alignment = create_arrow_button(
+			self,
+			category,
+			mod:localize("tab_arrow_right"),
+			function()
+				local current = mod.tab_scroll_index[mod_storage_key]
 
-			mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, total_tabs - mod.max_visible_tabs + 1)
+				mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, total_tabs - mod.max_visible_tabs + 1)
 
-			mod.create_tab_bar(self, category)
-		end)
+				mod.create_tab_bar(self, category)
+			end
+		)
 
 		local right_hotspot = right_widget.content.hotspot
 
@@ -516,22 +511,13 @@ mod.create_tab_bar = function(self, category)
 		alignment_list[#alignment_list + 1] = right_alignment
 	end
 
-	-- ############################################################
-	-- GRID
-	-- ############################################################
-
 	local grid = UIWidgetGrid:new(widgets, alignment_list, self._ui_scenegraph, "mod_tab_content", "right", { 16, 16 })
 
 	grid:set_render_scale(self._render_scale)
 
 	self._mod_tab_widgets = widgets
 	self._mod_tab_grid = grid
-
 end
-
--- ############################################################
--- Filter settings
--- ############################################################
 
 mod.filter_settings = function(self, category)
 	local mod_storage_key = get_mod_storage_key(self, category)
@@ -549,8 +535,6 @@ mod.filter_settings = function(self, category)
 
 	local spacing = view_settings.settings_grid_spacing or { 15, 0 }
 
-	-- add spacer if tabs are visible
-	-- spacer above settings when tabs are visible
 	if self._mod_tab_grid then
 		local spacer_config = {
 			widget_type = "spacing_vertical",
@@ -589,7 +573,6 @@ mod.filter_settings = function(self, category)
 		end
 	end
 
-	-- fallback: if no widgets match (except forced first two), show everything
 	if #visible_widgets <= 2 then
 		for index, data in ipairs(category_widgets) do
 			local widget = data.widget
@@ -645,10 +628,6 @@ mod.filter_settings = function(self, category)
 
 	self:_update_grid_navigation_selection()
 end
-
--- ############################################################
--- Draw tabs
--- ############################################################
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
 	func(self, dt, t, input_service, layer)
@@ -710,10 +689,6 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 		hotspot.is_hover = old_hover
 	end
 end)
-
--- ############################################################
--- Update
--- ############################################################
 
 mod._addModTabs = function(self, dt, t, input_service)
 	local category = mod.current_category
@@ -810,7 +785,12 @@ mod._addModTabs = function(self, dt, t, input_service)
 							local wsx = tab_node.size and tab_node.size[1] or 900
 							local wsy = tab_node.size and tab_node.size[2] or 60
 
-							if cursor[1] >= wx and cursor[1] <= wx + wsx and cursor[2] >= wy and cursor[2] <= wy + wsy then
+							if
+								cursor[1] >= wx
+								and cursor[1] <= wx + wsx
+								and cursor[2] >= wy
+								and cursor[2] <= wy + wsy
+							then
 								local mod_storage_key = get_mod_storage_key(self, mod.current_category)
 								local tabs = mod.get_tabs(self, mod.current_category)
 								local total_tabs = #tabs

@@ -3,10 +3,6 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local dmf = get_mod("DMF")
 mod.dmf = dmf
 
--- ###########################################################################
--- initialize_mod_options hook
--- ###########################################################################
-
 local original_initialize = dmf.initialize_mod_options
 
 dmf.initialize_mod_options = function(passed_mod, options)
@@ -49,10 +45,6 @@ dmf.initialize_mod_options = function(passed_mod, options)
 	return result
 end
 
--- ###########################################################################
--- create_mod_options_settings hook
--- ###########################################################################
-
 local original_create = dmf.create_mod_options_settings
 
 dmf.create_mod_options_settings = function(self, options_templates)
@@ -64,12 +56,9 @@ dmf.create_mod_options_settings = function(self, options_templates)
 		return result
 	end
 
-	-- Per-mod tab lookup (keyed by mod_name) to prevent cross-mod contamination
 	local tab_lookup = {}
 	local setting_id_lookup = {}
-	-- Build a mapping from category display_name -> mod_name
 	local category_mod_map = {}
-	-- Store depth for groups to detect top-level groups for fallback tab detection
 	local group_depth_lookup = {}
 
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
@@ -103,7 +92,6 @@ dmf.create_mod_options_settings = function(self, options_templates)
 				setting_id_lookup[widget.title] = widget.setting_id
 			end
 
-			-- Track group depth for fallback tab detection
 			if widget.type == "group" and widget.title and widget.depth then
 				group_depth_lookup[widget.title] = widget.depth
 			end
@@ -122,10 +110,6 @@ dmf.create_mod_options_settings = function(self, options_templates)
 			end
 		end
 
-		-- Fallback: for top-level group_header templates without explicit tab,
-		-- use their display_name as the tab name.
-		-- DMF depth ladder: top-level groups get depth=0, sub-widgets get depth=1,
-		-- nested groups get depth=1+ (same as their sibling sub-widgets)
 		if not template.tab and template.widget_type == "group_header" and template.display_name then
 			local depth = group_depth_lookup[template.display_name]
 
@@ -135,13 +119,15 @@ dmf.create_mod_options_settings = function(self, options_templates)
 		end
 
 		if template.category and string.find(template.category, "Markers") then
-			mod:info("[load_dmf] template: cat=%s, type=%s, display=%s, setting=%s, tab=%s, depth=%s",
+			mod:info(
+				"[load_dmf] template: cat=%s, type=%s, display=%s, setting=%s, tab=%s, depth=%s",
 				tostring(template.category),
 				tostring(template.widget_type),
 				tostring(template.display_name),
 				tostring(template.setting_id),
 				tostring(template.tab),
-				tostring(group_depth_lookup[template.display_name]))
+				tostring(group_depth_lookup[template.display_name])
+			)
 		end
 
 		local setting_id = setting_id_lookup[template.setting_id] or setting_id_lookup[template.display_name]
@@ -154,15 +140,9 @@ dmf.create_mod_options_settings = function(self, options_templates)
 	return result
 end
 
--- ###########################################################################
--- all mods loaded
--- ###########################################################################
-
 mod.on_all_mods_loaded = function()
 	mod.dmf = get_mod("DMF")
 
-	-- Backfill tab values for mods that loaded before the initialize_mod_options hook
-	-- by inferring tabs from the group structure (depth=0 groups become tabs)
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
 		local header = mod_widgets[1]
 		local mod_name = (header and header.mod_name) or "unknown"
@@ -178,9 +158,6 @@ mod.on_all_mods_loaded = function()
 		end
 
 		if not has_explicit_tabs then
-			mod:info("[load_dmf] Backfilling tabs for mod: %s", mod_name)
-
-			-- Build parent chain lookup to find containing depth=0 group for each widget
 			for _, widget in ipairs(mod_widgets) do
 				if not widget.tab and widget.parent_index and widget.type ~= "group" then
 					local pi = widget.parent_index
@@ -190,25 +167,17 @@ mod.on_all_mods_loaded = function()
 
 						if parent and parent.type == "group" and parent.depth == 0 and parent.title then
 							widget.tab = parent.title
-							mod:info("[load_dmf]   tab[%s] = %s (parent: %s)", widget.setting_id or "?", widget.tab, parent.title)
-
 							break
 						end
 
 						pi = parent and parent.parent_index
 					end
-
-					if not widget.tab then
-						mod:info("[load_dmf]   FAILED to find tab for: %s (type=%s, parent_index=%s)", widget.setting_id or "?", widget.type, tostring(widget.parent_index))
-					end
 				end
 			end
 
-			-- Also assign tab to the top-level groups themselves
 			for _, widget in ipairs(mod_widgets) do
 				if not widget.tab and widget.type == "group" and widget.depth == 0 and widget.title then
 					widget.tab = widget.title
-					mod:info("[load_dmf]   group tab[%s] = %s", widget.setting_id or "?", widget.tab)
 				end
 			end
 		end

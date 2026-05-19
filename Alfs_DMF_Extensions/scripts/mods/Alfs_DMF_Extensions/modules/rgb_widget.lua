@@ -7,10 +7,6 @@ local view_settings = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options
 local rgb_blueprints =
 	mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget_blueprints")
 
--- ############################################################
--- Helpers
--- ############################################################
-
 local function ends_with(str, ending)
 	return str and ending ~= "" and str:sub(-#ending):lower() == ending:lower()
 end
@@ -64,10 +60,6 @@ local function is_rgb_child(entry)
 	return get_suffix_type(entry.setting_id) ~= nil
 end
 
--- ############################################################
--- Extract RGB group safely
--- ############################################################
-
 local function extract_rgb_group(widgets, start_index)
 	local found = {}
 
@@ -91,10 +83,6 @@ local function extract_rgb_group(widgets, start_index)
 		return found
 	end
 end
-
--- ############################################################
--- Extract non-group RGB cluster (consecutive same-base entries)
--- ############################################################
 
 local function extract_rgb_cluster(widgets, start_index)
 	local found = {}
@@ -147,10 +135,6 @@ local function extract_rgb_cluster(widgets, start_index)
 	end
 end
 
--- ############################################################
--- Widget creation
--- ############################################################
-
 local function create_rgb_widget(self, group_widget, rgb_entries)
 	if not rgb_entries then
 		return nil
@@ -187,10 +171,6 @@ local function create_rgb_widget(self, group_widget, rgb_entries)
 
 	return widget
 end
-
--- ############################################################
--- Inject group-based RGB widgets
--- ############################################################
 
 local function inject_group_rgb_widgets(self, widgets)
 	local i = 1
@@ -248,10 +228,6 @@ local function inject_group_rgb_widgets(self, widgets)
 
 	return replaced
 end
-
--- ############################################################
--- Inject non-group RGB cluster widgets
--- ############################################################
 
 local function inject_cluster_rgb_widgets(self, widgets)
 	local i = 1
@@ -314,10 +290,6 @@ local function inject_cluster_rgb_widgets(self, widgets)
 	end
 end
 
--- ############################################################
--- Main injection pass
--- ############################################################
-
 mod.inject_rgb_widgets = function(self, category)
 	if not self._settings_category_widgets then
 		return
@@ -332,10 +304,6 @@ mod.inject_rgb_widgets = function(self, category)
 	inject_group_rgb_widgets(self, widgets)
 	inject_cluster_rgb_widgets(self, widgets)
 end
-
--- ############################################################
--- Hook entry point
--- ############################################################
 
 mod._updateRGBSliders = function(self, input_service, dt, t)
 	local category = mod.current_category

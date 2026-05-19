@@ -14,7 +14,9 @@ end
 local _settings_by_font_type = nil
 
 local function ensureSettingsByFontTypeCache()
-	if _settings_by_font_type then return end
+	if _settings_by_font_type then
+		return
+	end
 	_settings_by_font_type = {}
 	for name, settings in pairs(UIFontSettings) do
 		if type(settings) == "table" and settings.font_type then
@@ -27,7 +29,9 @@ end
 
 local function lookupFontSettings(font_name)
 	local settings = UIFontSettings[font_name]
-	if settings then return settings end
+	if settings then
+		return settings
+	end
 	ensureSettingsByFontTypeCache()
 	return _settings_by_font_type[font_name]
 end
@@ -38,21 +42,27 @@ local function applyFontToStyle(text_style, font_name)
 end
 
 local CONTENT_STYLE_MAP = {
-	{ content_key = "text",           style_key = "list_header" },
-	{ content_key = "value_text",     style_key = "text"        },
+	{ content_key = "text", style_key = "list_header" },
+	{ content_key = "value_text", style_key = "text" },
 }
 
 mod._addFontSupport = function(self, dt, t, input_service)
 	local category = mod.current_category
-	if not category then return end
+	if not category then
+		return
+	end
 
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
-	if not widgets then return end
+	if not widgets then
+		return
+	end
 
 	for i = 1, #widgets do
 		local row = widgets[i]
 		local widget = row.widget
-		if not widget then return end
+		if not widget then
+			return
+		end
 
 		local content = widget.content
 		local style = widget.style

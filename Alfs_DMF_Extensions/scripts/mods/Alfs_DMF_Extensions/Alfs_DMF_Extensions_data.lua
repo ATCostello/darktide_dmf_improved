@@ -3,7 +3,6 @@ local mod = get_mod("Alfs_DMF_Extensions")
 mod.default_tab = "Default"
 mod.settings_widgets = {}
 
--- GENERAL SETTINGS
 table.insert(mod.settings_widgets, {
 	setting_id = "general_settings",
 	type = "group",

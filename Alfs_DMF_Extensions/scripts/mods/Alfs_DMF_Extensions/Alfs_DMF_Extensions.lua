@@ -16,7 +16,6 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_
 mod.last_category = nil
 mod.current_category = nil
 
--- add definitions to the dmf_options_view
 mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	func(self, settings, context)
 
@@ -51,7 +50,6 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 		position = { 0, -10, 802 },
 	}
 
-	-- ensure pivot nodes have explicit position so world_position is computed
 	if
 		defs.scenegraph_definition.settings_grid_start and not defs.scenegraph_definition.settings_grid_start.position
 	then
@@ -71,11 +69,9 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	defs.scenegraph_definition.settings_grid_mask.position[2] = -10
 	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
 
-	-- rebuild the live scenegraph
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
 end)
 
--- clear category on exit
 mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	mod.last_category = nil
 end)
@@ -87,8 +83,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
-	dbg_self = self
-	
 	if mod:get("enable_scroll_position_saving") then
 		mod._saveScrollPosition(self)
 	end
