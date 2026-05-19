@@ -5,6 +5,7 @@ local UIScenegraph = require("scripts/managers/ui/ui_scenegraph")
 
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/Alfs_DMF_Extensions_localization")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/load_dmf")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/step_size_value")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/save_scroll_position")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
@@ -16,8 +17,8 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_
 mod.last_category = nil
 mod.current_category = nil
 
-mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
-	func(self, settings, context)
+mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
+	func(self, definitions, settings, context, dynamic_package_name)
 
 	if self.view_name ~= "dmf_options_view" then
 		return
