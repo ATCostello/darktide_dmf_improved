@@ -84,14 +84,8 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 		for _, widget in ipairs(mod_widgets) do
 			if mod_name then
-				if widget.tab then
-					if widget.setting_id then
-						tab_lookup[mod_name][widget.setting_id] = widget.tab
-					end
-
-					if widget.title then
-						tab_lookup[mod_name][widget.title] = widget.tab
-					end
+				if widget.tab and widget.setting_id then
+					tab_lookup[mod_name][widget.setting_id] = widget.tab
 				end
 			end
 
@@ -115,7 +109,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 		if mod_name then
 			local mod_tabs = tab_lookup[mod_name]
-			local tab = mod_tabs and (mod_tabs[template.setting_id] or mod_tabs[template.display_name])
+			local tab = mod_tabs and mod_tabs[template.setting_id]
 
 			if tab then
 				template.tab = tab
@@ -132,6 +126,16 @@ dmf.create_mod_options_settings = function(self, options_templates)
 			if depth == 0 then
 				template.tab = template.display_name
 			end
+		end
+
+		if template.category and string.find(template.category, "Markers") then
+			mod:info("[load_dmf] template: cat=%s, type=%s, display=%s, setting=%s, tab=%s, depth=%s",
+				tostring(template.category),
+				tostring(template.widget_type),
+				tostring(template.display_name),
+				tostring(template.setting_id),
+				tostring(template.tab),
+				tostring(group_depth_lookup[template.display_name]))
 		end
 
 		local setting_id = setting_id_lookup[template.setting_id] or setting_id_lookup[template.display_name]
@@ -154,6 +158,9 @@ mod.on_all_mods_loaded = function()
 	-- Backfill tab values for mods that loaded before the initialize_mod_options hook
 	-- by inferring tabs from the group structure (depth=0 groups become tabs)
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
+		local header = mod_widgets[1]
+		local mod_name = (header and header.mod_name) or "unknown"
+
 		local has_explicit_tabs = false
 
 		for _, widget in ipairs(mod_widgets) do
@@ -165,6 +172,8 @@ mod.on_all_mods_loaded = function()
 		end
 
 		if not has_explicit_tabs then
+			mod:info("[load_dmf] Backfilling tabs for mod: %s", mod_name)
+
 			-- Build parent chain lookup to find containing depth=0 group for each widget
 			for _, widget in ipairs(mod_widgets) do
 				if not widget.tab and widget.parent_index and widget.type ~= "group" then
@@ -175,11 +184,16 @@ mod.on_all_mods_loaded = function()
 
 						if parent and parent.type == "group" and parent.depth == 0 and parent.title then
 							widget.tab = parent.title
+							mod:info("[load_dmf]   tab[%s] = %s (parent: %s)", widget.setting_id or "?", widget.tab, parent.title)
 
 							break
 						end
 
 						pi = parent and parent.parent_index
+					end
+
+					if not widget.tab then
+						mod:info("[load_dmf]   FAILED to find tab for: %s (type=%s, parent_index=%s)", widget.setting_id or "?", widget.type, tostring(widget.parent_index))
 					end
 				end
 			end
@@ -188,6 +202,7 @@ mod.on_all_mods_loaded = function()
 			for _, widget in ipairs(mod_widgets) do
 				if not widget.tab and widget.type == "group" and widget.depth == 0 and widget.title then
 					widget.tab = widget.title
+					mod:info("[load_dmf]   group tab[%s] = %s", widget.setting_id or "?", widget.tab)
 				end
 			end
 		end

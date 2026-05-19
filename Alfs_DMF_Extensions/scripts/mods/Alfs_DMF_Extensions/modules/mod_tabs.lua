@@ -81,14 +81,16 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 	for _, template in ipairs(self._options_templates.settings or {}) do
 		if template.category == category then
-			local display_name = template.display_name
+			local setting_id = template.setting_id
 			local setting_type = template.widget_type
 
 			if setting_type == "group_header" and template.tab then
 				current_group_tab = template.tab
 			end
 
-			template_data[display_name] = current_group_tab or fallback_tab
+			if setting_id then
+				template_data[setting_id] = current_group_tab or fallback_tab
+			end
 		end
 	end
 
@@ -97,12 +99,18 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 		if widget and widget.content then
 			local content = widget.content
-			local widget_text = content.text or content.display_name
+			local entry = content.entry
 
-			if widget_text then
-				local tab = template_data[widget_text]
+			if entry and entry.setting_id then
+				local tab = template_data[entry.setting_id]
 
-				content.tab = tab or fallback_tab
+				if tab then
+					content.tab = tab
+
+					if category == mod.current_category then
+						mod:info("[mod_tabs] widget[%s] text=%s tab=%s", entry.setting_id, tostring(content.text or content.display_name), tostring(content.tab))
+					end
+				end
 			end
 		end
 	end

@@ -87,6 +87,8 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
+	dbg_self = self
+	
 	if mod:get("enable_scroll_position_saving") then
 		mod._saveScrollPosition(self)
 	end
