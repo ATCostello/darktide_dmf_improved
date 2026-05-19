@@ -271,7 +271,7 @@ local blueprints = {
 			},
 
 			-- text shadow
-			{
+			--[[{
 				pass_type = "text",
 				style_id = "text_shadow",
 				value_id = "text",
@@ -296,7 +296,7 @@ local blueprints = {
 						5,
 					},
 				},
-			},
+			},]]
 
 			-- main text
 			{
@@ -318,6 +318,8 @@ local blueprints = {
 						0,
 						6,
 					},
+
+					drop_shadow = true,
 				},
 
 				change_function = function(content, style)

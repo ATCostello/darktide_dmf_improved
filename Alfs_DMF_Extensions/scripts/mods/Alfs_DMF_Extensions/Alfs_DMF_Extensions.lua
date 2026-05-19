@@ -69,6 +69,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, settings, context)
 	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
 	defs.scenegraph_definition.settings_grid_mask.size[2] = 2000
 	defs.scenegraph_definition.settings_grid_mask.position[2] = -10
+	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
 
 	-- rebuild the live scenegraph
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
