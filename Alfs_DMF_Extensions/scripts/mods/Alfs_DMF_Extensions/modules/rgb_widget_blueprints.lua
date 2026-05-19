@@ -844,12 +844,17 @@ local function build_blueprint(has_alpha)
 					tooltip.content.visible = true
 					tooltip.content.text = entry.tooltip_text or ""
 
+					local text_style = tooltip.style.text
 					local pivot_pos = parent:_scenegraph_world_position("settings_grid_content_pivot")
-					local tooltip_width = tooltip.content.size and tooltip.content.size[1] or 200
-					local left_edge_x = pivot_pos and pivot_pos[1] + (widget.offset and widget.offset[1] or 0) or 0
+					local tooltip_width = (widget.content.size and widget.content.size[1] or settings_grid_width) * 0.5
+					local _, text_height = parent:_text_size(entry.tooltip_text or "", text_style, { tooltip_width, 0 })
+					local height = text_height
 
+					tooltip.content.size = { tooltip_width, height }
+
+					local left_edge_x = pivot_pos and pivot_pos[1] + (widget.offset and widget.offset[1] or 0) or 0
 					tooltip.offset[1] = left_edge_x - tooltip_width - 10
-					tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (widget.offset and widget.offset[2] or 0) - 60
+					tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (widget.offset and widget.offset[2] or 0) - height - 10
 				end
 
 				parent._tooltip_data = {

@@ -28,7 +28,7 @@ local function truncate_tab_title(text)
 			result = result .. " "
 		end
 	end
-	return result .. ".."
+	return result .. mod:localize("tab_title_truncated")
 end
 
 local function get_current_mod_name(self, category)
@@ -416,7 +416,7 @@ mod.create_tab_bar = function(self, category)
 	-- ############################################################
 
 	if total_tabs > mod.max_visible_tabs then
-		local left_widget, left_alignment = create_arrow_button(self, category, "<", function()
+		local left_widget, left_alignment = create_arrow_button(self, category, mod:localize("tab_arrow_left"), function()
 			local current = mod.tab_scroll_index[mod_storage_key]
 
 			mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
@@ -479,7 +479,7 @@ mod.create_tab_bar = function(self, category)
 	-- ############################################################
 
 	if total_tabs > mod.max_visible_tabs then
-		local right_widget, right_alignment = create_arrow_button(self, category, ">", function()
+		local right_widget, right_alignment = create_arrow_button(self, category, mod:localize("tab_arrow_right"), function()
 			local current = mod.tab_scroll_index[mod_storage_key]
 
 			mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, total_tabs - mod.max_visible_tabs + 1)
@@ -679,7 +679,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 			if w_hotspot and w_hotspot.on_pressed then
 				local tab_key = widget.content._tab_key or widget.content.text
 
-				if tab_key == "<" or tab_key == ">" then
+				if tab_key == mod:localize("tab_arrow_left") or tab_key == mod:localize("tab_arrow_right") then
 					w_hotspot.on_pressed = false
 				else
 					mod.selected_tabs[mod_storage_key] = tab_key

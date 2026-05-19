@@ -152,6 +152,15 @@ mod.localisation = {
 	enable_scrollable_dropdown_tooltip = {
 		en = "Toggles allowing the use of your mouse to scroll through the dropdown menus in DMF.",
 	},
+	tab_arrow_left = {
+		en = "<",
+	},
+	tab_arrow_right = {
+		en = ">",
+	},
+	tab_title_truncated = {
+		en = "..",
+	},
 }
 
 -- Group localisations so they can be managed easier.
