@@ -84,7 +84,7 @@ mod.inject_tabs_into_widgets = function(self, category)
 			local display_name = template.display_name
 			local setting_type = template.widget_type
 
-			if setting_type == "group_header" then
+			if setting_type == "group_header" and template.tab then
 				current_group_tab = template.tab
 			end
 
@@ -152,7 +152,7 @@ mod.inject_generalised_tabs = function(self, category)
 						end
 					end
 
-					if next_indentation == 1 then
+					if next_indentation and next_indentation >= 1 then
 						current_tab = tpl.display_name or current_tab
 					end
 				end
@@ -204,16 +204,14 @@ mod.get_tabs = function(self, category)
 						end
 					end
 
-					if next_indentation == 1 then
-						current_tab = group_name
+				if next_indentation and next_indentation >= 1 then
+					current_tab = group_name
 
-						if not found[current_tab] then
-							found[current_tab] = true
-							tabs[#tabs + 1] = current_tab
-						end
-					elseif next_indentation and next_indentation > 1 then
-						-- subheader, keep current tab
+					if not found[current_tab] then
+						found[current_tab] = true
+						tabs[#tabs + 1] = current_tab
 					end
+				end
 				else
 					local tab = current_tab or fallback_tab
 					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
@@ -233,9 +231,9 @@ mod.get_tabs = function(self, category)
 			if setting.category == category then
 				local setting_type = setting.widget_type
 
-				if setting_type == "group_header" then
+				if setting_type == "group_header" and setting.tab then
 					current_group_tab = setting.tab
-				else
+				elseif setting_type ~= "group_header" then
 					local tab = current_group_tab or fallback_tab
 
 					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
