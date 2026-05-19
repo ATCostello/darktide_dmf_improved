@@ -160,6 +160,12 @@ mod.localisation = {
 	tab_title_truncated = {
 		en = "..",
 	},
+	enable_reload_mods_rebind = {
+		en = "Rebind DMF Reload?",
+	},
+	enable_reload_mods_rebind_tooltip = {
+		en = "Toggle rebinding the default DMF Reload keybind (Ctrl+Shift+R in developer mode by default).",
+	},
 }
 
 -- Group localisations so they can be managed easier.

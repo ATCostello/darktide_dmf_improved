@@ -20,13 +20,13 @@ local function truncate_tab_title(text)
 	for word in text:gmatch("%S+") do
 		words[#words + 1] = word
 	end
-	if #words <= 3 then
+	if #words <= 4 then
 		return text
 	end
 	local result = ""
-	for i = 1, 3 do
+	for i = 1, 4 do
 		result = result .. words[i]
-		if i < 3 then
+		if i < 4 then
 			result = result .. " "
 		end
 	end
@@ -418,17 +418,18 @@ mod.create_tab_bar = function(self, category)
 
 	local total_tabs = #tabs
 
-	local start_index = mod.tab_scroll_index[mod_storage_key]
+	local max_visible_tabs = tonumber(mod.max_visible_tabs) or 5
+	local start_index = tonumber(mod.tab_scroll_index[mod_storage_key]) or 1
 
-	local end_index = math.min(start_index + mod.max_visible_tabs - 1, total_tabs)
+	local end_index = math.min(start_index + max_visible_tabs - 1, total_tabs)
 
-	if total_tabs > mod.max_visible_tabs then
+	if total_tabs > max_visible_tabs then
 		local left_widget, left_alignment = create_arrow_button(
 			self,
 			category,
 			mod:localize("tab_arrow_left"),
 			function()
-				local current = mod.tab_scroll_index[mod_storage_key]
+				local current = tonumber(mod.tab_scroll_index[mod_storage_key]) or 1
 
 				mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
 
@@ -482,15 +483,16 @@ mod.create_tab_bar = function(self, category)
 		alignment_list[#alignment_list + 1] = alignment_widget
 	end
 
-	if total_tabs > mod.max_visible_tabs then
+	if total_tabs > max_visible_tabs then
 		local right_widget, right_alignment = create_arrow_button(
 			self,
 			category,
 			mod:localize("tab_arrow_right"),
 			function()
 				local current = mod.tab_scroll_index[mod_storage_key]
+				local current_num = tonumber(current) or 1
 
-				mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, total_tabs - mod.max_visible_tabs + 1)
+				mod.tab_scroll_index[mod_storage_key] = math.min(current_num + 1, total_tabs - max_visible_tabs + 1)
 
 				mod.create_tab_bar(self, category)
 			end
@@ -503,7 +505,7 @@ mod.create_tab_bar = function(self, category)
 			right_widget.visible = false
 		end
 
-		if total_tabs <= mod.max_visible_tabs then
+		if total_tabs <= max_visible_tabs then
 			right_widget.visible = false
 		end
 
@@ -720,98 +722,59 @@ mod._addModTabs = function(self, dt, t, input_service)
 	end
 
 	if mod:get("enable_mod_tabs") and input_service then
-		local using_gamepad = not self:using_cursor_navigation()
+		local ok, err = pcall(function()
+			local using_gamepad = not self:using_cursor_navigation()
 
-		if using_gamepad then
-			local navigate_left = input_service:get("navigate_left_continuous")
-			local navigate_right = input_service:get("navigate_right_continuous")
+			if using_gamepad then
+				local navigate_left = input_service:get("navigate_left_continuous")
+				local navigate_right = input_service:get("navigate_right_continuous")
 
-			if navigate_left or navigate_right then
-				local tabs = mod.get_tabs(self, mod.current_category)
+				if navigate_left or navigate_right then
+					local tabs = mod.get_tabs(self, mod.current_category)
 
-				if #tabs > 1 then
-					local mod_storage_key = get_mod_storage_key(self, mod.current_category)
-					local current_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
-					local current_idx = 1
+					if #tabs > 1 then
+						local mod_storage_key = get_mod_storage_key(self, mod.current_category)
+						local current_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
+						local current_idx = 1
 
-					for i, tab in ipairs(tabs) do
-						if tab == current_tab then
-							current_idx = i
-							break
+						for i, tab in ipairs(tabs) do
+							if tab == current_tab then
+								current_idx = i
+								break
+							end
 						end
-					end
 
-					if navigate_right and current_idx < #tabs then
-						current_idx = current_idx + 1
-					elseif navigate_left and current_idx > 1 then
-						current_idx = current_idx - 1
-					end
-
-					local new_tab = tabs[current_idx]
-
-					if new_tab and new_tab ~= current_tab then
-						mod.selected_tabs[mod_storage_key] = new_tab
-
-						mod.filter_settings(self, mod.current_category)
-
-						local start_index = mod.tab_scroll_index[mod_storage_key] or 1
-
-						if current_idx < start_index then
-							mod.tab_scroll_index[mod_storage_key] = current_idx
-							mod.create_tab_bar(self, mod.current_category)
-						elseif current_idx > start_index + mod.max_visible_tabs - 1 then
-							mod.tab_scroll_index[mod_storage_key] = current_idx - mod.max_visible_tabs + 1
-							mod.create_tab_bar(self, mod.current_category)
+						if navigate_right and current_idx < #tabs then
+							current_idx = current_idx + 1
+						elseif navigate_left and current_idx > 1 then
+							current_idx = current_idx - 1
 						end
-					end
-				end
-			end
-		else
-			--[[local scroll = input_service:get("scroll")
 
-			if scroll then
-				local scroll_y = type(scroll) == "table" and (scroll[2] or scroll.y or 0) or scroll
+						local new_tab = tabs[current_idx]
 
-				if scroll_y ~= 0 then
-					local cursor = input_service:get("cursor")
+						if new_tab and new_tab ~= current_tab then
+							mod.selected_tabs[mod_storage_key] = new_tab
 
-					if cursor then
-						local sg = self._ui_scenegraph
-						local tab_node = sg and sg.mod_tab_area
+							mod.filter_settings(self, mod.current_category)
 
-						if tab_node and tab_node.world_position then
-							local wx = tab_node.world_position[1]
-							local wy = tab_node.world_position[2]
-							local wsx = tab_node.size and tab_node.size[1] or 900
-							local wsy = tab_node.size and tab_node.size[2] or 60
+							local start_index = tonumber(mod.tab_scroll_index[mod_storage_key]) or 1
+							local max_visible_tabs = tonumber(mod.max_visible_tabs) or 5
 
-							if
-								cursor[1] >= wx
-								and cursor[1] <= wx + wsx
-								and cursor[2] >= wy
-								and cursor[2] <= wy + wsy
-							then
-								local mod_storage_key = get_mod_storage_key(self, mod.current_category)
-								local tabs = mod.get_tabs(self, mod.current_category)
-								local total_tabs = #tabs
-
-								if total_tabs > mod.max_visible_tabs then
-									local current = mod.tab_scroll_index[mod_storage_key] or 1
-									local max_start = total_tabs - mod.max_visible_tabs + 1
-
-									if scroll_y > 0 then
-										mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
-									else
-										mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, max_start)
-									end
-
-									mod.create_tab_bar(self, mod.current_category)
-								end
+							if current_idx < start_index then
+								mod.tab_scroll_index[mod_storage_key] = current_idx
+								mod.create_tab_bar(self, mod.current_category)
+							elseif current_idx > start_index + max_visible_tabs - 1 then
+								mod.tab_scroll_index[mod_storage_key] = current_idx - max_visible_tabs + 1
+								mod.create_tab_bar(self, mod.current_category)
 							end
 						end
 					end
 				end
-			end]]
+			end
+		end)
+
+		if not ok then
+			mod:debug("mod_tabs input error: %s", tostring(err))
 		end
 	end
 end

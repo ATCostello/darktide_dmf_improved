@@ -14,8 +14,136 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
 
+local text_input_field = mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/text_input_field")
+
+local SLIDER_COLORS = {
+	text_normal = Color.terminal_text_header(nil, true),
+	text_selected = Color.terminal_text_header_selected(nil, true),
+	background_hover = Color.terminal_background_gradient(nil, true),
+	frame_hover = Color.terminal_corner_hover(nil, true),
+}
+
 mod.last_category = nil
 mod.current_category = nil
+
+local SLIDER_TYPES = {
+	value_slider = true,
+	percent_slider = true,
+	slider = true,
+}
+
+local function get_value_text_style(widget)
+	local style = widget.style
+	return style.value_text or style.value_text_style
+end
+
+local function safe_input_get(input_service, action_name, default)
+	local ok, result = pcall(input_service.get, input_service, action_name)
+	return ok and result or default
+end
+
+local SliderPassTemplates = require("scripts/ui/pass_templates/slider_pass_templates")
+
+local function add_value_hotspot_to_pass_template(passes, width, height)
+	for i = 1, #passes do
+		if passes[i].content_id == "value_hotspot" then
+			return
+		end
+	end
+
+	local value_text_x = width - 20
+	local insert_before = #passes + 1
+
+	for i = 1, #passes do
+		local pass = passes[i]
+		if pass.value_id == "value_text" then
+			if pass.style and pass.style.offset then
+				value_text_x = pass.style.offset[1]
+			end
+			insert_before = i
+			break
+		end
+	end
+
+	local new_passes = {}
+
+	new_passes[#new_passes + 1] = {
+		pass_type = "texture",
+		value = "content/ui/materials/frames/frame_tile_1px",
+		style_id = "value_frame",
+		visibility_function = function(content, style)
+			local hotspot = content.value_hotspot
+			return content.value_editing or (hotspot and hotspot.is_hover)
+		end,
+		style = {
+			scale_to_material = true,
+			color = SLIDER_COLORS.frame_hover,
+			offset = { value_text_x - 5, -2, 4 },
+			size = { 23, height/2 + 4 },
+		},
+	}
+
+	new_passes[#new_passes + 1] = {
+		pass_type = "rect",
+		style_id = "value_edit_bg",
+		visibility_function = function(content, style)
+			return content.value_editing
+		end,
+		style = {
+			color = SLIDER_COLORS.background_hover,
+			offset = { value_text_x - 3, 0, 0 },
+			size = { 20, height/2 },
+		},
+	}
+
+	new_passes[#new_passes + 1] = {
+		pass_type = "rect",
+		style_id = "value_caret",
+		visibility_function = function(content, style)
+			return content.value_editing
+		end,
+		style = {
+			color = SLIDER_COLORS.text_selected,
+			offset = { value_text_x + 2, 3, 5 },
+			size = { 2, height/2 - 6 },
+		},
+	}
+
+	for j = 1, #new_passes do
+		table.insert(passes, insert_before + j - 1, new_passes[j])
+	end
+
+	passes[#passes + 1] = {
+		pass_type = "hotspot",
+		content_id = "value_hotspot",
+		style_id = "value_hotspot_style",
+		style = {
+			offset = { value_text_x - 3, 0, 10 },
+			size = { 20, height/2 },
+			visible = true,
+		},
+	}
+end
+
+local orig_settings_value_slider = SliderPassTemplates.settings_value_slider
+SliderPassTemplates.settings_value_slider = function(width, height, value_width, interactive)
+	local passes = orig_settings_value_slider(width, height, value_width, interactive)
+	if passes then
+		add_value_hotspot_to_pass_template(passes, width, height)
+	end
+	return passes
+end
+
+local orig_settings_percent_slider = SliderPassTemplates.settings_percent_slider
+if orig_settings_percent_slider then
+	SliderPassTemplates.settings_percent_slider = function(width, height, value_width, interactive)
+		local passes = orig_settings_percent_slider(width, height, value_width, interactive)
+		if passes then
+			add_value_hotspot_to_pass_template(passes, width, height)
+		end
+		return passes
+	end
+end
 
 mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
 	func(self, definitions, settings, context, dynamic_package_name)
@@ -77,6 +205,141 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	mod.last_category = nil
 end)
 
+mod._processSliderTextInput = function(self, input_service, dt, t)
+	local category = mod.current_category
+
+	if not category then
+		return
+	end
+
+	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+
+	if not widgets then
+		return
+	end
+
+	for _, row in ipairs(widgets) do
+		local widget = row.widget
+
+		if widget and SLIDER_TYPES[widget.type] then
+			local content = widget.content
+			local entry = content.entry
+
+			if entry and entry.get_function then
+				local value_hotspot = content.value_hotspot
+				local left_hold = safe_input_get(input_service, "left_hold", false)
+				local prev_left_hold = content._txt_prev_left_hold
+				content._txt_prev_left_hold = left_hold
+
+				local value_text_style = get_value_text_style(widget)
+
+				local min = entry.min_value or 0
+				local max = entry.max_value or 999999
+				local num_decimals = entry.num_decimals or 0
+				local abs_max = math.max(math.abs(min), math.abs(max))
+				local int_digits = #tostring(math.floor(abs_max))
+				local max_length = int_digits + (num_decimals > 0 and (num_decimals + 1) or 0) + (min < 0 and 1 or 0)
+				content.value_max_length = math.max(max_length, 1)
+				content.value_allow_decimal = num_decimals > 0
+				content.value_allow_minus = min < 0
+
+				if value_hotspot and value_hotspot.on_pressed and not content.value_editing then
+					local prev_display = content.value_text
+					text_input_field.start_editing(content, "value", function()
+						return entry.get_function()
+					end)
+					if prev_display then
+						content._prev_value_text = prev_display
+					end
+					if value_text_style then
+						content._txt_orig_color = table.clone(value_text_style.text_color)
+					end
+				end
+
+				if content.value_editing then
+					local keystrokes = Keyboard.keystrokes()
+					text_input_field.process_keystrokes(content, "value", keystrokes, t)
+
+					local set_value_fn = function(val)
+						if entry.on_activated then
+							entry.on_activated(val, entry)
+						end
+						if entry.changed_callback then
+							entry.changed_callback(val)
+						end
+					end
+
+					text_input_field.handle_edit_commands(content, "value", set_value_fn, min, max)
+
+					if content.value_editing then
+						content.value_text = content.value_edit_buffer or ""
+
+						if value_text_style then
+							value_text_style.text_color[2] = SLIDER_COLORS.text_selected[2]
+							value_text_style.text_color[3] = SLIDER_COLORS.text_selected[3]
+							value_text_style.text_color[4] = SLIDER_COLORS.text_selected[4]
+						end
+
+						local hotspot_style = widget.style.value_hotspot_style
+						local vt_x = hotspot_style and (hotspot_style.offset[1] + 3)
+							or (value_text_style and value_text_style.offset[1] or 935)
+						local buf = content.value_edit_buffer or ""
+						local pos = math.min(#buf + 1, max_length + 1)
+						local caret = widget.style.value_caret
+						if caret then
+							caret.offset[1] = vt_x + 2 + (pos - 1) * 16
+						end
+					end
+
+					if not content._last_input_time then
+						content._last_input_time = t
+					end
+
+					if text_input_field.timeout_inactive(content, t, 5) then
+						text_input_field.confirm_value(
+							content,
+							"value",
+							content.value_edit_buffer or "",
+							set_value_fn,
+							min,
+							max
+						)
+						text_input_field.stop_editing(content, "value")
+					end
+
+					if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
+						text_input_field.confirm_value(
+							content,
+							"value",
+							content.value_edit_buffer or "",
+							set_value_fn,
+							min,
+							max
+						)
+						text_input_field.stop_editing(content, "value")
+					end
+
+					content.drag_active = false
+					content.drag_previously_active = false
+				end
+
+				if not content.value_editing and content._txt_orig_color then
+					local orig = content._txt_orig_color
+
+					if value_text_style then
+						local tc = value_text_style.text_color
+						tc[2] = orig[2]
+						tc[3] = orig[3]
+						tc[4] = orig[4]
+					end
+
+					content._txt_orig_color = nil
+				end
+			end
+		end
+	end
+end
+
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if self.view_name ~= "dmf_options_view" then
 		return
@@ -96,6 +359,8 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if mod:get("enable_RGB_widget") then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
+
+	mod._processSliderTextInput(self, input_service, dt, t)
 
 	if mod:get("enable_dropdown_icons") then
 		mod._addDropdownIcons(self, dt, t, input_service)

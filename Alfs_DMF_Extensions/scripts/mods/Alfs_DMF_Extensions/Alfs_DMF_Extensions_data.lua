@@ -40,7 +40,11 @@ table.insert(mod.settings_widgets, {
 		{
 			setting_id = "reload_mods_keybind",
 			type = "keybind",
-			default_value = { "f9" },
+			default_value = {
+				"r",
+				"left shift",
+				"left ctrl",
+			},
 			keybind_trigger = "pressed",
 			keybind_type = "function_call",
 			function_name = "reload_all_mods",
