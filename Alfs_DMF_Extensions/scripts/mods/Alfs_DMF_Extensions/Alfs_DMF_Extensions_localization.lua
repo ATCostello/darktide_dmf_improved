@@ -54,7 +54,6 @@ end
 --Clipboard.put(name)
 --mod:echo(name)
 
--- base localisations
 mod.localisation = {
 	mod_name = {
 		en = "Alf's DMF Extensions",

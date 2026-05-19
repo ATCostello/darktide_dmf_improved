@@ -767,7 +767,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 				end
 			end
 		else
-			local scroll = input_service:get("scroll")
+			--[[local scroll = input_service:get("scroll")
 
 			if scroll then
 				local scroll_y = type(scroll) == "table" and (scroll[2] or scroll.y or 0) or scroll
@@ -811,7 +811,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 						end
 					end
 				end
-			end
+			end]]
 		end
 	end
 end
