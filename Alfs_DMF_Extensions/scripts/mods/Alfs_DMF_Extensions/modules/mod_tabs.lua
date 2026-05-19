@@ -791,6 +791,47 @@ mod._addModTabs = function(self, dt, t, input_service)
 					end
 				end
 			end
+		else
+			local scroll = input_service:get("scroll")
+
+			if scroll then
+				local scroll_y = type(scroll) == "table" and (scroll[2] or scroll.y or 0) or scroll
+
+				if scroll_y ~= 0 then
+					local cursor = input_service:get("cursor")
+
+					if cursor then
+						local sg = self._ui_scenegraph
+						local tab_node = sg and sg.mod_tab_area
+
+						if tab_node and tab_node.world_position then
+							local wx = tab_node.world_position[1]
+							local wy = tab_node.world_position[2]
+							local wsx = tab_node.size and tab_node.size[1] or 900
+							local wsy = tab_node.size and tab_node.size[2] or 60
+
+							if cursor[1] >= wx and cursor[1] <= wx + wsx and cursor[2] >= wy and cursor[2] <= wy + wsy then
+								local mod_storage_key = get_mod_storage_key(self, mod.current_category)
+								local tabs = mod.get_tabs(self, mod.current_category)
+								local total_tabs = #tabs
+
+								if total_tabs > mod.max_visible_tabs then
+									local current = mod.tab_scroll_index[mod_storage_key] or 1
+									local max_start = total_tabs - mod.max_visible_tabs + 1
+
+									if scroll_y > 0 then
+										mod.tab_scroll_index[mod_storage_key] = math.max(current - 1, 1)
+									else
+										mod.tab_scroll_index[mod_storage_key] = math.min(current + 1, max_start)
+									end
+
+									mod.create_tab_bar(self, mod.current_category)
+								end
+							end
+						end
+					end
+				end
+			end
 		end
 	end
 end
