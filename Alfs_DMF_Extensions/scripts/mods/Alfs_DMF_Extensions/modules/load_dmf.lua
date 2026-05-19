@@ -84,8 +84,14 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 		for _, widget in ipairs(mod_widgets) do
 			if mod_name then
-				if widget.tab and widget.setting_id then
-					tab_lookup[mod_name][widget.setting_id] = widget.tab
+				if widget.tab then
+					if widget.setting_id then
+						tab_lookup[mod_name][widget.setting_id] = widget.tab
+					end
+
+					if widget.title then
+						tab_lookup[mod_name][widget.title] = widget.tab
+					end
 				end
 			end
 
@@ -109,7 +115,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 		if mod_name then
 			local mod_tabs = tab_lookup[mod_name]
-			local tab = mod_tabs and mod_tabs[template.setting_id]
+			local tab = mod_tabs and (mod_tabs[template.setting_id] or mod_tabs[template.display_name])
 
 			if tab then
 				template.tab = tab

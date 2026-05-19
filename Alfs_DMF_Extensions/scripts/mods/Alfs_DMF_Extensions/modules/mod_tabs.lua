@@ -74,46 +74,56 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 	self._dmfimproved = mod
 
-	local template_data = {}
-
 	local current_group_tab = nil
 	local fallback_tab = mod.default_tab
+	local ti = 1
+	local templates = self._options_templates.settings or {}
 
-	for _, template in ipairs(self._options_templates.settings or {}) do
-		if template.category == category then
-			local setting_id = template.setting_id
-			local setting_type = template.widget_type
-
-			if setting_type == "group_header" and template.tab then
-				current_group_tab = template.tab
-			end
-
-			if setting_id then
-				template_data[setting_id] = current_group_tab or fallback_tab
-			end
+	-- Count category templates for debug
+	local cat_template_count = 0
+	for _, tpl in ipairs(templates) do
+		if tpl.category == category then
+			cat_template_count = cat_template_count + 1
 		end
 	end
+	mod:info("[mod_tabs] category=%s: %d category templates, %d widgets", category, cat_template_count, #widgets)
 
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
 
-		if widget and widget.content then
-			local content = widget.content
-			local entry = content.entry
+		if not (widget and widget.content) then
+			goto continue
+		end
 
-			if entry and entry.setting_id then
-				local tab = template_data[entry.setting_id]
+		local content = widget.content
 
-				if tab then
-					content.tab = tab
+		-- Walk templates in parallel with widgets
+		while ti <= #templates do
+			local tpl = templates[ti]
+			ti = ti + 1
 
-					if category == mod.current_category then
-						mod:info("[mod_tabs] widget[%s] text=%s tab=%s", entry.setting_id, tostring(content.text or content.display_name), tostring(content.tab))
-					end
+			if tpl.category == category then
+				mod:info("[mod_tabs]   tpl[%s] type=%s tab=%s", tpl.setting_id or tpl.display_name or "?", tpl.widget_type or "?", tostring(tpl.tab))
+
+				if tpl.widget_type == "group_header" and tpl.tab then
+					current_group_tab = tpl.tab
 				end
+
+				break
 			end
 		end
+
+		content.tab = current_group_tab or fallback_tab
+
+		if category == mod.current_category then
+			local entry = content.entry
+			mod:info("[mod_tabs] widget[%s] text=%s tab=%s", entry and entry.setting_id or "?", tostring(content.text or content.display_name), tostring(content.tab))
+		end
+
+		::continue::
 	end
+
+	mod:info("[mod_tabs] category=%s: ti stopped at %d out of %d templates", category, ti - 1, #templates)
 end
 
 -- ############################################################
