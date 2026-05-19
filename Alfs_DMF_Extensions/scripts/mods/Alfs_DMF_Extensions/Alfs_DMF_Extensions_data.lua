@@ -48,28 +48,22 @@ table.insert(mod.settings_widgets, {
 			keybind_global = true,
 		},
 		{
-			setting_id = "icon_dropdown_test",
-			type = "dropdown",
-			default_value = "opt_a",
-			options = {
-				{ text = "Option A (no icon)", value = "opt_a" },
-				{
-					text = "{#font(header_1)}Option with Aquila{#reset()}",
-					value = "opt_b",
-					icon = "content/ui/materials/icons/generic/aquila",
-				},
-				{
-					text = "Option with Exclamation",
-					value = "opt_c",
-					icon = "content/ui/materials/icons/generic/exclamation_mark",
-				},
-				{
-					text = "Red-tinted Aquila",
-					value = "opt_d",
-					icon = "content/ui/materials/icons/generic/aquila",
-					icon_colour = { 255, 255, 0, 0 },
-				},
-			},
+			setting_id = "enable_dropdown_icons",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_dropdown_icons_tooltip",
+		},
+		{
+			setting_id = "enable_font_support",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_font_support_tooltip",
+		},
+		{
+			setting_id = "enable_scrollable_dropdown",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_scrollable_dropdown_tooltip",
 		},
 	},
 })

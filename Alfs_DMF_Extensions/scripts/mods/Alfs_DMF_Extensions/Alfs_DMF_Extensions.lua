@@ -86,8 +86,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
-	self.dmf = mod.dmf
-
 	if mod:get("enable_scroll_position_saving") then
 		mod._saveScrollPosition(self)
 	end
@@ -101,9 +99,15 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 
-	mod._addDropdownIcons(self, dt, t, input_service)
-	mod._addFontSupport(self, dt, t, input_service)
-	mod._addScrollableDropdown(self, dt, t, input_service)
+	if mod:get("enable_dropdown_icons") then
+		mod._addDropdownIcons(self, dt, t, input_service)
+	end
+	if mod:get("enable_font_support") then
+		mod._addFontSupport(self, dt, t, input_service)
+	end
+	if mod:get("enable_scrollable_dropdown") then
+		mod._addScrollableDropdown(self, dt, t, input_service)
+	end
 
 	mod.last_category = mod.current_category
 end)

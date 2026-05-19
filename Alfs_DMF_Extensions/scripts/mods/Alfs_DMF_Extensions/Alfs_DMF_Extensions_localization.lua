@@ -91,7 +91,7 @@ mod.localisation = {
 		en = "{#color(" .. colours.title .. ")}General Settings{#reset()}",
 	},
 	mod_name_pizazz_toggle = {
-		en = "Enable Name Pizazz",
+		en = "Name Pizazz",
 	},
 	mod_name_pizazz_tooltip = {
 		en = "Toggles the rainbow colours effect on the mod name text. Requires a reload.\nIf enabled, you will get a small euphoric experience everytime you scroll through the mod menu, \nIf disabled - you will be a John Darktide and have no rainbow sprinkles (but I'll love you anyway).",
@@ -112,25 +112,45 @@ mod.localisation = {
 		en = "Generalised Mod Tabs",
 	},
 	enable_generalised_mod_tabs_tooltip = {
-		en = "Toggles generalised mod tab creation for mods that do not explicitly have tab support. These are automatically created using the mod's existing settings structure, and may be innacurate. If this setting is disabled, only mods that have specifically added tab support for 'Alf's DMF Extensions' will have tabs.",
+		en = "Toggles generalised mod tab creation for mods that do not explicitly have tab support. \n\n{#color("
+			.. colours.subtitle
+			.. ")}These are automatically created using the mod's existing settings structure, and may be innacurate.{#reset()} \n\nIf this setting is disabled, only mods that have specifically added tab support for 'Alf's DMF Extensions' will have tabs.",
 	},
 	enable_RGB_widget = {
-		en = "Custom RGB Widget"
+		en = "Custom RGB Widget",
 	},
 	enable_RGB_widget_tooltip = {
-		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible."
+		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible.",
 	},
 	reload_mods_keybind = {
-		en = "Reload Mods Keybind"
+		en = "Reload Mods Keybind",
 	},
 	reload_mods_keybind_tooltip = {
-		en = "Keybind to trigger a full mod reload (Ctrl+Shift+R in developer mode by default)."
+		en = "Keybind to trigger a full mod reload (Ctrl+Shift+R in developer mode by default).",
 	},
 	icon_dropdown_test = {
-		en = "Icon Dropdown Test"
+		en = "Icon Dropdown Test",
 	},
 	icon_dropdown_test_tooltip = {
-		en = "A test dropdown with icon support. Options with an 'icon' field defined show an icon to the left of the text."
+		en = "A test dropdown with icon support. Options with an 'icon' field defined show an icon to the left of the text.",
+	},
+	enable_dropdown_icons = {
+		en = "Dropdown Icons",
+	},
+	enable_dropdown_icons_tooltip = {
+		en = "Toggles icon support for DMF settings dropdowns. These need to be implemented by the mod author.",
+	},
+	enable_font_support = {
+		en = "Display Font Type",
+	},
+	enable_font_support_tooltip = {
+		en = "Toggles displaying the font type for DMF settings. These need to be implemented by the mod author and can be included with the {#font} tag.",
+	},
+	enable_scrollable_dropdown = {
+		en = "Mouse-Scrollable Dropdowns",
+	},
+	enable_scrollable_dropdown_tooltip = {
+		en = "Toggles allowing the use of your mouse to scroll through the dropdown menus in DMF.",
 	},
 }
 
