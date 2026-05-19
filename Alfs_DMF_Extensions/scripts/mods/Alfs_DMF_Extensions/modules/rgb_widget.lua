@@ -360,8 +360,20 @@ mod._updateRGBSliders = function(self, input_service, dt, t)
 end
 
 mod._addRgbSliders = function(self)
-	if mod.current_category ~= mod.last_category then
-		mod.inject_rgb_widgets(self, mod.current_category)
-		mod.filter_settings(self, mod.current_category)
+	local category = mod.current_category
+
+	if not category then
+		return
 	end
+
+	if category ~= mod._rgb_last_category then
+		mod._rgb_last_category = category
+		mod.inject_rgb_widgets(self, category)
+		mod.filter_settings(self, category)
+	elseif self._settings_content_grid ~= mod._grid_ref then
+		mod.inject_rgb_widgets(self, category)
+		mod.filter_settings(self, category)
+	end
+
+	mod._grid_ref = self._settings_content_grid
 end

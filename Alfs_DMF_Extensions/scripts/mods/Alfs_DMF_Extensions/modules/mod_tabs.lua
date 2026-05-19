@@ -72,21 +72,18 @@ mod.inject_tabs_into_widgets = function(self, category)
 		return
 	end
 
+	if widgets._tabs_injected then
+		return
+	end
+
+	widgets._tabs_injected = true
+
 	self._dmfimproved = mod
 
 	local current_group_tab = nil
 	local fallback_tab = mod.default_tab
 	local ti = 1
 	local templates = self._options_templates.settings or {}
-
-	-- Count category templates for debug
-	local cat_template_count = 0
-	for _, tpl in ipairs(templates) do
-		if tpl.category == category then
-			cat_template_count = cat_template_count + 1
-		end
-	end
-	mod:info("[mod_tabs] category=%s: %d category templates, %d widgets", category, cat_template_count, #widgets)
 
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
@@ -97,14 +94,11 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 		local content = widget.content
 
-		-- Walk templates in parallel with widgets
 		while ti <= #templates do
 			local tpl = templates[ti]
 			ti = ti + 1
 
 			if tpl.category == category then
-				mod:info("[mod_tabs]   tpl[%s] type=%s tab=%s", tpl.setting_id or tpl.display_name or "?", tpl.widget_type or "?", tostring(tpl.tab))
-
 				if tpl.widget_type == "group_header" and tpl.tab then
 					current_group_tab = tpl.tab
 				end
@@ -115,15 +109,8 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 		content.tab = current_group_tab or fallback_tab
 
-		if category == mod.current_category then
-			local entry = content.entry
-			mod:info("[mod_tabs] widget[%s] text=%s tab=%s", entry and entry.setting_id or "?", tostring(content.text or content.display_name), tostring(content.tab))
-		end
-
 		::continue::
 	end
-
-	mod:info("[mod_tabs] category=%s: ti stopped at %d out of %d templates", category, ti - 1, #templates)
 end
 
 -- ############################################################
@@ -131,6 +118,12 @@ end
 -- ############################################################
 
 mod.inject_generalised_tabs = function(self, category)
+	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+
+	if widgets and widgets._tabs_injected then
+		return
+	end
+
 	if category_has_explicit_tabs(self, category) then
 		mod.inject_tabs_into_widgets(self, category)
 		return
@@ -139,8 +132,13 @@ mod.inject_generalised_tabs = function(self, category)
 	local templates = self._options_templates and self._options_templates.settings
 	if not templates then return end
 
-	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 	if not widgets then return end
+
+	if widgets._tabs_injected then
+		return
+	end
+
+	widgets._tabs_injected = true
 
 	local current_tab = mod.default_tab
 	local ti = 1
@@ -718,17 +716,28 @@ end)
 -- ############################################################
 
 mod._addModTabs = function(self, dt, t, input_service)
-	if mod.current_category ~= mod.last_category then
-		if mod:get("enable_mod_tabs") then
-			mod.create_tab_bar(self, mod.current_category)
+	local category = mod.current_category
+
+	if category then
+		if category ~= mod.last_category then
+			mod.last_category = category
+
+			if mod:get("enable_mod_tabs") then
+				mod.create_tab_bar(self, category)
+			end
+
+			if mod:get("enable_generalised_mod_tabs") then
+				mod.inject_generalised_tabs(self, category)
+			else
+				mod.inject_tabs_into_widgets(self, category)
+			end
+
+			mod.filter_settings(self, category)
+		elseif self._settings_content_grid ~= mod._grid_ref then
+			mod.filter_settings(self, category)
 		end
 
-		if mod:get("enable_generalised_mod_tabs") then
-			mod.inject_generalised_tabs(self, mod.current_category)
-		else
-			mod.inject_tabs_into_widgets(self, mod.current_category)
-		end
-		mod.filter_settings(self, mod.current_category)
+		mod._grid_ref = self._settings_content_grid
 	end
 
 	if self._mod_tab_grid then
