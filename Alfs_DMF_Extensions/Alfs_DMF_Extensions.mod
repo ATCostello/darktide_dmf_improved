@@ -5,4 +5,9 @@ return {
         mod_localization = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/Alfs_DMF_Extensions_localization",
         mod_script = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/Alfs_DMF_Extensions",
     })end,
+	
+	 load_after = {
+		"dmf",
+	},
+  
 }

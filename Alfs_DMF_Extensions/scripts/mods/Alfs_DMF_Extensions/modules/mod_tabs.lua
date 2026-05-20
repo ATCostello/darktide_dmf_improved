@@ -50,13 +50,27 @@ end
 
 local function category_has_explicit_tabs(self, category)
 	local templates = self._options_templates and self._options_templates.settings
-	if not templates then
-		return false
+	if templates then
+		for _, template in ipairs(templates) do
+			if template.category == category and template.tab then
+				return true
+			end
+		end
 	end
 
-	for _, template in ipairs(templates) do
-		if template.category == category and template.tab then
-			return true
+	local dmf_mod = mod.dmf or get_mod("DMF")
+	if dmf_mod then
+		for _, mod_widgets in ipairs(dmf_mod.options_widgets_data or {}) do
+			local header = mod_widgets[1]
+			local cat_name = (header and (header.readable_mod_name or header.mod_name)) or ""
+			if cat_name == category then
+				for _, w in ipairs(mod_widgets) do
+					if w.tab then
+						return true
+					end
+				end
+				break
+			end
 		end
 	end
 
@@ -64,6 +78,48 @@ local function category_has_explicit_tabs(self, category)
 end
 
 mod.max_visible_tabs = 5
+
+local function resolve_widget_tab_from_dmf_data(category, setting_id, display_name)
+	if setting_id and mod.custom_tab_data and mod.custom_tab_data[setting_id] then
+		return mod.custom_tab_data[setting_id]
+	end
+	if display_name and mod.custom_tab_data and mod.custom_tab_data[display_name] then
+		return mod.custom_tab_data[display_name]
+	end
+
+	local dmf_mod = mod.dmf or get_mod("DMF")
+	if not dmf_mod then
+		return nil
+	end
+
+	for _, mod_widgets in ipairs(dmf_mod.options_widgets_data or {}) do
+		local header = mod_widgets[1]
+		local cat_name = (header and (header.readable_mod_name or header.mod_name)) or ""
+		if cat_name == category then
+			if display_name then
+				for _, w in ipairs(mod_widgets) do
+					if w.title == display_name and w.setting_id then
+						local tab = mod.custom_tab_data and mod.custom_tab_data[w.setting_id]
+						if tab then
+							return tab
+						end
+					end
+				end
+			end
+
+			for _, w in ipairs(mod_widgets) do
+				if (w.setting_id and w.setting_id == setting_id) or (w.title and display_name and w.title == display_name) then
+					if w.tab then
+						return w.tab
+					end
+				end
+			end
+			break
+		end
+	end
+
+	return nil
+end
 
 mod.inject_tabs_into_widgets = function(self, category)
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
@@ -99,8 +155,17 @@ mod.inject_tabs_into_widgets = function(self, category)
 			ti = ti + 1
 
 			if tpl.category == category then
-				if tpl.widget_type == "group_header" and tpl.tab then
-					current_group_tab = tpl.tab
+				if tpl.widget_type == "group_header" then
+					if tpl.tab then
+						current_group_tab = tpl.tab
+					else
+						local resolved = resolve_widget_tab_from_dmf_data(category, tpl.setting_id, tpl.display_name)
+						if resolved then
+							current_group_tab = resolved
+						else
+							current_group_tab = nil
+						end
+					end
 				end
 
 				break
@@ -259,8 +324,13 @@ mod.get_tabs = function(self, category)
 			if setting.category == category then
 				local setting_type = setting.widget_type
 
-				if setting_type == "group_header" and setting.tab then
-					current_group_tab = setting.tab
+				if setting_type == "group_header" then
+					local resolved = setting.tab or resolve_widget_tab_from_dmf_data(category, setting.setting_id, setting.display_name)
+					if resolved then
+						current_group_tab = resolved
+					else
+						current_group_tab = nil
+					end
 				elseif setting_type ~= "group_header" then
 					local tab = current_group_tab or fallback_tab
 

@@ -286,13 +286,18 @@ local blueprints = {
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
 
+					local c
 					if selected then
-						style.text_color = overrides.font_color_selected or COLORS.selected
+						c = overrides.font_color_selected or COLORS.selected
 					elseif hotspot.is_hover then
-						style.text_color = overrides.font_color_hover or COLORS.hover
+						c = overrides.font_color_hover or COLORS.hover
 					else
-						style.text_color = overrides.font_color or COLORS.normal
+						c = overrides.font_color or COLORS.normal
 					end
+					style.text_color[1] = c[1]
+					style.text_color[2] = c[2]
+					style.text_color[3] = c[3]
+					style.text_color[4] = c[4]
 
 					if overrides.font_size then
 						style.font_size = overrides.font_size

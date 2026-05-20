@@ -156,6 +156,38 @@ dmf.create_mod_options_settings = function(self, options_templates)
 		end
 	end
 
+	local cat_group_tabs = {}
+
+	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
+		local header = mod_widgets[1]
+		local cat_name = (header and (header.readable_mod_name or header.mod_name)) or ""
+
+		cat_group_tabs[cat_name] = {}
+
+		for _, w in ipairs(mod_widgets) do
+			if w.type == "group" and w.tab then
+				cat_group_tabs[cat_name][#cat_group_tabs[cat_name] + 1] = w.tab
+			end
+		end
+	end
+
+	local consumed = {}
+
+	for _, template in ipairs(settings) do
+		if template.widget_type == "group_header" and not template.tab and not template.group_name and template.category then
+			local tabs = cat_group_tabs[template.category]
+
+			if tabs and #tabs > 0 then
+				consumed[template.category] = (consumed[template.category] or 0) + 1
+				local idx = consumed[template.category]
+
+				if tabs[idx] then
+					template.tab = tabs[idx]
+				end
+			end
+		end
+	end
+
 	return result
 end
 
@@ -205,12 +237,23 @@ mod.on_all_mods_loaded = function()
 					local pi = widget.parent_index
 					while pi do
 						local parent = mod_widgets[pi]
-						if parent and parent.tab then
-							widget.tab = parent.tab
-							break
+						if parent then
+							if parent.tab then
+								widget.tab = parent.tab
+								break
+							elseif parent.type == "group" and parent.depth == 0 and parent.title then
+								widget.tab = parent.title
+								break
+							end
 						end
 						pi = parent and parent.parent_index
 					end
+				end
+			end
+
+			for _, widget in ipairs(mod_widgets) do
+				if not widget.tab and widget.type == "group" and widget.depth == 0 and widget.title then
+					widget.tab = widget.title
 				end
 			end
 		end
@@ -228,4 +271,5 @@ mod.on_all_mods_loaded = function()
 			end
 		end
 	end
+
 end

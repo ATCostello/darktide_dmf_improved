@@ -20,6 +20,8 @@ local SUFFIX_MAP = {
 	["_blue"] = "B",
 	["_A"] = "A",
 	["_alpha"] = "A",
+	["_opacity"] = "A",
+	["_transparency"] = "A",
 }
 
 local function get_suffix_type(id)
@@ -62,32 +64,41 @@ end
 
 local function extract_rgb_group(widgets, start_index)
 	local found = {}
+	local indices = {}
 
-	for j = start_index, start_index + 3 do
+	for j = start_index, #widgets do
 		local row = widgets[j]
 
-		if row and row.widget and row.widget.content then
-			local e = row.widget.content.entry
+		if row and row.widget then
+			if is_group(row.widget) then
+				break
+			end
 
-			if e and e.setting_id then
-				local suffix_type = get_suffix_type(e.setting_id)
+			if row.widget.content then
+				local e = row.widget.content.entry
 
-				if suffix_type then
-					found[suffix_type] = e
+				if e and e.setting_id then
+					local suffix_type = get_suffix_type(e.setting_id)
+
+					if suffix_type and not found[suffix_type] then
+						found[suffix_type] = e
+						indices[suffix_type] = j
+					end
 				end
 			end
 		end
 	end
 
 	if found.R and found.G and found.B then
-		return found
+		return found, indices
 	end
+
+	return nil
 end
 
 local function extract_rgb_cluster(widgets, start_index)
 	local found = {}
 	local base_name = nil
-	local skipped = 0
 
 	for j = start_index, math.min(start_index + 7, #widgets) do
 		local row = widgets[j]
@@ -104,12 +115,7 @@ local function extract_rgb_cluster(widgets, start_index)
 
 		local suffix_type = get_suffix_type(e.setting_id)
 
-		if not suffix_type then
-			skipped = skipped + 1
-			if skipped > 1 then
-				break
-			end
-		else
+		if suffix_type then
 			local name = strip_suffix(e.setting_id)
 
 			if not base_name then
@@ -180,36 +186,29 @@ local function inject_group_rgb_widgets(self, widgets)
 		local row = widgets[i]
 
 		if is_group(row.widget) then
-			local rgb = extract_rgb_group(widgets, i + 1)
+			local rgb, indices = extract_rgb_group(widgets, i + 1)
 
 			if rgb then
-				local r_row = widgets[i + 1]
+				local first_idx = math.min(indices.R, indices.G, indices.B, indices.A or math.huge)
+				local r_row = widgets[first_idx]
 
 				local rgb_widget = create_rgb_widget(self, r_row.widget, rgb)
 
 				if rgb_widget then
 					rgb_widget.content.tab = row.widget.content.tab
 
-					widgets[i + 1] = {
+					widgets[first_idx] = {
 						widget = rgb_widget,
 						alignment_widget = r_row.alignment_widget,
 					}
 
 					local remove = {}
-
-					for j = i + 2, #widgets do
-						local e2 = widgets[j]
-							and widgets[j].widget
-							and widgets[j].widget.content
-							and widgets[j].widget.content.entry
-
-						if is_rgb_child(e2) then
+					for _, j in pairs(indices) do
+						if j ~= first_idx then
 							remove[#remove + 1] = j
-						else
-							break
 						end
 					end
-
+					table.sort(remove)
 					for k = #remove, 1, -1 do
 						table.remove(widgets, remove[k])
 					end
@@ -239,47 +238,53 @@ local function inject_cluster_rgb_widgets(self, widgets)
 			if not is_group(row.widget) then
 				local entry = row.widget.content and row.widget.content.entry
 
-				if entry and entry.setting_id and get_suffix_type(entry.setting_id) == "R" then
-					local rgb, base_name = extract_rgb_cluster(widgets, i)
+				if entry and entry.setting_id then
+					local suffix = get_suffix_type(entry.setting_id)
 
-					if rgb then
-						local r_row = widgets[i]
+					if suffix == "R" or suffix == "A" then
+						local rgb, base_name = extract_rgb_cluster(widgets, i)
 
-						local rgb_widget = create_rgb_widget(self, nil, rgb)
+						if rgb then
+							local r_row = widgets[i]
 
-						if rgb_widget then
-							widgets[i] = {
-								widget = rgb_widget,
-								alignment_widget = r_row.alignment_widget,
-							}
+							local rgb_widget = create_rgb_widget(self, nil, rgb)
 
-							local remove = {}
+							if rgb_widget then
+								rgb_widget.content.tab = r_row.widget.content.tab
 
-							for j = i + 1, #widgets do
-								local e2 = widgets[j]
-									and widgets[j].widget
-									and widgets[j].widget.content
-									and widgets[j].widget.content.entry
+								widgets[i] = {
+									widget = rgb_widget,
+									alignment_widget = r_row.alignment_widget,
+								}
 
-								if e2 and e2.setting_id and get_suffix_type(e2.setting_id) then
-									local name = strip_suffix(e2.setting_id)
+								local remove = {}
 
-									if name == base_name then
-										remove[#remove + 1] = j
+								for j = i + 1, #widgets do
+									local e2 = widgets[j]
+										and widgets[j].widget
+										and widgets[j].widget.content
+										and widgets[j].widget.content.entry
+
+									if e2 and e2.setting_id and get_suffix_type(e2.setting_id) then
+										local name = strip_suffix(e2.setting_id)
+
+										if name == base_name then
+											remove[#remove + 1] = j
+										else
+											break
+										end
 									else
 										break
 									end
-								else
-									break
 								end
-							end
 
-							for k = #remove, 1, -1 do
-								table.remove(widgets, remove[k])
-							end
+								for k = #remove, 1, -1 do
+									table.remove(widgets, remove[k])
+								end
 
-							rgb_widget._anchor_widget = r_row.widget
-							rgb_widget._alignment_widget = r_row.alignment_widget
+								rgb_widget._anchor_widget = r_row.widget
+								rgb_widget._alignment_widget = r_row.alignment_widget
+							end
 						end
 					end
 				end

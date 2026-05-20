@@ -65,6 +65,9 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 			if pass.style and pass.style.size then
 				text_area_width = pass.style.size[1]
 			end
+			if not pass.style_id then
+				pass.style_id = "value_text"
+			end
 			insert_before = i
 			break
 		end
@@ -72,7 +75,7 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 
 	local right_edge = value_text_x + text_area_width
 	local hotspot_w = math.min(text_area_width - 16, 48)
-	local hotspot_h = math.max(height - 16, 16)
+	local hotspot_h = math.max(height - 24, 14)
 	local hotspot_x = right_edge - hotspot_w
 	local hotspot_y = math.max(math.floor((height - hotspot_h) / 2), 1)
 	local new_passes = {}
@@ -277,9 +280,12 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 					if prev_display then
 						content._prev_value_text = prev_display
 					end
-					if value_text_style then
-						content._txt_orig_color = table.clone(value_text_style.text_color)
-					end
+				if value_text_style then
+					content._txt_orig_color = table.clone(value_text_style.text_color)
+					content._orig_value_text_x = value_text_style.offset[1]
+					content._orig_text_halign = value_text_style.text_horizontal_alignment
+					content._orig_text_size_w = value_text_style.size[1]
+				end
 				end
 
 				if content.value_editing then
@@ -304,16 +310,21 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 							value_text_style.text_color[2] = SLIDER_COLORS.text_selected[2]
 							value_text_style.text_color[3] = SLIDER_COLORS.text_selected[3]
 							value_text_style.text_color[4] = SLIDER_COLORS.text_selected[4]
+
+							local hotspot_style = widget.style.value_hotspot_style
+							if hotspot_style and hotspot_style.offset then
+								value_text_style.offset[1] = hotspot_style.offset[1] + 2
+								value_text_style.text_horizontal_alignment = "left"
+								value_text_style.size[1] = hotspot_style.size[1]
+							end
 						end
 
-						local hotspot_style = widget.style.value_hotspot_style
-						local vt_x = hotspot_style and hotspot_style.offset[1]
-							or (value_text_style and value_text_style.offset[1] or 935)
 						local buf = content.value_edit_buffer or ""
 						local pos = math.min(#buf + 1, max_length + 1)
 						local caret = widget.style.value_caret
 						if caret then
-							caret.offset[1] = vt_x + 2 + (pos - 1) * 16
+							local text_x = value_text_style and value_text_style.offset[1] or 935
+							caret.offset[1] = text_x + (pos - 1) * 16
 						end
 					end
 
@@ -349,17 +360,29 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 					content.drag_previously_active = false
 				end
 
-				if not content.value_editing and content._txt_orig_color then
-					local orig = content._txt_orig_color
-
-					if value_text_style then
-						local tc = value_text_style.text_color
-						tc[2] = orig[2]
-						tc[3] = orig[3]
-						tc[4] = orig[4]
+				if not content.value_editing then
+					if content._txt_orig_color then
+						local orig = content._txt_orig_color
+						if value_text_style then
+							local tc = value_text_style.text_color
+							tc[2] = orig[2]
+							tc[3] = orig[3]
+							tc[4] = orig[4]
+						end
+						content._txt_orig_color = nil
 					end
-
-					content._txt_orig_color = nil
+				if content._orig_value_text_x and value_text_style then
+					value_text_style.offset[1] = content._orig_value_text_x
+					content._orig_value_text_x = nil
+				end
+				if content._orig_text_halign and value_text_style then
+					value_text_style.text_horizontal_alignment = content._orig_text_halign
+					content._orig_text_halign = nil
+				end
+				if content._orig_text_size_w and value_text_style then
+					value_text_style.size[1] = content._orig_text_size_w
+					content._orig_text_size_w = nil
+				end
 				end
 			end
 		end
