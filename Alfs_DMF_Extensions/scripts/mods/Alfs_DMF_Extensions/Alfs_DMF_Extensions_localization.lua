@@ -161,7 +161,7 @@ mod.localisation = {
 		en = "..",
 	},
 	default_tab = {
-		en = "Default",
+		en = "Other",
 	},
 	enable_reload_mods_rebind = {
 		en = "Rebind DMF Reload?",

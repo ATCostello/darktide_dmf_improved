@@ -221,7 +221,6 @@ end)
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._rgb_last_category = nil
-		mod.update_default_tab()
 	end
 end)
 

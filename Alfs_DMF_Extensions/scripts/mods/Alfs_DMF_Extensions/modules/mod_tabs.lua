@@ -367,7 +367,7 @@ mod.get_tabs = function(self, category)
 		end
 
 		if not already_present then
-			table.insert(filtered_tabs, 1, fallback_tab)
+			table.insert(filtered_tabs, #filtered_tabs + 1, fallback_tab)
 		end
 	end
 

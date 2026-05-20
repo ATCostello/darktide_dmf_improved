@@ -42,6 +42,18 @@ local function strip_suffix(id)
 	return id
 end
 
+local function is_slider(widget)
+	if not widget then
+		return false
+	end
+
+	if widget.type ~= "value_slider" then
+		return false
+	end
+
+	return true
+end
+
 local function is_group(widget)
 	if not widget then
 		return false
@@ -80,7 +92,11 @@ local function extract_rgb_group(widgets, start_index)
 				if e and e.setting_id then
 					local suffix_type = get_suffix_type(e.setting_id)
 
-					if suffix_type and not found[suffix_type] then
+					if not suffix_type then
+						break
+					end
+
+					if is_slider(row.widget) and suffix_type and not found[suffix_type] then
 						found[suffix_type] = e
 						indices[suffix_type] = j
 					end
@@ -115,7 +131,12 @@ local function extract_rgb_cluster(widgets, start_index)
 
 		local suffix_type = get_suffix_type(e.setting_id)
 
-		if suffix_type then
+		if not suffix_type then
+			mod:echo("invalid suffix type: " .. e.setting_id)
+			--break
+		end
+
+		if is_slider(row.widget) and suffix_type then
 			local name = strip_suffix(e.setting_id)
 
 			if not base_name then
@@ -230,7 +251,7 @@ end
 
 local function inject_cluster_rgb_widgets(self, widgets)
 	local i = 1
-
+	dbg_self = self
 	while i <= #widgets do
 		local row = widgets[i]
 
@@ -241,7 +262,7 @@ local function inject_cluster_rgb_widgets(self, widgets)
 				if entry and entry.setting_id then
 					local suffix = get_suffix_type(entry.setting_id)
 
-					if suffix == "R" or suffix == "A" then
+					if suffix == "R" or suffix == "G" or suffix == "B" or suffix == "A" then
 						local rgb, base_name = extract_rgb_cluster(widgets, i)
 
 						if rgb then
