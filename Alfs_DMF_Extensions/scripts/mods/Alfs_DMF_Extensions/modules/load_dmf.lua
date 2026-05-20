@@ -34,11 +34,30 @@ dmf.initialize_mod_options = function(passed_mod, options)
 
 	collect_widgets(options.widgets)
 
+	local raw_tab_overrides = {}
+
+	local function collect_overrides(widgets)
+		for _, w in ipairs(widgets) do
+			if w.tab_overrides then
+				raw_tab_overrides[w.setting_id] = w.tab_overrides
+			end
+			if w.sub_widgets then
+				collect_overrides(w.sub_widgets)
+			end
+		end
+	end
+	collect_overrides(options.widgets)
+
 	for _, initialized in ipairs(initialized_widgets) do
 		local raw = raw_lookup[initialized.setting_id]
 
 		if raw then
 			initialized.tab = raw.tab
+		end
+
+		local overrides = raw_tab_overrides[initialized.setting_id]
+		if overrides then
+			initialized.tab_overrides = overrides
 		end
 	end
 
@@ -179,6 +198,33 @@ mod.on_all_mods_loaded = function()
 				if not widget.tab and widget.type == "group" and widget.depth == 0 and widget.title then
 					widget.tab = widget.title
 				end
+			end
+		else
+			for _, widget in ipairs(mod_widgets) do
+				if not widget.tab and widget.type ~= "group" and widget.parent_index then
+					local pi = widget.parent_index
+					while pi do
+						local parent = mod_widgets[pi]
+						if parent and parent.tab then
+							widget.tab = parent.tab
+							break
+						end
+						pi = parent and parent.parent_index
+					end
+				end
+			end
+		end
+	end
+
+	mod.tab_overrides_lookup = mod.tab_overrides_lookup or {}
+
+	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
+		local header = mod_widgets[1]
+		local category_name = (header and (header.readable_mod_name or header.mod_name)) or ""
+
+		for _, widget in ipairs(mod_widgets) do
+			if widget.tab and widget.tab_overrides then
+				mod.tab_overrides_lookup[category_name .. "|" .. widget.tab] = widget.tab_overrides
 			end
 		end
 	end

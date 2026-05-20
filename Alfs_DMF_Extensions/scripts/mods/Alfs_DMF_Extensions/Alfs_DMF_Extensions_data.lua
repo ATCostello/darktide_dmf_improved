@@ -1,6 +1,11 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
 mod.default_tab = "Default"
+
+function mod.update_default_tab()
+	mod.default_tab = mod:localize("default_tab")
+end
+mod.update_default_tab()
 mod.settings_widgets = {}
 
 table.insert(mod.settings_widgets, {

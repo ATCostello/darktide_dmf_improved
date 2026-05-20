@@ -13,6 +13,7 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/drop
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/keybindings_fix")
 
 local text_input_field = mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/text_input_field")
 
@@ -52,6 +53,7 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 	end
 
 	local value_text_x = width - 20
+	local text_area_width = 80
 	local insert_before = #passes + 1
 
 	for i = 1, #passes do
@@ -60,11 +62,19 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 			if pass.style and pass.style.offset then
 				value_text_x = pass.style.offset[1]
 			end
+			if pass.style and pass.style.size then
+				text_area_width = pass.style.size[1]
+			end
 			insert_before = i
 			break
 		end
 	end
 
+	local right_edge = value_text_x + text_area_width
+	local hotspot_w = math.min(text_area_width - 16, 48)
+	local hotspot_h = math.max(height - 16, 16)
+	local hotspot_x = right_edge - hotspot_w
+	local hotspot_y = math.max(math.floor((height - hotspot_h) / 2), 1)
 	local new_passes = {}
 
 	new_passes[#new_passes + 1] = {
@@ -78,8 +88,8 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		style = {
 			scale_to_material = true,
 			color = SLIDER_COLORS.frame_hover,
-			offset = { value_text_x - 5, -2, 4 },
-			size = { 23, height/2 + 4 },
+			offset = { hotspot_x - 2, hotspot_y - 2, 4 },
+			size = { hotspot_w + 4, hotspot_h + 4 },
 		},
 	}
 
@@ -91,8 +101,8 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		end,
 		style = {
 			color = SLIDER_COLORS.background_hover,
-			offset = { value_text_x - 3, 0, 0 },
-			size = { 20, height/2 },
+			offset = { hotspot_x, hotspot_y, 3 },
+			size = { hotspot_w, hotspot_h },
 		},
 	}
 
@@ -104,8 +114,8 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		end,
 		style = {
 			color = SLIDER_COLORS.text_selected,
-			offset = { value_text_x + 2, 3, 5 },
-			size = { 2, height/2 - 6 },
+			offset = { hotspot_x + 2, hotspot_y + 2, 5 },
+			size = { 2, hotspot_h - 4 },
 		},
 	}
 
@@ -118,8 +128,8 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		content_id = "value_hotspot",
 		style_id = "value_hotspot_style",
 		style = {
-			offset = { value_text_x - 3, 0, 10 },
-			size = { 20, height/2 },
+			offset = { hotspot_x, hotspot_y, 10 },
+			size = { hotspot_w, hotspot_h },
 			visible = true,
 		},
 	}
@@ -205,6 +215,13 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	mod.last_category = nil
 end)
 
+mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
+	if self.view_name == "dmf_options_view" then
+		mod._rgb_last_category = nil
+		mod.update_default_tab()
+	end
+end)
+
 mod._processSliderTextInput = function(self, input_service, dt, t)
 	local category = mod.current_category
 
@@ -235,13 +252,22 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 
 				local min = entry.min_value or 0
 				local max = entry.max_value or 999999
-				local num_decimals = entry.num_decimals or 0
-				local abs_max = math.max(math.abs(min), math.abs(max))
-				local int_digits = #tostring(math.floor(abs_max))
-				local max_length = int_digits + (num_decimals > 0 and (num_decimals + 1) or 0) + (min < 0 and 1 or 0)
-				content.value_max_length = math.max(max_length, 1)
-				content.value_allow_decimal = num_decimals > 0
-				content.value_allow_minus = min < 0
+			local num_decimals = entry.num_decimals
+			if num_decimals == nil or num_decimals == 0 then
+				if entry.step_size and entry.step_size < 1 then
+					num_decimals = 2
+				elseif min ~= math.floor(min) or max ~= math.floor(max) then
+					num_decimals = 2
+				else
+					num_decimals = 0
+				end
+			end
+			local abs_max = math.max(math.abs(min), math.abs(max))
+			local int_digits = #tostring(math.floor(abs_max))
+			local max_length = int_digits + (num_decimals > 0 and (num_decimals + 1) or 0) + (min < 0 and 1 or 0)
+			content.value_max_length = math.max(max_length, 1)
+			content.value_allow_decimal = num_decimals > 0
+			content.value_allow_minus = min < 0
 
 				if value_hotspot and value_hotspot.on_pressed and not content.value_editing then
 					local prev_display = content.value_text
@@ -281,7 +307,7 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 						end
 
 						local hotspot_style = widget.style.value_hotspot_style
-						local vt_x = hotspot_style and (hotspot_style.offset[1] + 3)
+						local vt_x = hotspot_style and hotspot_style.offset[1]
 							or (value_text_style and value_text_style.offset[1] or 935)
 						local buf = content.value_edit_buffer or ""
 						local pos = math.min(#buf + 1, max_length + 1)

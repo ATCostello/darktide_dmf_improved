@@ -254,34 +254,6 @@ local blueprints = {
 				end,
 			},
 
-			-- text shadow
-			--[[{
-				pass_type = "text",
-				style_id = "text_shadow",
-				value_id = "text",
-
-				style = {
-					font_type = "proxima_nova_bold",
-					font_size = 22,
-
-					text_horizontal_alignment = "center",
-					text_vertical_alignment = "center",
-
-					text_color = {
-						220,
-						0,
-						0,
-						0,
-					},
-
-					offset = {
-						0,
-						3,
-						5,
-					},
-				},
-			},]]
-
 			-- main text
 			{
 				pass_type = "text",
@@ -308,22 +280,33 @@ local blueprints = {
 
 				change_function = function(content, style)
 					local hotspot = content.hotspot
-
 					local mod_reference = content.mod_reference
+					local overrides = content.tab_overrides or {}
 
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
 
 					if selected then
-						style.text_color = COLORS.selected
+						style.text_color = overrides.font_color_selected or COLORS.selected
 					elseif hotspot.is_hover then
-						style.text_color = COLORS.hover
+						style.text_color = overrides.font_color_hover or COLORS.hover
 					else
-						style.text_color = COLORS.normal
+						style.text_color = overrides.font_color or COLORS.normal
+					end
+
+					if overrides.font_size then
+						style.font_size = overrides.font_size
 					end
 				end,
 			},
 		},
+
+		size_function = function(parent, config)
+			local overrides = config.tab_overrides or {}
+			local w = overrides.button_width or 250
+			local h = overrides.button_height or settings_value_height
+			return { w, h }
+		end,
 
 		init = function(parent, widget, entry, callback_name, changed_callback_name)
 			local content = widget.content
@@ -332,6 +315,14 @@ local blueprints = {
 			content.text = entry.display_name
 			content.entry = entry
 			content.selected = false
+			content.tab_overrides = entry.tab_overrides or {}
+
+			if content.tab_overrides.font_size then
+				local text_style = widget.style.text
+				if text_style then
+					text_style.font_size = content.tab_overrides.font_size
+				end
+			end
 
 			hotspot.pressed_callback = function()
 				if entry.disabled then

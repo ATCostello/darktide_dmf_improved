@@ -12,21 +12,22 @@ local _content_blueprints =
 mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
 
-local function truncate_tab_title(text)
+local function truncate_tab_title(text, max_words)
 	if not text then
 		return text
 	end
+	local limit = max_words or 4
 	local words = {}
 	for word in text:gmatch("%S+") do
 		words[#words + 1] = word
 	end
-	if #words <= 4 then
+	if #words <= limit then
 		return text
 	end
 	local result = ""
-	for i = 1, 4 do
+	for i = 1, limit do
 		result = result .. words[i]
-		if i < 4 then
+		if i < limit then
 			result = result .. " "
 		end
 	end
@@ -451,9 +452,12 @@ mod.create_tab_bar = function(self, category)
 	for i = start_index, end_index do
 		local tab_name = tabs[i]
 
+		local overrides = mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or nil
+
 		local entry = {
 			widget_type = "settings_button",
-			display_name = truncate_tab_title(tab_name),
+			display_name = truncate_tab_title(tab_name, overrides and overrides.truncate_num),
+			tab_overrides = overrides,
 		}
 
 		local widget, alignment_widget =
@@ -559,7 +563,7 @@ mod.filter_settings = function(self, category)
 
 			local widget_tab = content.tab
 
-			local visible = (widget_tab == nil) or (widget_tab == selected_tab)
+			local visible = (widget_tab == nil) or (widget_tab == selected_tab) or (widget_tab == mod.default_tab)
 
 			if index == 1 or index == 2 then
 				visible = true
@@ -687,6 +691,24 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 		end
 
 		self:_draw_grid(grid, self._mod_tab_widgets, interaction_widget, dt, t, input_service)
+
+		local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
+		if tooltip then
+			local found = false
+			for _, w in ipairs(self._mod_tab_widgets) do
+				local wh = w.content.hotspot
+				local overrides = w.content.tab_overrides or {}
+				if wh and wh.is_hover and overrides.tooltip then
+					tooltip.content.visible = true
+					tooltip.content.text = overrides.tooltip
+					found = true
+					break
+				end
+			end
+			if not found then
+				tooltip.content.visible = false
+			end
+		end
 
 		hotspot.is_hover = old_hover
 	end

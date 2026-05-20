@@ -1,5 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "1.0.03"
+mod.version = "1.1.00"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
@@ -159,6 +159,9 @@ mod.localisation = {
 	},
 	tab_title_truncated = {
 		en = "..",
+	},
+	default_tab = {
+		en = "Default",
 	},
 	enable_reload_mods_rebind = {
 		en = "Rebind DMF Reload?",
