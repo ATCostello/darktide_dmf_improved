@@ -101,10 +101,12 @@ local function could_have_tabs(self, category)
 				if tpl.indentation_level and tpl.indentation_level == 0 then
 					current_tab_name = tpl.display_name
 				end
-			elseif tpl.widget_type ~= "description"
+			elseif
+				tpl.widget_type ~= "description"
 				and tpl.widget_type ~= "title"
 				and tpl.widget_type ~= "spacer"
-				and tpl.widget_type ~= "spacing_vertical" then
+				and tpl.widget_type ~= "spacing_vertical"
+			then
 				local tab = current_tab_name or fallback_tab
 				seen_tabs[tab] = true
 			end
@@ -647,7 +649,6 @@ mod.filter_settings = function(self, category)
 		and not (mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category])
 		and could_have_tabs(self, category)
 
-	--#mod.get_tabs(self, category) > 1
 	if self._mod_tab_grid then
 		if has_toggle then
 			mod.inject_gen_tabs_toggle_into_content(self, category, visible_widgets, visible_alignment)
@@ -675,10 +676,14 @@ mod.filter_settings = function(self, category)
 				visible = true
 			else
 				local widget_tab = content.tab
-				visible = (widget_tab == nil) or (widget_tab == selected_tab) or (widget_tab == mod.default_tab)
+				visible = (widget_tab == nil) or (widget_tab == selected_tab)
 
-				if index == 1 or index == 2 then
-					visible = true
+				-- Force show mod_title and description!
+				-- Find description
+				if index == 1 or index == 2 or (has_toggle and index == 3) then
+					if widget.type == "description" or widget.type == "group_header" then
+						visible = true
+					end
 				end
 			end
 
