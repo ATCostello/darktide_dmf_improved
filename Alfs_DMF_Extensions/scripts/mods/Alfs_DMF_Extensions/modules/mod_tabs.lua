@@ -121,6 +121,8 @@ local function could_have_tabs(self, category)
 	return count > 1
 end
 
+local TOOLTIP_WIDTH = 400
+
 mod.max_visible_tabs = 5
 
 local function resolve_widget_tab_from_dmf_data(category, setting_id, display_name)
@@ -758,82 +760,125 @@ mod.filter_settings = function(self, category)
 end
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
+	if self.view_name == "dmf_options_view" then
+		local grid = self._mod_tab_grid
+
+		if grid then
+			local using_gamepad = not self:using_cursor_navigation()
+
+			if not using_gamepad then
+				local interaction_widget = self._widgets_by_name.grid_interaction_widget
+					or self._widgets_by_name.grid_interaction
+					or self._widgets_by_name.settings_grid_interaction
+
+				if interaction_widget then
+					local hotspot = interaction_widget.content.hotspot
+					local mod_storage_key = get_mod_storage_key(self, mod.current_category)
+
+					if hotspot then
+						local old_hover = hotspot.is_hover
+
+						hotspot.is_hover = true
+
+						for _, widget in ipairs(self._mod_tab_widgets) do
+							local w_hotspot = widget.content.hotspot
+
+							if w_hotspot and w_hotspot.on_pressed then
+								local tab_key = widget.content._tab_key or widget.content.text
+
+								if tab_key == mod:localize("tab_arrow_left") or tab_key == mod:localize("tab_arrow_right") then
+									w_hotspot.on_pressed = false
+								else
+									mod.selected_tabs[mod_storage_key] = tab_key
+
+									mod.filter_settings(self, mod.current_category)
+
+									w_hotspot.on_pressed = false
+								end
+							end
+						end
+
+						self:_draw_grid(grid, self._mod_tab_widgets, interaction_widget, dt, t, input_service)
+
+						hotspot.is_hover = old_hover
+					end
+				end
+			else
+				self:_draw_grid(grid, self._mod_tab_widgets, nil, dt, t, input_service)
+			end
+		end
+	end
+
+	local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
+	if tooltip then
+		tooltip.content.visible = false
+		local found = false
+
+		for _, w in ipairs(self._mod_tab_widgets or {}) do
+			local wh = w.content.hotspot
+			local overrides = w.content.tab_overrides or {}
+			if wh and wh.is_hover and overrides.tooltip then
+				tooltip.content.visible = true
+				tooltip.content.text = overrides.tooltip
+
+				local text_style = tooltip.style.text
+				local pivot_pos = self:_scenegraph_world_position("mod_tab_content")
+				local tooltip_width = TOOLTIP_WIDTH
+				local _, text_height = self:_text_size(overrides.tooltip, text_style, { tooltip_width, 0 })
+				local height = text_height
+
+				tooltip.content.size = { tooltip_width, height }
+
+				local left_edge_x = pivot_pos and pivot_pos[1] + (w.offset and w.offset[1] or 0) or 0
+				tooltip.offset[1] = left_edge_x - tooltip_width - 10
+				tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (w.offset and w.offset[2] or 0) + (w.content.size and w.content.size[2] or 48) + 10
+
+				self._tooltip_data = {
+					widget = w,
+					text = overrides.tooltip,
+				}
+
+				found = true
+				break
+			end
+		end
+
+		if not found then
+			local toggle_widget, _ = mod.get_gen_tabs_toggle(mod.current_category)
+			if toggle_widget then
+				local th = toggle_widget.content.hotspot
+				if th and th.is_hover then
+					local entry = toggle_widget.content.entry
+					if entry and entry.tooltip_text then
+						tooltip.content.visible = true
+						tooltip.content.text = entry.tooltip_text
+
+						local text_style = tooltip.style.text
+						local pivot_pos = self:_scenegraph_world_position("settings_grid_content_pivot")
+						local tooltip_width = TOOLTIP_WIDTH
+						local _, text_height = self:_text_size(entry.tooltip_text, text_style, { tooltip_width, 0 })
+						local height = text_height
+
+						tooltip.content.size = { tooltip_width, height }
+
+						local left_edge_x = pivot_pos and pivot_pos[1] + (toggle_widget.offset and toggle_widget.offset[1] or 0) or 0
+						local scroll_addition = self._settings_content_grid and self._settings_content_grid:length_scrolled() or 0
+						tooltip.offset[1] = left_edge_x - tooltip_width - 10
+						tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (toggle_widget.offset and toggle_widget.offset[2] or 0) - scroll_addition + (toggle_widget.content.size and toggle_widget.content.size[2] or 22) + 10
+
+						self._tooltip_data = {
+							widget = toggle_widget,
+							text = entry.tooltip_text,
+						}
+
+						found = true
+					end
+				end
+			end
+		end
+	end
+
 	func(self, dt, t, input_service, layer)
-
-	if self.view_name ~= "dmf_options_view" then
-		return
-	end
-
-	local grid = self._mod_tab_grid
-
-	if not grid then
-		return
-	end
-
-	local using_gamepad = not self:using_cursor_navigation()
-
-	if using_gamepad then
-		self:_draw_grid(grid, self._mod_tab_widgets, nil, dt, t, input_service)
-
-		return
-	end
-
-	local interaction_widget = self._widgets_by_name.grid_interaction_widget
-		or self._widgets_by_name.grid_interaction
-		or self._widgets_by_name.settings_grid_interaction
-
-	if not interaction_widget then
-		return
-	end
-
-	local hotspot = interaction_widget.content.hotspot
-	local mod_storage_key = get_mod_storage_key(self, mod.current_category)
-
-	if hotspot then
-		local old_hover = hotspot.is_hover
-
-		hotspot.is_hover = true
-
-		for _, widget in ipairs(self._mod_tab_widgets) do
-			local w_hotspot = widget.content.hotspot
-
-			if w_hotspot and w_hotspot.on_pressed then
-				local tab_key = widget.content._tab_key or widget.content.text
-
-				if tab_key == mod:localize("tab_arrow_left") or tab_key == mod:localize("tab_arrow_right") then
-					w_hotspot.on_pressed = false
-				else
-					mod.selected_tabs[mod_storage_key] = tab_key
-
-					mod.filter_settings(self, mod.current_category)
-
-					w_hotspot.on_pressed = false
-				end
-			end
-		end
-
-		self:_draw_grid(grid, self._mod_tab_widgets, interaction_widget, dt, t, input_service)
-
-		local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
-		if tooltip then
-			local found = false
-			for _, w in ipairs(self._mod_tab_widgets) do
-				local wh = w.content.hotspot
-				local overrides = w.content.tab_overrides or {}
-				if wh and wh.is_hover and overrides.tooltip then
-					tooltip.content.visible = true
-					tooltip.content.text = overrides.tooltip
-					found = true
-					break
-				end
-			end
-			if not found then
-				tooltip.content.visible = false
-			end
-		end
-
-		hotspot.is_hover = old_hover
-	end
 end)
 
 mod._addModTabs = function(self, dt, t, input_service)
