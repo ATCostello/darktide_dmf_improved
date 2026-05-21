@@ -260,22 +260,22 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 
 				local min = entry.min_value or 0
 				local max = entry.max_value or 999999
-			local num_decimals = entry.num_decimals
-			if num_decimals == nil or num_decimals == 0 then
-				if entry.step_size and entry.step_size < 1 then
-					num_decimals = 2
-				elseif min ~= math.floor(min) or max ~= math.floor(max) then
-					num_decimals = 2
-				else
-					num_decimals = 0
+				local num_decimals = entry.num_decimals
+				if num_decimals == nil or num_decimals == 0 then
+					if entry.step_size and entry.step_size < 1 then
+						num_decimals = 2
+					elseif min ~= math.floor(min) or max ~= math.floor(max) then
+						num_decimals = 2
+					else
+						num_decimals = 0
+					end
 				end
-			end
-			local abs_max = math.max(math.abs(min), math.abs(max))
-			local int_digits = #tostring(math.floor(abs_max))
-			local max_length = int_digits + (num_decimals > 0 and (num_decimals + 1) or 0) + (min < 0 and 1 or 0)
-			content.value_max_length = math.max(max_length, 1)
-			content.value_allow_decimal = num_decimals > 0
-			content.value_allow_minus = min < 0
+				local abs_max = math.max(math.abs(min), math.abs(max))
+				local int_digits = #tostring(math.floor(abs_max))
+				local max_length = int_digits + (num_decimals > 0 and (num_decimals + 1) or 0) + (min < 0 and 1 or 0)
+				content.value_max_length = math.max(max_length, 1)
+				content.value_allow_decimal = num_decimals > 0
+				content.value_allow_minus = min < 0
 
 				if value_hotspot and value_hotspot.on_pressed and not content.value_editing then
 					local prev_display = content.value_text
@@ -285,12 +285,12 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 					if prev_display then
 						content._prev_value_text = prev_display
 					end
-				if value_text_style then
-					content._txt_orig_color = table.clone(value_text_style.text_color)
-					content._orig_value_text_x = value_text_style.offset[1]
-					content._orig_text_halign = value_text_style.text_horizontal_alignment
-					content._orig_text_size_w = value_text_style.size[1]
-				end
+					if value_text_style then
+						content._txt_orig_color = table.clone(value_text_style.text_color)
+						content._orig_value_text_x = value_text_style.offset[1]
+						content._orig_text_halign = value_text_style.text_horizontal_alignment
+						content._orig_text_size_w = value_text_style.size[1]
+					end
 				end
 
 				if content.value_editing then
@@ -376,18 +376,18 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 						end
 						content._txt_orig_color = nil
 					end
-				if content._orig_value_text_x and value_text_style then
-					value_text_style.offset[1] = content._orig_value_text_x
-					content._orig_value_text_x = nil
-				end
-				if content._orig_text_halign and value_text_style then
-					value_text_style.text_horizontal_alignment = content._orig_text_halign
-					content._orig_text_halign = nil
-				end
-				if content._orig_text_size_w and value_text_style then
-					value_text_style.size[1] = content._orig_text_size_w
-					content._orig_text_size_w = nil
-				end
+					if content._orig_value_text_x and value_text_style then
+						value_text_style.offset[1] = content._orig_value_text_x
+						content._orig_value_text_x = nil
+					end
+					if content._orig_text_halign and value_text_style then
+						value_text_style.text_horizontal_alignment = content._orig_text_halign
+						content._orig_text_halign = nil
+					end
+					if content._orig_text_size_w and value_text_style then
+						value_text_style.size[1] = content._orig_text_size_w
+						content._orig_text_size_w = nil
+					end
 				end
 			end
 		end
@@ -395,11 +395,13 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 end
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
-	if self.view_name ~= "dmf_options_view" then
+	if self.view_name ~= "dmf_options_view" and self.view_name ~= "options_view" then
 		return
 	end
 
 	mod.current_category = self._selected_category
+
+	mod._processSliderTextInput(self, input_service, dt, t)
 
 	if mod:get("enable_scroll_position_saving") then
 		mod._saveScrollPosition(self)
@@ -413,8 +415,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if mod:get("enable_RGB_widget") then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
-
-	mod._processSliderTextInput(self, input_service, dt, t)
 
 	if mod:get("enable_dropdown_icons") then
 		mod._addDropdownIcons(self, dt, t, input_service)
