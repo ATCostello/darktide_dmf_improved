@@ -679,9 +679,13 @@ mod.filter_settings = function(self, category)
 				visible = (widget_tab == nil) or (widget_tab == selected_tab)
 
 				-- Force show mod_title and description!
-				-- Find description
-				if index == 1 or index == 2 or (has_toggle and index == 3) then
+				if index == 1 or index == 2 then
 					if widget.type == "description" or widget.type == "group_header" then
+						visible = true
+					end
+				end
+				if has_toggle and (index == 2 or index == 3) then
+					if widget.type == "description" then
 						visible = true
 					end
 				end
