@@ -134,6 +134,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 			if depth == 0 then
 				template.tab = template.display_name
+				template._auto_tab = true
 			end
 		end
 
@@ -156,6 +157,16 @@ dmf.create_mod_options_settings = function(self, options_templates)
 		end
 	end
 
+	for _, template in ipairs(settings) do
+		if template.widget_type == "group_header" and template.indentation_level == nil and template.display_name then
+			local depth = group_depth_lookup[template.display_name]
+
+			if depth ~= nil then
+				template.indentation_level = depth
+			end
+		end
+	end
+
 	local cat_group_tabs = {}
 
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
@@ -174,7 +185,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 	local consumed = {}
 
 	for _, template in ipairs(settings) do
-		if template.widget_type == "group_header" and not template.tab and not template.group_name and template.category then
+		if template.widget_type == "group_header" and not template.tab and not template.group_name and template.category and template.indentation_level == 0 then
 			local tabs = cat_group_tabs[template.category]
 
 			if tabs and #tabs > 0 then
@@ -183,6 +194,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 
 				if tabs[idx] then
 					template.tab = tabs[idx]
+					template._auto_tab = true
 				end
 			end
 		end
@@ -194,19 +206,26 @@ end
 mod.on_all_mods_loaded = function()
 	mod.dmf = get_mod("DMF")
 
+	mod._genuine_explicit_tab_mods = {}
+
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
 		local header = mod_widgets[1]
-		local mod_name = (header and header.mod_name) or "unknown"
-
-		local has_explicit_tabs = false
+		local category_name = (header and (header.readable_mod_name or header.mod_name)) or ""
 
 		for _, widget in ipairs(mod_widgets) do
 			if widget.tab then
-				has_explicit_tabs = true
-
+				mod._genuine_explicit_tab_mods[category_name] = true
 				break
 			end
 		end
+	end
+
+	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
+		local header = mod_widgets[1]
+		local mod_name = (header and header.mod_name) or "unknown"
+		local category_name = (header and (header.readable_mod_name or header.mod_name)) or ""
+
+		local has_explicit_tabs = mod._genuine_explicit_tab_mods[category_name] or false
 
 		if not has_explicit_tabs then
 			for _, widget in ipairs(mod_widgets) do

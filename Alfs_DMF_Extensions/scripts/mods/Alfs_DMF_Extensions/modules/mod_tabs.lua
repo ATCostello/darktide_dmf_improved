@@ -11,6 +11,7 @@ local _content_blueprints =
 
 mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
+mod._tab_inject_state = mod._tab_inject_state or {}
 
 local function truncate_tab_title(text, max_words)
 	if not text then
@@ -49,6 +50,11 @@ local function get_mod_storage_key(self, category)
 end
 
 local function category_has_explicit_tabs(self, category)
+	if not mod:get("enable_generalised_mod_tabs") then
+		local is_genuine = mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category]
+		return is_genuine or false
+	end
+
 	local templates = self._options_templates and self._options_templates.settings
 	if templates then
 		for _, template in ipairs(templates) do
@@ -59,6 +65,7 @@ local function category_has_explicit_tabs(self, category)
 	end
 
 	local dmf_mod = mod.dmf or get_mod("DMF")
+
 	if dmf_mod then
 		for _, mod_widgets in ipairs(dmf_mod.options_widgets_data or {}) do
 			local header = mod_widgets[1]
@@ -108,7 +115,10 @@ local function resolve_widget_tab_from_dmf_data(category, setting_id, display_na
 			end
 
 			for _, w in ipairs(mod_widgets) do
-				if (w.setting_id and w.setting_id == setting_id) or (w.title and display_name and w.title == display_name) then
+				if
+					(w.setting_id and w.setting_id == setting_id)
+					or (w.title and display_name and w.title == display_name)
+				then
 					if w.tab then
 						return w.tab
 					end
@@ -128,65 +138,97 @@ mod.inject_tabs_into_widgets = function(self, category)
 		return
 	end
 
-	if widgets._tabs_injected then
-		return
-	end
-
-	widgets._tabs_injected = true
-
-	self._dmfimproved = mod
-
+	local gen_tabs_enabled = mod:get("enable_generalised_mod_tabs")
 	local current_group_tab = nil
 	local fallback_tab = mod.default_tab
-	local ti = 1
 	local templates = self._options_templates.settings or {}
 
-	for _, data in ipairs(widgets) do
+	local cat_templates = {}
+	for _, tpl in ipairs(templates) do
+		if tpl.category == category then
+			cat_templates[#cat_templates + 1] = tpl
+		end
+	end
+
+	for i, data in ipairs(widgets) do
 		local widget = data.widget
 
 		if not (widget and widget.content) then
 			goto continue
 		end
 
-		local content = widget.content
+		local tpl = cat_templates[i]
 
-		while ti <= #templates do
-			local tpl = templates[ti]
-			ti = ti + 1
+		if tpl then
+			widget.content.indentation_level = tpl.indentation_level
 
-			if tpl.category == category then
-				if tpl.widget_type == "group_header" then
-					if tpl.tab then
+			if tpl.widget_type == "group_header" then
+				if tpl.tab then
+					if gen_tabs_enabled or not tpl._auto_tab then
 						current_group_tab = tpl.tab
-					else
-						local resolved = resolve_widget_tab_from_dmf_data(category, tpl.setting_id, tpl.display_name)
-						if resolved then
-							current_group_tab = resolved
-						else
-							current_group_tab = nil
-						end
 					end
+				elseif tpl.indentation_level and tpl.indentation_level == 0 then
+					current_group_tab = nil
 				end
-
-				break
 			end
 		end
 
-		content.tab = current_group_tab or fallback_tab
+		widget.content.tab = current_group_tab or fallback_tab
 
 		::continue::
 	end
 end
 
+local function get_tab_inject_state(self, category)
+	local gen_tabs_on = mod:get("enable_generalised_mod_tabs")
+	local per_mod_on = mod.is_gen_tabs_enabled_for_mod(category)
+	return string.format("%s_%s_%s", tostring(category), tostring(gen_tabs_on), tostring(per_mod_on))
+end
+
 mod.inject_generalised_tabs = function(self, category)
 	local widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 
-	if widgets and widgets._tabs_injected then
+	if not widgets then
+		return
+	end
+
+	local state_key = "gen_" .. tostring(category)
+
+	if not mod.is_gen_tabs_enabled_for_mod(category) then
+		local new_state = get_tab_inject_state(self, category)
+		if mod._tab_inject_state[state_key] == new_state then
+			return
+		end
+		mod._tab_inject_state[state_key] = new_state
+		for _, data in ipairs(widgets) do
+			if data.widget and data.widget.content then
+				data.widget.content.tab = nil
+			end
+		end
 		return
 	end
 
 	if category_has_explicit_tabs(self, category) then
+		local explicit_state_key = "explicit_" .. tostring(mod:get("enable_generalised_mod_tabs"))
+		if mod._tab_inject_state[state_key] == explicit_state_key then
+			return
+		end
+		mod._tab_inject_state[state_key] = explicit_state_key
 		mod.inject_tabs_into_widgets(self, category)
+		return
+	end
+
+	if not mod:get("enable_generalised_mod_tabs") then
+		local new_state = get_tab_inject_state(self, category)
+		if mod._tab_inject_state[state_key] == new_state then
+			return
+		end
+		mod._tab_inject_state[state_key] = new_state
+		for _, data in ipairs(widgets) do
+			if data.widget and data.widget.content then
+				data.widget.content.tab = nil
+			end
+		end
 		return
 	end
 
@@ -195,19 +237,14 @@ mod.inject_generalised_tabs = function(self, category)
 		return
 	end
 
-	if not widgets then
+	local new_state = get_tab_inject_state(self, category)
+	if mod._tab_inject_state[state_key] == new_state then
 		return
 	end
-
-	if widgets._tabs_injected then
-		return
-	end
-
-	widgets._tabs_injected = true
+	mod._tab_inject_state[state_key] = new_state
 
 	local current_tab = mod.default_tab
 	local ti = 1
-	local widget_count = 0
 
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
@@ -215,35 +252,13 @@ mod.inject_generalised_tabs = function(self, category)
 			goto continue
 		end
 
-		widget_count = widget_count + 1
-
 		while ti <= #templates do
 			local tpl = templates[ti]
 			ti = ti + 1
 
 			if tpl.category == category then
-				if widget_count > 2 and tpl.widget_type == "group_header" then
-					local next_indentation = nil
-					for j = ti, math.min(ti + 4, #templates) do
-						local next_tpl = templates[j]
-						if next_tpl and next_tpl.category == category then
-							local nt = next_tpl.widget_type
-							if
-								nt ~= "group_header"
-								and nt ~= "spacer"
-								and nt ~= "description"
-								and nt ~= "title"
-								and nt ~= "spacing_vertical"
-							then
-								next_indentation = next_tpl.indentation_level or 0
-								break
-							end
-						end
-					end
-
-					if next_indentation and next_indentation >= 1 then
-						current_tab = tpl.display_name or current_tab
-					end
+				if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+					current_tab = tpl.display_name or current_tab
 				end
 
 				break
@@ -263,61 +278,38 @@ mod.get_tabs = function(self, category)
 
 	local fallback_tab = mod.default_tab
 
-	if mod:get("enable_generalised_mod_tabs") and not category_has_explicit_tabs(self, category) then
+	local gen_tabs_enabled = mod:get("enable_generalised_mod_tabs")
+	local has_explicit = category_has_explicit_tabs(self, category)
+	local per_mod_enabled = mod.is_gen_tabs_enabled_for_mod(category)
+
+	if per_mod_enabled and gen_tabs_enabled and not has_explicit then
 		local current_tab = nil
-		local entry_count = 0
 
-		for i, setting in ipairs(self._options_templates.settings or {}) do
+		for _, setting in ipairs(self._options_templates.settings or {}) do
 			if setting.category == category then
-				entry_count = entry_count + 1
-				if entry_count <= 2 then
-					goto skip_entry
-				end
-
 				local setting_type = setting.widget_type
 
 				if setting_type == "group_header" then
-					local group_name = setting.display_name
-
-					local next_indentation = nil
-					for j = i + 1, math.min(i + 5, #self._options_templates.settings) do
-						local next_tpl = self._options_templates.settings[j]
-						if next_tpl.category == category then
-							local nt = next_tpl.widget_type
-							if
-								nt ~= "group_header"
-								and nt ~= "spacer"
-								and nt ~= "description"
-								and nt ~= "title"
-								and nt ~= "spacing_vertical"
-							then
-								next_indentation = next_tpl.indentation_level or 0
-								break
-							end
-						end
+					if setting.indentation_level and setting.indentation_level == 0 then
+						current_tab = setting.display_name
 					end
-
-					if next_indentation and next_indentation >= 1 then
-						current_tab = group_name
-
-						if not found[current_tab] then
-							found[current_tab] = true
-							tabs[#tabs + 1] = current_tab
-						end
-					end
-				else
+				elseif setting_type ~= "group_header" then
 					local tab = current_tab or fallback_tab
+
 					local ignore = setting_type == "description" or setting_type == "title" or setting_type == "spacer"
 
 					if not ignore then
 						tab_counts[tab] = (tab_counts[tab] or 0) + 1
+
+						if not found[tab] then
+							found[tab] = true
+							tabs[#tabs + 1] = tab
+						end
 					end
 				end
-
-				::skip_entry::
 			end
 		end
-	else
+	elseif per_mod_enabled and has_explicit then
 		local current_group_tab = nil
 
 		for _, setting in ipairs(self._options_templates.settings or {}) do
@@ -325,11 +317,15 @@ mod.get_tabs = function(self, category)
 				local setting_type = setting.widget_type
 
 				if setting_type == "group_header" then
-					local resolved = setting.tab or resolve_widget_tab_from_dmf_data(category, setting.setting_id, setting.display_name)
-					if resolved then
-						current_group_tab = resolved
-					else
-						current_group_tab = nil
+					if gen_tabs_enabled or not setting._auto_tab then
+						local resolved = setting.tab
+							or resolve_widget_tab_from_dmf_data(category, setting.setting_id, setting.display_name)
+
+						if resolved then
+							current_group_tab = resolved
+						elseif setting.indentation_level and setting.indentation_level == 0 then
+							current_group_tab = nil
+						end
 					end
 				elseif setting_type ~= "group_header" then
 					local tab = current_group_tab or fallback_tab
@@ -611,17 +607,34 @@ mod.filter_settings = function(self, category)
 
 	local spacing = view_settings.settings_grid_spacing or { 15, 0 }
 
+	local has_toggle = category
+		and mod:get("enable_generalised_mod_tabs")
+		and not (mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category])
+
 	if self._mod_tab_grid then
-		local spacer_config = {
-			widget_type = "spacing_vertical",
-			size = 100,
-		}
+		if has_toggle then
+			local push_config = { widget_type = "spacing_vertical", size = 110 }
+			local push_widget, push_alignment =
+				self:_create_settings_widget_from_config(push_config, category, "tab_pushdown", nil, nil)
+			visible_widgets[#visible_widgets + 1] = push_widget
+			visible_alignment[#visible_alignment + 1] = push_alignment
 
-		local spacer_widget, spacer_alignment =
-			self:_create_settings_widget_from_config(spacer_config, category, "tab_spacer", nil, nil)
+			mod.inject_gen_tabs_toggle_into_content(self, category, visible_widgets, visible_alignment)
 
-		visible_widgets[#visible_widgets + 1] = spacer_widget
-		visible_alignment[#visible_alignment + 1] = spacer_alignment
+			local gap_config = { widget_type = "spacing_vertical", size = 8 }
+			local gap_widget, gap_alignment =
+				self:_create_settings_widget_from_config(gap_config, category, "toggle_content_gap", nil, nil)
+			visible_widgets[#visible_widgets + 1] = gap_widget
+			visible_alignment[#visible_alignment + 1] = gap_alignment
+		else
+			local spacer_config = { widget_type = "spacing_vertical", size = 110 }
+			local spacer_widget, spacer_alignment =
+				self:_create_settings_widget_from_config(spacer_config, category, "tab_spacer", nil, nil)
+			visible_widgets[#visible_widgets + 1] = spacer_widget
+			visible_alignment[#visible_alignment + 1] = spacer_alignment
+		end
+	elseif has_toggle then
+		mod.inject_gen_tabs_toggle_into_content(self, category, visible_widgets, visible_alignment)
 	end
 
 	for index, data in ipairs(category_widgets) do
@@ -631,12 +644,17 @@ mod.filter_settings = function(self, category)
 		if widget and alignment_widget then
 			local content = widget.content or {}
 
-			local widget_tab = content.tab
+			local visible
 
-			local visible = (widget_tab == nil) or (widget_tab == selected_tab) or (widget_tab == mod.default_tab)
-
-			if index == 1 or index == 2 then
+			if not self._mod_tab_grid then
 				visible = true
+			else
+				local widget_tab = content.tab
+				visible = (widget_tab == nil) or (widget_tab == selected_tab) or (widget_tab == mod.default_tab)
+
+				if index == 1 or index == 2 then
+					visible = true
+				end
 			end
 
 			widget.visible = visible
@@ -786,26 +804,50 @@ end)
 
 mod._addModTabs = function(self, dt, t, input_service)
 	local category = mod.current_category
+	local mod_tabs_enabled = mod:get("enable_mod_tabs")
+
+	if mod._prev_mod_tabs_enabled == nil then
+		mod._prev_mod_tabs_enabled = mod_tabs_enabled
+	end
 
 	if category then
-		if category ~= mod.last_category then
+		if category ~= mod.last_category or mod_tabs_enabled ~= mod._prev_mod_tabs_enabled then
 			mod.last_category = category
 
-			if mod:get("enable_mod_tabs") then
+			if mod_tabs_enabled then
 				mod.create_tab_bar(self, category)
-			end
-
-			if mod:get("enable_generalised_mod_tabs") then
 				mod.inject_generalised_tabs(self, category)
-			else
-				mod.inject_tabs_into_widgets(self, category)
 			end
 
 			mod.filter_settings(self, category)
-		elseif self._settings_content_grid ~= mod._grid_ref then
-			mod.filter_settings(self, category)
+		else
+			if mod_tabs_enabled then
+				local state_key = "gen_" .. tostring(category)
+				local old_inject_state = mod._tab_inject_state[state_key]
+
+				mod.inject_generalised_tabs(self, category)
+
+				local new_inject_state = mod._tab_inject_state[state_key]
+				local should_refresh = old_inject_state ~= new_inject_state
+
+				if should_refresh then
+					mod.create_tab_bar(self, category)
+				end
+
+				if should_refresh or self._settings_content_grid ~= mod._grid_ref then
+					mod.filter_settings(self, category)
+				end
+			else
+				if self._mod_tab_grid then
+					self._mod_tab_grid = nil
+					self._mod_tab_widgets = nil
+				end
+
+				mod.filter_settings(self, category)
+			end
 		end
 
+		mod._prev_mod_tabs_enabled = mod_tabs_enabled
 		mod._grid_ref = self._settings_content_grid
 	end
 

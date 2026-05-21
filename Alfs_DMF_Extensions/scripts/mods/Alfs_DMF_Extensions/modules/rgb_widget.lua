@@ -132,8 +132,7 @@ local function extract_rgb_cluster(widgets, start_index)
 		local suffix_type = get_suffix_type(e.setting_id)
 
 		if not suffix_type then
-			mod:echo("invalid suffix type: " .. e.setting_id)
-			--break
+			break
 		end
 
 		if is_slider(row.widget) and suffix_type then
