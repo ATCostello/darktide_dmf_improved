@@ -78,7 +78,8 @@ mod._gen_tabs_toggle_widgets = mod._gen_tabs_toggle_widgets or {}
 mod.create_gen_tabs_toggle = function(self, category)
 	local entry = {
 		widget_type = "settings_button",
-		display_name = mod.is_gen_tabs_enabled_for_mod(category) and mod:localize("gen_tabs_toggle_on") or mod:localize("gen_tabs_toggle_off"),
+		display_name = mod.is_gen_tabs_enabled_for_mod(category) and mod:localize("gen_tabs_toggle_on")
+			or mod:localize("gen_tabs_toggle_off"),
 		tooltip_text = mod:localize("gen_tabs_toggle_tooltip"),
 	}
 
@@ -162,7 +163,8 @@ mod.create_gen_tabs_toggle = function(self, category)
 	if hotspot then
 		hotspot.pressed_callback = function()
 			local new_state = mod.toggle_gen_tabs_for_mod(category)
-			widget.content.text = new_state and mod:localize("gen_tabs_toggle_on") or mod:localize("gen_tabs_toggle_off")
+			widget.content.text = new_state and mod:localize("gen_tabs_toggle_on")
+				or mod:localize("gen_tabs_toggle_off")
 		end
 	end
 
@@ -193,6 +195,8 @@ mod.inject_gen_tabs_toggle_into_content = function(self, category, visible_widge
 	end
 
 	if widget and alignment then
+		alignment.offset = { 740, 80 }
+
 		widget.visible = true
 		alignment.visible = true
 		visible_widgets[#visible_widgets + 1] = widget

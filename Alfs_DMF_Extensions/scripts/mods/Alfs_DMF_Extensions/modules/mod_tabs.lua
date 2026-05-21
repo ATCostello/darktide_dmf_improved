@@ -611,21 +611,10 @@ mod.filter_settings = function(self, category)
 		and mod:get("enable_generalised_mod_tabs")
 		and not (mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category])
 
+	--#mod.get_tabs(self, category) > 1
 	if self._mod_tab_grid then
 		if has_toggle then
-			local push_config = { widget_type = "spacing_vertical", size = 110 }
-			local push_widget, push_alignment =
-				self:_create_settings_widget_from_config(push_config, category, "tab_pushdown", nil, nil)
-			visible_widgets[#visible_widgets + 1] = push_widget
-			visible_alignment[#visible_alignment + 1] = push_alignment
-
 			mod.inject_gen_tabs_toggle_into_content(self, category, visible_widgets, visible_alignment)
-
-			local gap_config = { widget_type = "spacing_vertical", size = 8 }
-			local gap_widget, gap_alignment =
-				self:_create_settings_widget_from_config(gap_config, category, "toggle_content_gap", nil, nil)
-			visible_widgets[#visible_widgets + 1] = gap_widget
-			visible_alignment[#visible_alignment + 1] = gap_alignment
 		else
 			local spacer_config = { widget_type = "spacing_vertical", size = 110 }
 			local spacer_widget, spacer_alignment =

@@ -170,10 +170,10 @@ mod.localisation = {
 		en = "Toggle rebinding the default DMF Reload keybind (Ctrl+Shift+R in developer mode by default).",
 	},
 	gen_tabs_toggle_on = {
-		en = "{#color(180,255,180)}Tabbed{#reset()}",
+		en = "{#color(180,255,180)}Tabs Enabled{#reset()}",
 	},
 	gen_tabs_toggle_off = {
-		en = "{#color(255,180,180)}Flat{#reset()}",
+		en = "{#color(255,180,180)}Tabs Disabled{#reset()}",
 	},
 	gen_tabs_toggle_tooltip = {
 		en = "Toggle generalized tabs for this mod. When OFF, all settings are shown without tab filtering.",

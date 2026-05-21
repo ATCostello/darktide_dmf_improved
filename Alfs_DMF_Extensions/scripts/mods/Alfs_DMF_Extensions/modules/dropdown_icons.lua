@@ -48,8 +48,6 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 		return
 	end
 
-	dbg_1 = widgets
-
 	for i = 1, #widgets do
 		local row = widgets[i]
 		local widget = row.widget
