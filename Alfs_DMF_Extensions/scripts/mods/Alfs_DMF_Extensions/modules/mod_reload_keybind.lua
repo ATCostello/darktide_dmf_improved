@@ -6,6 +6,8 @@ mod.reload_all_mods = function()
 	end
 end
 
-mod:hook(CLASS.ModManager, "_check_reload", function(func, self)
-	return false
-end)
+if CLASS and CLASS.ModManager then
+	mod:hook(CLASS.ModManager, "_check_reload", function(func, self)
+		return false
+	end)
+end

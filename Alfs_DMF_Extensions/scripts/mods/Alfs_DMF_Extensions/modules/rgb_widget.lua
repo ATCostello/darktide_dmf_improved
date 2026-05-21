@@ -250,7 +250,6 @@ end
 
 local function inject_cluster_rgb_widgets(self, widgets)
 	local i = 1
-	dbg_self = self
 	while i <= #widgets do
 		local row = widgets[i]
 

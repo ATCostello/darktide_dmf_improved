@@ -84,6 +84,41 @@ local function category_has_explicit_tabs(self, category)
 	return false
 end
 
+local function could_have_tabs(self, category)
+	local templates = self._options_templates and self._options_templates.settings
+	if not templates then
+		return false
+	end
+
+	local seen_tabs = {}
+	local current_tab_name = nil
+	local fallback_tab = mod.default_tab
+
+	for i = 1, #templates do
+		local tpl = templates[i]
+		if tpl.category == category then
+			if tpl.widget_type == "group_header" then
+				if tpl.indentation_level and tpl.indentation_level == 0 then
+					current_tab_name = tpl.display_name
+				end
+			elseif tpl.widget_type ~= "description"
+				and tpl.widget_type ~= "title"
+				and tpl.widget_type ~= "spacer"
+				and tpl.widget_type ~= "spacing_vertical" then
+				local tab = current_tab_name or fallback_tab
+				seen_tabs[tab] = true
+			end
+		end
+	end
+
+	local count = 0
+	for _ in pairs(seen_tabs) do
+		count = count + 1
+	end
+
+	return count > 1
+end
+
 mod.max_visible_tabs = 5
 
 local function resolve_widget_tab_from_dmf_data(category, setting_id, display_name)
@@ -610,6 +645,7 @@ mod.filter_settings = function(self, category)
 	local has_toggle = category
 		and mod:get("enable_generalised_mod_tabs")
 		and not (mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category])
+		and could_have_tabs(self, category)
 
 	--#mod.get_tabs(self, category) > 1
 	if self._mod_tab_grid then
