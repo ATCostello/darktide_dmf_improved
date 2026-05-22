@@ -811,7 +811,6 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 	local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
 	if tooltip then
-		tooltip.content.visible = false
 		local found = false
 
 		for _, w in ipairs(self._mod_tab_widgets or {}) do
@@ -848,15 +847,15 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 			if toggle_widget then
 				local th = toggle_widget.content.hotspot
 				if th and th.is_hover then
-					local entry = toggle_widget.content.entry
-					if entry and entry.tooltip_text then
+					local tooltip_text = toggle_widget.content._toggle_tooltip_text
+					if tooltip_text then
 						tooltip.content.visible = true
-						tooltip.content.text = entry.tooltip_text
+						tooltip.content.text = tooltip_text
 
 						local text_style = tooltip.style.text
 						local pivot_pos = self:_scenegraph_world_position("settings_grid_content_pivot")
 						local tooltip_width = TOOLTIP_WIDTH
-						local _, text_height = self:_text_size(entry.tooltip_text, text_style, { tooltip_width, 0 })
+						local _, text_height = self:_text_size(tooltip_text, text_style, { tooltip_width, 0 })
 						local height = text_height
 
 						tooltip.content.size = { tooltip_width, height }
@@ -868,7 +867,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 						self._tooltip_data = {
 							widget = toggle_widget,
-							text = entry.tooltip_text,
+							text = tooltip_text,
 						}
 
 						found = true

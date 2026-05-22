@@ -80,7 +80,6 @@ mod.create_gen_tabs_toggle = function(self, category)
 		widget_type = "settings_button",
 		display_name = mod.is_gen_tabs_enabled_for_mod(category) and mod:localize("gen_tabs_toggle_on")
 			or mod:localize("gen_tabs_toggle_off"),
-		tooltip_text = mod:localize("gen_tabs_toggle_tooltip"),
 	}
 
 	local scenegraph_id = "settings_grid_content_pivot"
@@ -157,6 +156,7 @@ mod.create_gen_tabs_toggle = function(self, category)
 	widget.content.text = entry.display_name
 	widget.content.entry = entry
 	widget.content.size = size
+	widget.content._toggle_tooltip_text = mod:localize("gen_tabs_toggle_tooltip")
 
 	local hotspot = widget.content.hotspot
 
