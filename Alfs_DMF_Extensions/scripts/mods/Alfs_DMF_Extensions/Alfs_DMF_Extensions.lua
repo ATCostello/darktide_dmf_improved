@@ -159,6 +159,60 @@ if orig_settings_percent_slider then
 	end
 end
 
+local function get_mod_storage_key(category)
+	return string.format("%s_%s", tostring(category), tostring(category or "unknown_category"))
+end
+
+mod.get_mod_storage_key_for_tab = get_mod_storage_key
+
+local function has_multiple_tabs(self)
+	local category = self._selected_category
+	if not category then
+		return false
+	end
+	local tabs = mod.get_tabs and mod.get_tabs(self, category)
+	return tabs and #tabs > 1
+end
+
+local function reset_tab_settings(self)
+	local category = self._selected_category
+	if not category then
+		return
+	end
+
+	local mod_storage_key = get_mod_storage_key(category)
+	local selected_tab = mod.selected_tabs and mod.selected_tabs[mod_storage_key]
+	if not selected_tab then
+		return
+	end
+
+	local category_widgets = self._settings_category_widgets and self._settings_category_widgets[category]
+	if not category_widgets then
+		return
+	end
+
+	local settings_default_values = self._settings_category_default_values and self._settings_category_default_values[category]
+	if not settings_default_values then
+		return
+	end
+
+	for _, data in ipairs(category_widgets) do
+		local widget = data.widget
+		if widget and widget.content then
+			local tab = widget.content.tab
+			if tab and tab == selected_tab then
+				local entry = widget.content.entry
+				if entry then
+					local default_value = settings_default_values[entry]
+					if default_value ~= nil and entry.on_activated then
+						entry.on_activated(default_value, entry)
+					end
+				end
+			end
+		end
+	end
+end
+
 mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
 	func(self, definitions, settings, context, dynamic_package_name)
 
@@ -213,6 +267,60 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
 
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
+
+	if mod:get("enable_tab_reset") then
+		self.cb_reset_tab_to_default = function(self_view)
+			local category = self_view._selected_category
+			if not category then
+				return
+			end
+
+			local context = {
+				title_text = mod:localize("reset_tab_to_default"),
+				description_text = "Reset all settings in the current tab to their default values?",
+				type = "warning",
+				options = {
+					{
+						text = "loc_popup_button_settings_reset_default",
+						close_on_pressed = true,
+						callback = callback(function()
+							reset_tab_settings(self_view)
+							self_view._popup_id = nil
+						end),
+					},
+					{
+						text = "loc_popup_button_cancel_settings_reset_default",
+						template_type = "terminal_button_small",
+						close_on_pressed = true,
+						hotkey = "back",
+						callback = function()
+							self_view._popup_id = nil
+						end,
+					},
+				},
+			}
+
+			Managers.event:trigger("event_show_ui_popup", context, function(id)
+				self_view._popup_id = id
+			end)
+		end
+
+		defs.legend_inputs = defs.legend_inputs or {}
+		table.insert(defs.legend_inputs, {
+			input_action = "hotkey_menu_special_1",
+			display_name = mod:localize("reset_tab_to_default"),
+			on_pressed_callback = "cb_reset_tab_to_default",
+			visibility_function = function(parent)
+				if not mod:get("enable_tab_reset") then
+					return false
+				end
+				if not mod:get("enable_mod_tabs") then
+					return false
+				end
+				return has_multiple_tabs(parent)
+			end,
+		})
+	end
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_exit", function(self)

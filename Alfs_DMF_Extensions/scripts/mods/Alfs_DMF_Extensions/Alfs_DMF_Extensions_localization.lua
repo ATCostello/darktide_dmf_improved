@@ -1,5 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "1.1.06"
+mod.version = "1.1.07"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
@@ -177,6 +177,15 @@ mod.localisation = {
 	},
 	gen_tabs_toggle_tooltip = {
 		en = "Toggle generalized tabs for this mod. When OFF, all settings are shown without tab filtering.",
+	},
+	enable_tab_reset = {
+		en = "Per-Tab Reset to Defaults",
+	},
+	enable_tab_reset_tooltip = {
+		en = "Adds a hotkey entry to reset only the currently selected tab's settings to their defaults, rather than resetting all settings in the mod.",
+	},
+	reset_tab_to_default = {
+		en = "Reset Tab to Defaults",
 	},
 }
 

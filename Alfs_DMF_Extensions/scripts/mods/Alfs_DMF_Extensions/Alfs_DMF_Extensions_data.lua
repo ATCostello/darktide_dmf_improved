@@ -69,6 +69,12 @@ table.insert(mod.settings_widgets, {
 			default_value = true,
 			tooltip = "enable_scrollable_dropdown_tooltip",
 		},
+		{
+			setting_id = "enable_tab_reset",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_tab_reset_tooltip",
+		},
 	},
 })
 
