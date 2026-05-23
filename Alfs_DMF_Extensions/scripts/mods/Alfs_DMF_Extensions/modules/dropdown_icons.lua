@@ -1,5 +1,8 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
+local SETTINGS_VALUE_WIDTH = 500
+local ICON_CONSTANT_OFFSET = 28
+
 local function copy_color(color)
 	if not color then
 		return nil
@@ -37,6 +40,15 @@ local function apply_option_icon_color(icon_style, text_style, icon_colour)
 	end
 end
 
+local function get_widget_icon_x(widget)
+	local widget_size = widget.content and widget.content.size
+	local widget_width = widget_size and widget_size[1]
+	if widget_width then
+		return widget_width - SETTINGS_VALUE_WIDTH + ICON_CONSTANT_OFFSET
+	end
+	return nil
+end
+
 mod._addDropdownIcons = function(self, dt, t, input_service)
 	local category = mod.current_category
 	if not category then
@@ -61,11 +73,16 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 				local value = entry.get_function and entry:get_function() or content.internal_value
 				local preview_option = content.options_by_value and content.options_by_value[value]
 
+				local icon_x = get_widget_icon_x(widget)
+
 				if preview_option and preview_option.icon then
 					content.value_icon = preview_option.icon
 					apply_preview_icon_color(widget.style.icon, widget.style.list_header, preview_option.icon_colour)
 					if widget.style.icon then
 						widget.style.icon.visible = true
+						if icon_x then
+							widget.style.icon.offset[1] = icon_x
+						end
 					end
 					if widget.style.text and widget.style.text.icon_offset then
 						widget.style.text.offset[1] = widget.style.text.icon_offset[1] + 15
@@ -104,6 +121,9 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						if icon_style then
 							icon_style.visible = true
 							icon_style.offset[2] = text_style.offset[2]
+							if icon_x then
+								icon_style.offset[1] = icon_x
+							end
 						end
 						if text_style and text_style.icon_offset then
 							text_style.offset[1] = text_style.icon_offset[1] + 15

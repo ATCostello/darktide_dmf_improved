@@ -8,6 +8,15 @@ local original_initialize = dmf.initialize_mod_options
 dmf.initialize_mod_options = function(passed_mod, options)
 	local result = original_initialize(passed_mod, options)
 
+	if options and options.required_icon_packages then
+		local packages = mod._required_icon_packages
+		for _, pkg in ipairs(options.required_icon_packages) do
+			if type(pkg) == "string" then
+				packages[pkg] = true
+			end
+		end
+	end
+
 	if not (options and options.widgets) then
 		return result
 	end
@@ -291,4 +300,19 @@ mod.on_all_mods_loaded = function()
 		end
 	end
 
+	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
+		local header = mod_widgets[1]
+		local mod_name = header and header.mod_name
+		if mod_name then
+			local mod_instance = get_mod(mod_name)
+			if mod_instance and mod_instance.required_icon_packages then
+				local packages = mod._required_icon_packages
+				for _, pkg in ipairs(mod_instance.required_icon_packages) do
+					if type(pkg) == "string" then
+						packages[pkg] = true
+					end
+				end
+			end
+		end
+	end
 end

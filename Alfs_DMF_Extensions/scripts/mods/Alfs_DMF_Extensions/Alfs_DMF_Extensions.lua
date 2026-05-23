@@ -15,6 +15,7 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/keybindings_fix")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/icon_package_loader")
 
 local text_input_field = mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/text_input_field")
 
@@ -191,7 +192,8 @@ local function reset_tab_settings(self)
 		return
 	end
 
-	local settings_default_values = self._settings_category_default_values and self._settings_category_default_values[category]
+	local settings_default_values = self._settings_category_default_values
+		and self._settings_category_default_values[category]
 	if not settings_default_values then
 		return
 	end
@@ -208,6 +210,16 @@ local function reset_tab_settings(self)
 						entry.on_activated(default_value, entry)
 					end
 				end
+
+				local rgb_entries = { widget.content.r_entry, widget.content.g_entry, widget.content.b_entry, widget.content.a_entry }
+				for _, rgb_entry in ipairs(rgb_entries) do
+					if rgb_entry then
+						local default_value = settings_default_values[rgb_entry]
+						if default_value ~= nil and rgb_entry.on_activated then
+							rgb_entry.on_activated(default_value, rgb_entry)
+						end
+					end
+				end
 			end
 		end
 	end
@@ -219,6 +231,8 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
+
+	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
 	defs.scenegraph_definition = defs.scenegraph_definition or {}
@@ -269,6 +283,16 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
 
 	if mod:get("enable_tab_reset") then
+		local reset_tab_title = mod:localize("reset_tab_to_default")
+		local reset_tab_text = mod:localize("reset_tab_to_default_description")
+
+		if Managers.localization then
+			Managers.localization:append_backend_localizations({
+				["loc_alf_dmf_ext_reset_tab"] = reset_tab_title,
+				["loc_alf_dmf_ext_reset_tab_desc"] = reset_tab_text,
+			})
+		end
+
 		self.cb_reset_tab_to_default = function(self_view)
 			local category = self_view._selected_category
 			if not category then
@@ -276,8 +300,8 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 			end
 
 			local context = {
-				title_text = mod:localize("reset_tab_to_default"),
-				description_text = "Reset all settings in the current tab to their default values?",
+				title_text_unlocalized = reset_tab_title,
+				description_text_unlocalized = reset_tab_text,
 				type = "warning",
 				options = {
 					{
@@ -308,7 +332,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 		defs.legend_inputs = defs.legend_inputs or {}
 		table.insert(defs.legend_inputs, {
 			input_action = "hotkey_menu_special_1",
-			display_name = mod:localize("reset_tab_to_default"),
+			display_name = "loc_alf_dmf_ext_reset_tab",
 			on_pressed_callback = "cb_reset_tab_to_default",
 			visibility_function = function(parent)
 				if not mod:get("enable_tab_reset") then
@@ -329,12 +353,14 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
+		mod._release_icon_packages()
 	end
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._rgb_last_category = nil
+		mod._ensure_icon_packages_loaded()
 	end
 end)
 

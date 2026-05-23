@@ -187,6 +187,9 @@ mod.localisation = {
 	reset_tab_to_default = {
 		en = "Reset Tab to Defaults",
 	},
+	reset_tab_to_default_description = {
+		en = "This will reset the currently selected tab to their mod Defaults",
+	},
 }
 
 -- Group localisations so they can be managed easier.
