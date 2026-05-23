@@ -85,7 +85,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						end
 					end
 					if widget.style.text and widget.style.text.icon_offset then
-						widget.style.text.offset[1] = widget.style.text.icon_offset[1] + 15
+						widget.style.text.offset[1] = widget.style.text.icon_offset[1]
 					end
 				else
 					content.value_icon = nil
@@ -126,7 +126,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 							end
 						end
 						if text_style and text_style.icon_offset then
-							text_style.offset[1] = text_style.icon_offset[1] + 15
+							text_style.offset[1] = text_style.icon_offset[1]
 						end
 					else
 						content[icon_id] = nil

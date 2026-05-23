@@ -185,10 +185,10 @@ mod.localisation = {
 		en = "Adds a hotkey entry to reset only the currently selected tab's settings to their defaults, rather than resetting all settings in the mod.",
 	},
 	reset_tab_to_default = {
-		en = "Reset Tab to Defaults",
+		en = "Reset tab to default settings",
 	},
 	reset_tab_to_default_description = {
-		en = "This will reset the currently selected tab to their mod Defaults",
+		en = "This will reset the currently selected tab to their mod defaults",
 	},
 }
 
