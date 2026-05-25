@@ -3,6 +3,23 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local dmf = get_mod("DMF")
 mod.dmf = dmf
 
+local original_initialize_mod_data = dmf.initialize_mod_data
+
+dmf.initialize_mod_data = function(mod_instance, mod_data)
+	local result = original_initialize_mod_data(mod_instance, mod_data)
+
+	if mod_data and mod_data.required_icon_packages then
+		local packages = mod._required_icon_packages
+		for _, pkg in ipairs(mod_data.required_icon_packages) do
+			if type(pkg) == "string" then
+				packages[pkg] = true
+			end
+		end
+	end
+
+	return result
+end
+
 local original_initialize = dmf.initialize_mod_options
 
 dmf.initialize_mod_options = function(passed_mod, options)
@@ -113,15 +130,15 @@ dmf.create_mod_options_settings = function(self, options_templates)
 			end
 
 			if widget.setting_id then
-				setting_id_lookup[widget.setting_id] = widget.setting_id
+				setting_id_lookup[mod.compound_key(category_name, widget.setting_id)] = widget.setting_id
 			end
 
 			if widget.title then
-				setting_id_lookup[widget.title] = widget.setting_id
+				setting_id_lookup[mod.compound_key(category_name, widget.title)] = widget.setting_id
 			end
 
 			if widget.type == "group" and widget.title and widget.depth then
-				group_depth_lookup[widget.title] = widget.depth
+				group_depth_lookup[mod.compound_key(category_name, widget.title)] = widget.depth
 			end
 		end
 	end
@@ -139,7 +156,8 @@ dmf.create_mod_options_settings = function(self, options_templates)
 		end
 
 		if not template.tab and template.widget_type == "group_header" and template.display_name then
-			local depth = group_depth_lookup[template.display_name]
+			local depth_key = template.display_name and mod.compound_key(template.category, template.display_name)
+			local depth = depth_key and group_depth_lookup[depth_key]
 
 			if depth == 0 then
 				template.tab = template.display_name
@@ -155,20 +173,23 @@ dmf.create_mod_options_settings = function(self, options_templates)
 				tostring(template.display_name),
 				tostring(template.setting_id),
 				tostring(template.tab),
-				tostring(group_depth_lookup[template.display_name])
+				tostring(group_depth_lookup[mod.compound_key(template.category, template.display_name)])
 			)
 		end
 
-		local setting_id = setting_id_lookup[template.setting_id] or setting_id_lookup[template.display_name]
+		local setting_id_key = template.setting_id and mod.compound_key(template.category, template.setting_id)
+		local display_name_key = template.display_name and mod.compound_key(template.category, template.display_name)
+		local resolved_id = setting_id_lookup[setting_id_key] or setting_id_lookup[display_name_key]
 
-		if setting_id then
-			template.setting_id = setting_id
+		if resolved_id then
+			template.setting_id = resolved_id
 		end
 	end
 
 	for _, template in ipairs(settings) do
 		if template.widget_type == "group_header" and template.indentation_level == nil and template.display_name then
-			local depth = group_depth_lookup[template.display_name]
+			local depth_key = template.display_name and mod.compound_key(template.category, template.display_name)
+			local depth = group_depth_lookup[depth_key]
 
 			if depth ~= nil then
 				template.indentation_level = depth
@@ -214,7 +235,8 @@ end
 
 mod.on_all_mods_loaded = function()
 	mod.dmf = get_mod("DMF")
-
+	mod._ensure_icon_packages_loaded()
+	
 	mod._genuine_explicit_tab_mods = {}
 
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do

@@ -35,6 +35,19 @@ local math_clamp = math.clamp
 local math_floor = math.floor
 local math_round = math.round
 local tostring = tostring
+local type = type
+
+local function safe_input_get(input_service, action_name, default)
+	if not input_service then
+		return default
+	end
+	local has_method = input_service.has
+	if has_method and not has_method(input_service, action_name) then
+		return default
+	end
+	local ok, result = pcall(input_service.get, input_service, action_name)
+	return ok and result or default
+end
 
 local function format_value(value, decimals)
 	if decimals and decimals > 0 then
@@ -429,7 +442,7 @@ local function slider_gamepad_input(
 		return
 	end
 
-	if input_service:get("navigate_next") then
+	if safe_input_get(input_service, "navigate_next") then
 		_gamepad_slider_index = (_gamepad_slider_index + 1) % num_sliders
 
 		return
@@ -439,8 +452,8 @@ local function slider_gamepad_input(
 		return
 	end
 
-	local left = input_service:get("navigate_left_continuous_fast")
-	local right = input_service:get("navigate_right_continuous_fast")
+	local left = safe_input_get(input_service, "navigate_left_continuous_fast")
+	local right = safe_input_get(input_service, "navigate_right_continuous_fast")
 	local current = get_value(entry)
 	local lo = content[slider_name .. "_min"] or 0
 	local hi = content[slider_name .. "_max"] or 255
@@ -836,11 +849,18 @@ local function build_blueprint(has_alpha)
 		local cursor_ui = cursor_to_ui_space(input_service, parent)
 
 		if not cursor_ui then
+			local ok_gamepad, cursor_result = pcall(parent.using_cursor_navigation, parent)
+			local using_gamepad = ok_gamepad and not cursor_result or false
+
+			if using_gamepad then
+				handle_gamepad_inputs(parent, widget, content, input_service)
+			end
+
 			return true
 		end
 
-		local left_hold = input_service:get("left_hold")
-		local confirm_pressed = input_service:get("confirm_pressed")
+		local left_hold = safe_input_get(input_service, "left_hold")
+		local confirm_pressed = safe_input_get(input_service, "confirm_pressed")
 
 		local offset = widget.offset
 		local alignment = widget._alignment_widget
@@ -898,7 +918,8 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		local using_gamepad = not parent:using_cursor_navigation()
+		local ok_cursor, cursor_result = pcall(parent.using_cursor_navigation, parent)
+		local using_gamepad = ok_cursor and not cursor_result or false
 
 		if using_gamepad then
 			handle_gamepad_inputs(parent, widget, content, input_service)

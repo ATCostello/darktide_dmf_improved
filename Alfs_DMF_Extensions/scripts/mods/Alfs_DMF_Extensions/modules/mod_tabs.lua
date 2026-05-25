@@ -13,10 +13,18 @@ mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
 mod._tab_inject_state = mod._tab_inject_state or {}
 
+local function clean_tab_title(text)
+	if not text then
+		return text
+	end
+	return text:gsub("^%-%-+%s*", ""):gsub("%s*%-%-+$", "")
+end
+
 local function truncate_tab_title(text, max_words)
 	if not text then
 		return text
 	end
+	text = clean_tab_title(text)
 	local limit = max_words or 4
 	local words = {}
 	for word in text:gmatch("%S+") do
@@ -33,6 +41,31 @@ local function truncate_tab_title(text, max_words)
 		end
 	end
 	return result .. mod:localize("tab_title_truncated")
+end
+
+local function calculate_font_size(self, text, max_width, base_size)
+	if not self or not text or #text == 0 then
+		return base_size or 22
+	end
+
+	local min_size = 8
+	local size = base_size or 22
+	local usable_width = max_width - 16
+
+	for _ = 1, 12 do
+		local style = { font_type = "proxima_nova_bold", font_size = size }
+		local text_width, _ = self:_text_size(text, style)
+		if text_width and text_width <= usable_width then
+			break
+		end
+		size = size - 1
+		if size <= min_size then
+			size = min_size
+			break
+		end
+	end
+
+	return size
 end
 
 local function get_current_mod_name(self, category)
@@ -126,11 +159,19 @@ local TOOLTIP_WIDTH = 400
 mod.max_visible_tabs = 5
 
 local function resolve_widget_tab_from_dmf_data(category, setting_id, display_name)
-	if setting_id and mod.custom_tab_data and mod.custom_tab_data[setting_id] then
-		return mod.custom_tab_data[setting_id]
-	end
-	if display_name and mod.custom_tab_data and mod.custom_tab_data[display_name] then
-		return mod.custom_tab_data[display_name]
+	if category then
+		if setting_id and mod.custom_tab_data then
+			local compound = mod.compound_key(category, setting_id)
+			if mod.custom_tab_data[compound] then
+				return mod.custom_tab_data[compound]
+			end
+		end
+		if display_name and mod.custom_tab_data then
+			local compound = mod.compound_key(category, display_name)
+			if mod.custom_tab_data[compound] then
+				return mod.custom_tab_data[compound]
+			end
+		end
 	end
 
 	local dmf_mod = mod.dmf or get_mod("DMF")
@@ -145,7 +186,8 @@ local function resolve_widget_tab_from_dmf_data(category, setting_id, display_na
 			if display_name then
 				for _, w in ipairs(mod_widgets) do
 					if w.title == display_name and w.setting_id then
-						local tab = mod.custom_tab_data and mod.custom_tab_data[w.setting_id]
+						local compound = mod.compound_key(cat_name, w.setting_id)
+						local tab = mod.custom_tab_data and mod.custom_tab_data[compound]
 						if tab then
 							return tab
 						end
@@ -557,11 +599,15 @@ mod.create_tab_bar = function(self, category)
 	for i = start_index, end_index do
 		local tab_name = tabs[i]
 
-		local overrides = mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or nil
+		local overrides = table.clone(mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or {})
+
+		local display_name = truncate_tab_title(tab_name, overrides.truncate_num)
+		local font_size = calculate_font_size(self, display_name, 140, overrides.font_size or 22)
+		overrides.font_size = font_size
 
 		local entry = {
 			widget_type = "settings_button",
-			display_name = truncate_tab_title(tab_name, overrides and overrides.truncate_num),
+			display_name = display_name,
 			tab_overrides = overrides,
 		}
 

@@ -50,6 +50,10 @@ local function get_widget_icon_x(widget)
 end
 
 mod._addDropdownIcons = function(self, dt, t, input_service)
+	if not mod._are_icons_ready() then
+		return
+	end
+
 	local category = mod.current_category
 	if not category then
 		return
@@ -72,7 +76,6 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 			if entry and options then
 				local value = entry.get_function and entry:get_function() or content.internal_value
 				local preview_option = content.options_by_value and content.options_by_value[value]
-
 				local icon_x = get_widget_icon_x(widget)
 
 				if preview_option and preview_option.icon then
@@ -80,6 +83,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 					apply_preview_icon_color(widget.style.icon, widget.style.list_header, preview_option.icon_colour)
 					if widget.style.icon then
 						widget.style.icon.visible = true
+						widget.style.icon.scale_to_material = true
 						if icon_x then
 							widget.style.icon.offset[1] = icon_x
 						end
@@ -91,6 +95,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 					content.value_icon = nil
 					if widget.style.icon then
 						widget.style.icon.visible = false
+						widget.style.icon.scale_to_material = nil
 					end
 					if widget.style.text and widget.style.text.default_offset then
 						widget.style.text.offset[1] = widget.style.text.default_offset[1]
@@ -120,6 +125,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						apply_option_icon_color(icon_style, text_style, option.icon_colour)
 						if icon_style then
 							icon_style.visible = true
+							icon_style.scale_to_material = true
 							icon_style.offset[2] = text_style.offset[2]
 							if icon_x then
 								icon_style.offset[1] = icon_x
@@ -132,6 +138,7 @@ mod._addDropdownIcons = function(self, dt, t, input_service)
 						content[icon_id] = nil
 						if icon_style then
 							icon_style.visible = false
+							icon_style.scale_to_material = nil
 						end
 						if text_style and text_style.default_offset then
 							text_style.offset[1] = text_style.default_offset[1]

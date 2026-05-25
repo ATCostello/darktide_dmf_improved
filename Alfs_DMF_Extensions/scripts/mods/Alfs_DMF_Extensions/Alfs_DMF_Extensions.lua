@@ -3,6 +3,13 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIScenegraph = require("scripts/managers/ui/ui_scenegraph")
 
+mod.compound_key = function(category, key)
+	if not category then
+		return tostring(key)
+	end
+	return tostring(category) .. "|" .. tostring(key)
+end
+
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/Alfs_DMF_Extensions_localization")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/load_dmf")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/step_size_value")
@@ -211,7 +218,8 @@ local function reset_tab_settings(self)
 					end
 				end
 
-				local rgb_entries = { widget.content.r_entry, widget.content.g_entry, widget.content.b_entry, widget.content.a_entry }
+				local rgb_entries =
+					{ widget.content.r_entry, widget.content.g_entry, widget.content.b_entry, widget.content.a_entry }
 				for _, rgb_entry in ipairs(rgb_entries) do
 					if rgb_entry then
 						local default_value = settings_default_values[rgb_entry]
@@ -551,6 +559,7 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	end
 
 	if mod:get("enable_dropdown_icons") then
+		mod._check_icon_packages_ready()
 		mod._addDropdownIcons(self, dt, t, input_service)
 	end
 	if mod:get("enable_font_support") then
