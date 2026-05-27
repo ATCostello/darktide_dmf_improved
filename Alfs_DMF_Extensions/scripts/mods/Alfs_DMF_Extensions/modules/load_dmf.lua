@@ -12,7 +12,7 @@ dmf.initialize_mod_data = function(mod_instance, mod_data)
 		local packages = mod._required_icon_packages
 		for _, pkg in ipairs(mod_data.required_icon_packages) do
 			if type(pkg) == "string" then
-				packages[pkg] = true
+				packages[#packages + 1] = pkg
 			end
 		end
 	end
@@ -29,7 +29,7 @@ dmf.initialize_mod_options = function(passed_mod, options)
 		local packages = mod._required_icon_packages
 		for _, pkg in ipairs(options.required_icon_packages) do
 			if type(pkg) == "string" then
-				packages[pkg] = true
+				packages[#packages + 1] = pkg
 			end
 		end
 	end
@@ -336,7 +336,7 @@ mod.on_all_mods_loaded = function()
 				local packages = mod._required_icon_packages
 				for _, pkg in ipairs(mod_instance.required_icon_packages) do
 					if type(pkg) == "string" then
-						packages[pkg] = true
+						packages[#packages + 1] = pkg
 					end
 				end
 			end
