@@ -215,7 +215,13 @@ dmf.create_mod_options_settings = function(self, options_templates)
 	local consumed = {}
 
 	for _, template in ipairs(settings) do
-		if template.widget_type == "group_header" and not template.tab and not template.group_name and template.category and template.indentation_level == 0 then
+		if
+			template.widget_type == "group_header"
+			and not template.tab
+			and not template.group_name
+			and template.category
+			and template.indentation_level == 0
+		then
 			local tabs = cat_group_tabs[template.category]
 
 			if tabs and #tabs > 0 then
@@ -235,8 +241,7 @@ end
 
 mod.on_all_mods_loaded = function()
 	mod.dmf = get_mod("DMF")
-	mod._ensure_icon_packages_loaded()
-	
+
 	mod._genuine_explicit_tab_mods = {}
 
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
@@ -337,4 +342,6 @@ mod.on_all_mods_loaded = function()
 			end
 		end
 	end
+
+	mod._ensure_icon_packages_loaded()
 end

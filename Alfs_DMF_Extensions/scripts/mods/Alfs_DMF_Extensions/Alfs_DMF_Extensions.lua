@@ -240,6 +240,8 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 		return
 	end
 
+	mod._ensure_icon_packages_loaded()
+
 	local defs = self._definitions
 	defs.scenegraph_definition = defs.scenegraph_definition or {}
 
@@ -365,6 +367,7 @@ end)
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._rgb_last_category = nil
+		mod._ensure_icon_packages_loaded()
 	end
 end)
 

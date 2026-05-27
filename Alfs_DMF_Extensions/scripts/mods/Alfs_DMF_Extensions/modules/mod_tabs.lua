@@ -17,7 +17,10 @@ local function clean_tab_title(text)
 	if not text then
 		return text
 	end
-	return text:gsub("^%-%-+%s*", ""):gsub("%s*%-%-+$", "")
+
+	text = text:gsub("{#[^}]*}", "")
+
+	return text:gsub("%s*[-]+%s*$", "")
 end
 
 local function truncate_tab_title(text, max_words)
@@ -599,7 +602,8 @@ mod.create_tab_bar = function(self, category)
 	for i = start_index, end_index do
 		local tab_name = tabs[i]
 
-		local overrides = table.clone(mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or {})
+		local overrides =
+			table.clone(mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or {})
 
 		local display_name = truncate_tab_title(tab_name, overrides.truncate_num)
 		local font_size = calculate_font_size(self, display_name, 140, overrides.font_size or 22)
@@ -832,7 +836,10 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 							if w_hotspot and w_hotspot.on_pressed then
 								local tab_key = widget.content._tab_key or widget.content.text
 
-								if tab_key == mod:localize("tab_arrow_left") or tab_key == mod:localize("tab_arrow_right") then
+								if
+									tab_key == mod:localize("tab_arrow_left")
+									or tab_key == mod:localize("tab_arrow_right")
+								then
 									w_hotspot.on_pressed = false
 								else
 									mod.selected_tabs[mod_storage_key] = tab_key
@@ -876,7 +883,10 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 				local left_edge_x = pivot_pos and pivot_pos[1] + (w.offset and w.offset[1] or 0) or 0
 				tooltip.offset[1] = left_edge_x - tooltip_width - 10
-				tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (w.offset and w.offset[2] or 0) + (w.content.size and w.content.size[2] or 48) + 10
+				tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0)
+					+ (w.offset and w.offset[2] or 0)
+					+ (w.content.size and w.content.size[2] or 48)
+					+ 10
 
 				self._tooltip_data = {
 					widget = w,
@@ -906,10 +916,18 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 						tooltip.content.size = { tooltip_width, height }
 
-						local left_edge_x = pivot_pos and pivot_pos[1] + (toggle_widget.offset and toggle_widget.offset[1] or 0) or 0
-						local scroll_addition = self._settings_content_grid and self._settings_content_grid:length_scrolled() or 0
+						local left_edge_x = pivot_pos
+								and pivot_pos[1] + (toggle_widget.offset and toggle_widget.offset[1] or 0)
+							or 0
+						local scroll_addition = self._settings_content_grid
+								and self._settings_content_grid:length_scrolled()
+							or 0
 						tooltip.offset[1] = left_edge_x - tooltip_width - 10
-						tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0) + (toggle_widget.offset and toggle_widget.offset[2] or 0) - scroll_addition + (toggle_widget.content.size and toggle_widget.content.size[2] or 22) + 10
+						tooltip.offset[2] = (pivot_pos and pivot_pos[2] or 0)
+							+ (toggle_widget.offset and toggle_widget.offset[2] or 0)
+							- scroll_addition
+							+ (toggle_widget.content.size and toggle_widget.content.size[2] or 22)
+							+ 10
 
 						self._tooltip_data = {
 							widget = toggle_widget,

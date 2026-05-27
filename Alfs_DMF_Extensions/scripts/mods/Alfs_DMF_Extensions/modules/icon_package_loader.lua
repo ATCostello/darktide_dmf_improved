@@ -66,7 +66,7 @@ local function _all_packages_loaded(package_list)
 	return true
 end
 
-function mod._ensure_icon_packages_loaded()
+mod._ensure_icon_packages_loaded = function()
 	local managers = Managers
 	local package_manager = managers and managers.package
 
