@@ -2,6 +2,7 @@ local mod = get_mod("Alfs_DMF_Extensions")
 
 mod._required_icon_packages = mod._required_icon_packages or {}
 local _loaded_package_ids = {}
+PACKAGE_REF = "AlfsDMFExtensions"
 
 local function _package_is_available(package_name)
 	local application = Application

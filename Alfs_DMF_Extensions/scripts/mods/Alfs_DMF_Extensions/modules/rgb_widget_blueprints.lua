@@ -211,6 +211,7 @@ local function slider_input(
 	local hotspot = content[slider.hotspot]
 	local value_hotspot = content[slider_name .. "_value_hotspot"]
 	local label_hotspot = content[slider_name .. "_label_hotspot"]
+	local bar_hotspot = content[slider_name .. "_bar_hotspot"]
 
 	if not hotspot or not cursor_ui then
 		return
@@ -244,24 +245,28 @@ local function slider_input(
 		return math_floor(raw_val + 0.5)
 	end
 
-	if inside and (left_hold or confirm_pressed) and not dragging then
-		content[slider.dragging] = true
-		dragging = true
+	if inside and not dragging then
+		local fresh_press = not content._prev_left_hold and left_hold
 
-		content[slider.start_x] = cursor_ui[1]
-		content[slider.start_value] = get_value(entry)
+		if fresh_press or confirm_pressed then
+			content[slider.dragging] = true
+			dragging = true
 
-		local bar_ui_x = get_bar_ui_x(parent, widget, slider_name)
-
-		if bar_ui_x then
-			local bar_cursor_x = cursor_ui[1] - bar_ui_x
-			local raw = lo + (bar_cursor_x / bar_width) * range
-			local click_value = math_clamp(snap_to_step(raw), lo, hi)
-
-			content[slider.start_value] = click_value
-			set_value(entry, click_value)
+			local bar_ui_x = get_bar_ui_x(parent, widget, slider_name)
 
 			content[slider.start_x] = cursor_ui[1]
+			content[slider.start_value] = get_value(entry)
+
+			if bar_ui_x then
+				local bar_cursor_x = cursor_ui[1] - bar_ui_x
+				local raw = lo + (bar_cursor_x / bar_width) * range
+				local click_value = math_clamp(snap_to_step(raw), lo, hi)
+
+				content[slider.start_value] = click_value
+				set_value(entry, click_value)
+
+				content[slider.start_x] = cursor_ui[1]
+			end
 		end
 	end
 
@@ -272,8 +277,15 @@ local function slider_input(
 	end
 
 	if dragging then
-		local delta = cursor_ui[1] - content[slider.start_x]
-		local raw = content[slider.start_value] + (delta / bar_width) * range
+		if bar_hotspot and not bar_hotspot.is_hover then
+			content[slider.dragging] = false
+			set_value(entry, content[slider.value])
+
+			return
+		end
+
+		local bar_cursor_x = cursor_ui[1] - content[slider.start_x]
+		local raw = content[slider.start_value] + (bar_cursor_x / bar_width) * range
 		local value = math_clamp(snap_to_step(raw), lo, hi)
 
 		if content[slider.value] ~= value then
@@ -508,6 +520,11 @@ local function create_slider(name, x, color, label, bar_width, label_color)
 			style_id = name .. "_label_hotspot_style",
 		},
 		{
+			pass_type = "hotspot",
+			content_id = name .. "_bar_hotspot",
+			style_id = name .. "_bar_hotspot_style",
+		},
+		{
 			pass_type = "rect",
 			style_id = name .. "_bg",
 		},
@@ -577,6 +594,7 @@ local function create_slider(name, x, color, label, bar_width, label_color)
 		[name .. "_hotspot"] = {},
 		[name .. "_value_hotspot"] = {},
 		[name .. "_label_hotspot"] = {},
+		[name .. "_bar_hotspot"] = {},
 		[name .. "_dragging"] = false,
 		[name .. "_label"] = label,
 		[name .. "_frame_texture"] = "content/ui/materials/frames/frame_tile_1px",
@@ -598,6 +616,11 @@ local function create_slider(name, x, color, label, bar_width, label_color)
 		[name .. "_label_hotspot_style"] = {
 			offset = { PREVIEW_WIDTH + x - 26, 0, 9 },
 			size = { 24, BAR_HEIGHT },
+			visible = true,
+		},
+		[name .. "_bar_hotspot_style"] = {
+			offset = { PREVIEW_WIDTH + x, 0, 9 },
+			size = { bar_width, BAR_HEIGHT },
 			visible = true,
 		},
 		[name .. "_bg"] = {
@@ -843,16 +866,34 @@ local function build_blueprint(has_alpha)
 		end
 	end
 
+	local function is_dropdown_open(parent)
+		if parent and parent._settings_content_widgets then
+			for i = 1, #parent._settings_content_widgets do
+				local w = parent._settings_content_widgets[i]
+				if w and w.type == "dropdown" and w.content then
+					if w.content.exclusive_focus and w.content.selected_index then
+						return true
+					end
+				end
+			end
+		end
+		return false
+	end
+
 	local update_fn = function(parent, widget, input_service, dt, t)
 		local content = widget.content
 
 		local cursor_ui = cursor_to_ui_space(input_service, parent)
+		local dropdown_open = is_dropdown_open(parent)
+
+		local dropdown_just_closed = content._prev_dropdown_open and not dropdown_open
+		content._prev_dropdown_open = dropdown_open
 
 		if not cursor_ui then
 			local ok_gamepad, cursor_result = pcall(parent.using_cursor_navigation, parent)
 			local using_gamepad = ok_gamepad and not cursor_result or false
 
-			if using_gamepad then
+			if using_gamepad and not dropdown_open and not dropdown_just_closed then
 				handle_gamepad_inputs(parent, widget, content, input_service)
 			end
 
@@ -890,30 +931,34 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
-		handle_text_inputs(parent, widget, content, input_service, dt, t)
+		if not dropdown_open and not dropdown_just_closed then
+			handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
+			handle_text_inputs(parent, widget, content, input_service, dt, t)
+		end
 
 		local prev_left_hold = content._prev_left_hold
 		content._prev_left_hold = left_hold
 
-		for _, config in ipairs(slider_configs) do
-			if content[config.name .. "_editing"] then
-				local value_hotspot = content[config.name .. "_value_hotspot"]
+		if not dropdown_open and not dropdown_just_closed then
+			for _, config in ipairs(slider_configs) do
+				if content[config.name .. "_editing"] then
+					local value_hotspot = content[config.name .. "_value_hotspot"]
 
-				if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
-					local buffer = content[config.name .. "_edit_buffer"]
-					confirm_value(content, config.name, buffer)
-					stop_editing(content, config.name)
-				end
+					if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
+						local buffer = content[config.name .. "_edit_buffer"]
+						confirm_value(content, config.name, buffer)
+						stop_editing(content, config.name)
+					end
 
-				if not content._last_input_time then
-					content._last_input_time = t
-				end
+					if not content._last_input_time then
+						content._last_input_time = t
+					end
 
-				if t - content._last_input_time > 5 then
-					local buffer = content[config.name .. "_edit_buffer"]
-					confirm_value(content, config.name, buffer)
-					stop_editing(content, config.name)
+					if t - content._last_input_time > 5 then
+						local buffer = content[config.name .. "_edit_buffer"]
+						confirm_value(content, config.name, buffer)
+						stop_editing(content, config.name)
+					end
 				end
 			end
 		end
@@ -921,7 +966,7 @@ local function build_blueprint(has_alpha)
 		local ok_cursor, cursor_result = pcall(parent.using_cursor_navigation, parent)
 		local using_gamepad = ok_cursor and not cursor_result or false
 
-		if using_gamepad then
+		if using_gamepad and not dropdown_open and not dropdown_just_closed then
 			handle_gamepad_inputs(parent, widget, content, input_service)
 		end
 
