@@ -240,8 +240,6 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 		return
 	end
 
-	mod._ensure_icon_packages_loaded()
-
 	local defs = self._definitions
 	defs.scenegraph_definition = defs.scenegraph_definition or {}
 
@@ -361,14 +359,12 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
-		mod._release_icon_packages()
 	end
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._rgb_last_category = nil
-		mod._ensure_icon_packages_loaded()
 	end
 end)
 
@@ -559,7 +555,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	end
 
 	if mod:get("enable_dropdown_icons") then
-		mod._check_icon_packages_ready()
 		mod._addDropdownIcons(self, dt, t, input_service)
 	end
 	if mod:get("enable_font_support") then

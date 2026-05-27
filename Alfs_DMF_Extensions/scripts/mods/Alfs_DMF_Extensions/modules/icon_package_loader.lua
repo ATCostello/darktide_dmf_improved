@@ -2,82 +2,78 @@ local mod = get_mod("Alfs_DMF_Extensions")
 
 mod._required_icon_packages = mod._required_icon_packages or {}
 local _loaded_package_ids = {}
-mod._icon_packages_ready = false
-mod._icon_package_load_version = 0
 
-function mod._ensure_icon_packages_loaded()
-	local packages = mod._required_icon_packages
+local function _package_is_available(package_name)
+	local application = Application
 
-	if not packages or not next(packages) then
-		mod._icon_packages_ready = true
-		return
-	end
-
-	local package_manager = Managers.package
-	if not package_manager then
-		return
-	end
-
-	for pkg, _ in pairs(packages) do
-		--if not package_manager:has_loaded(pkg) and not package_manager:is_loading(pkg) then
-		local id = package_manager:load(pkg, "Alfs_DMF_Extensions", nil, true)
-		if id then
-			_loaded_package_ids[pkg] = id
-			mod:echo("Loaded icon package: " .. pkg)
-		end
-		--end
-	end
-
-	mod._check_icon_packages_ready()
-end
-
-mod._check_icon_packages_ready = function()
-	local packages = mod._required_icon_packages
-	if not packages or not next(packages) then
-		mod._icon_packages_ready = true
-		return true
-	end
-
-	local package_manager = Managers.package
-	if not package_manager then
+	if not application or not application.can_get_resource then
 		return false
 	end
 
-	for pkg, _ in pairs(packages) do
-		if not package_manager:has_loaded(pkg) then
-			mod._icon_packages_ready = false
+	local ok, exists = pcall(function()
+		return application.can_get_resource("package", package_name)
+	end)
+
+	return ok and exists or false
+end
+
+local function _package_is_loaded(package_name)
+	local managers = Managers
+	local package_manager = managers and managers.package
+
+	if not package_manager or not package_manager.has_loaded then
+		return false
+	end
+
+	local ok, is_loaded = pcall(package_manager.has_loaded, package_manager, package_name)
+
+	return ok and is_loaded or false
+end
+
+local function _load_package_list(package_list)
+	local managers = Managers
+	local package_manager = managers and managers.package
+
+	if not package_manager then
+		return
+	end
+
+	for _, pkg in ipairs(package_list) do
+		if _package_is_available(pkg) and not _requested_icon_packages[pkg] then
+			if _package_is_loaded(pkg) then
+				_requested_icon_packages[pkg] = true
+			else
+				local ok = pcall(function()
+					package_manager:load(pkg, PACKAGE_REF, nil, true)
+				end)
+
+				if ok then
+					_requested_icon_packages[pkg] = true
+				end
+			end
+		end
+	end
+end
+
+local function _all_packages_loaded(package_list)
+	for _, pkg in ipairs(package_list) do
+		if _package_is_available(pkg) and not _package_is_loaded(pkg) then
 			return false
 		end
 	end
 
-	if not mod._icon_packages_ready then
-		mod._icon_package_load_version = mod._icon_package_load_version + 1
-	end
-
-	mod._icon_packages_ready = true
 	return true
 end
 
-function mod._release_icon_packages()
-	local package_manager = Managers.package
+function mod._ensure_icon_packages_loaded()
+	local managers = Managers
+	local package_manager = managers and managers.package
+
 	if not package_manager then
-		return
+		return false
 	end
 
-	for pkg, id in pairs(_loaded_package_ids) do
-		if package_manager:has_loaded_id(id) then
-			package_manager:release(id)
-			mod:echo("Released icon package: " .. pkg)
-		end
-	end
-	_loaded_package_ids = {}
-	mod._icon_packages_ready = false
-end
+	_load_package_list(mod._required_icon_packages)
 
-mod._are_icons_ready = function()
-	return mod._icon_packages_ready
-end
-
-mod._get_icon_package_version = function()
-	return mod._icon_package_load_version
+	return _all_packages_loaded(mod._required_icon_packages)
 end
