@@ -35,6 +35,8 @@ local SLIDER_COLORS = {
 
 mod.last_category = nil
 mod.current_category = nil
+mod._input_blocked = false
+mod._slider_drag_cooldown = 0.3
 
 local SLIDER_TYPES = {
 	value_slider = true,
@@ -50,6 +52,31 @@ end
 local function safe_input_get(input_service, action_name, default)
 	local ok, result = pcall(input_service.get, input_service, action_name)
 	return ok and result or default
+end
+
+local function revert_value_editing_style(content, value_text_style)
+	if content._txt_orig_color then
+		local orig = content._txt_orig_color
+		if value_text_style then
+			local tc = value_text_style.text_color
+			tc[2] = orig[2]
+			tc[3] = orig[3]
+			tc[4] = orig[4]
+		end
+		content._txt_orig_color = nil
+	end
+	if content._orig_value_text_x and value_text_style then
+		value_text_style.offset[1] = content._orig_value_text_x
+		content._orig_value_text_x = nil
+	end
+	if content._orig_text_halign and value_text_style then
+		value_text_style.text_horizontal_alignment = content._orig_text_halign
+		content._orig_text_halign = nil
+	end
+	if content._orig_text_size_w and value_text_style then
+		value_text_style.size[1] = content._orig_text_size_w
+		content._orig_text_size_w = nil
+	end
 end
 
 local SliderPassTemplates = require("scripts/ui/pass_templates/slider_pass_templates")
@@ -94,6 +121,9 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		value = "content/ui/materials/frames/frame_tile_1px",
 		style_id = "value_frame",
 		visibility_function = function(content, style)
+			if mod._input_blocked then
+				return false
+			end
 			local hotspot = content.value_hotspot
 			return content.value_editing or (hotspot and hotspot.is_hover)
 		end,
@@ -109,6 +139,9 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		pass_type = "rect",
 		style_id = "value_edit_bg",
 		visibility_function = function(content, style)
+			if mod._input_blocked then
+				return false
+			end
 			return content.value_editing
 		end,
 		style = {
@@ -122,6 +155,9 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		pass_type = "rect",
 		style_id = "value_caret",
 		visibility_function = function(content, style)
+			if mod._input_blocked then
+				return false
+			end
 			return content.value_editing
 		end,
 		style = {
@@ -139,6 +175,15 @@ local function add_value_hotspot_to_pass_template(passes, width, height)
 		pass_type = "hotspot",
 		content_id = "value_hotspot",
 		style_id = "value_hotspot_style",
+		change_function = function(hotspot_content, style)
+			if mod._input_blocked then
+				hotspot_content.on_pressed = nil
+				hotspot_content.on_released = nil
+				hotspot_content.is_hover = nil
+				hotspot_content.is_selected = nil
+				hotspot_content.is_focused = nil
+			end
+		end,
 		style = {
 			offset = { hotspot_x, hotspot_y, 10 },
 			size = { hotspot_w, hotspot_h },
@@ -384,6 +429,45 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 		return
 	end
 
+	-- Check if any slider is actively being dragged
+	local any_drag_active = false
+	for i = 1, #widgets do
+		local w = widgets[i].widget
+		if w and SLIDER_TYPES[w.type] and w.content and w.content.drag_active then
+			any_drag_active = true
+			break
+		end
+	end
+
+	-- Track drag state transitions for the release cooldown
+	if mod._prev_any_slider_drag and not any_drag_active and t then
+		mod._slider_drag_end_time = t
+	end
+	mod._prev_any_slider_drag = any_drag_active
+
+	local in_drag_cooldown = false
+	if not any_drag_active and mod._slider_drag_end_time and t then
+		if t - mod._slider_drag_end_time < mod._slider_drag_cooldown then
+			in_drag_cooldown = true
+		end
+	end
+
+	-- Update the global block flag so pass templates can hide text-input UI during drag/cooldown
+	mod._input_blocked = any_drag_active or in_drag_cooldown
+
+	-- Block all text input processing while a drag is active or within cooldown
+	if any_drag_active or in_drag_cooldown then
+		for i = 1, #widgets do
+			local w = widgets[i].widget
+			if w and SLIDER_TYPES[w.type] and w.content and w.content.value_editing then
+				local c = w.content
+				revert_value_editing_style(c, get_value_text_style(w))
+				text_input_field.stop_editing(c, "value")
+			end
+		end
+		return
+	end
+
 	for _, row in ipairs(widgets) do
 		local widget = row.widget
 
@@ -506,30 +590,9 @@ mod._processSliderTextInput = function(self, input_service, dt, t)
 					content.drag_previously_active = false
 				end
 
-				if not content.value_editing then
-					if content._txt_orig_color then
-						local orig = content._txt_orig_color
-						if value_text_style then
-							local tc = value_text_style.text_color
-							tc[2] = orig[2]
-							tc[3] = orig[3]
-							tc[4] = orig[4]
-						end
-						content._txt_orig_color = nil
-					end
-					if content._orig_value_text_x and value_text_style then
-						value_text_style.offset[1] = content._orig_value_text_x
-						content._orig_value_text_x = nil
-					end
-					if content._orig_text_halign and value_text_style then
-						value_text_style.text_horizontal_alignment = content._orig_text_halign
-						content._orig_text_halign = nil
-					end
-					if content._orig_text_size_w and value_text_style then
-						value_text_style.size[1] = content._orig_text_size_w
-						content._orig_text_size_w = nil
-					end
-				end
+			if not content.value_editing then
+				revert_value_editing_style(content, value_text_style)
+			end
 			end
 		end
 	end
