@@ -218,6 +218,7 @@ local function inject_group_rgb_widgets(self, widgets)
 					rgb_widget.content.tab = row.widget.content.tab
 
 					widgets[first_idx] = {
+						entry = r_row.entry,
 						widget = rgb_widget,
 						alignment_widget = r_row.alignment_widget,
 					}
@@ -272,6 +273,7 @@ local function inject_cluster_rgb_widgets(self, widgets)
 								rgb_widget.content.tab = r_row.widget.content.tab
 
 								widgets[i] = {
+									entry = r_row.entry,
 									widget = rgb_widget,
 									alignment_widget = r_row.alignment_widget,
 								}

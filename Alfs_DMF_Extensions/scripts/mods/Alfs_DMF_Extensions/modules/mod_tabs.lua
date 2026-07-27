@@ -5,6 +5,7 @@ local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
 
 local view_settings = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_settings")
+local OptionsFilter = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/filter/options_filter")
 
 local _content_blueprints =
 	mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs_blueprints")
@@ -715,7 +716,24 @@ mod.filter_settings = function(self, category)
 		mod.inject_gen_tabs_toggle_into_content(self, category, visible_widgets, visible_alignment)
 	end
 
-	for index, data in ipairs(category_widgets) do
+	local search_text = ""
+	if self._options_header then
+		local ft = self._options_header.filter_text
+		if type(ft) == "function" then
+			search_text = self._options_header:filter_text()
+		elseif type(ft) == "string" then
+			search_text = ft
+		end
+	end
+
+	local grid_data
+	if OptionsFilter and OptionsFilter.filter then
+		grid_data = OptionsFilter.filter(category_widgets, search_text, false)
+	else
+		grid_data = category_widgets
+	end
+
+	for index, data in ipairs(grid_data) do
 		local widget = data.widget
 		local alignment_widget = data.alignment_widget
 
