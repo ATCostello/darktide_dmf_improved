@@ -160,7 +160,7 @@ end
 
 local TOOLTIP_WIDTH = 400
 
-mod.max_visible_tabs = 5
+mod.max_visible_tabs = 6
 
 local function resolve_widget_tab_from_dmf_data(category, setting_id, display_name)
 	if category then
@@ -463,7 +463,7 @@ local _create_settings_widget_from_config = function(
 	callback_name,
 	changed_callback_name
 )
-	local scenegraph_id = "settings_grid_content_pivot"
+	local scenegraph_id = "mod_tab_content"
 
 	local template = _content_blueprints["mod_tab_button"]
 
@@ -593,7 +593,7 @@ mod.create_tab_bar = function(self, category)
 
 		if start_index <= 1 then
 			left_hotspot.disabled = true
-			left_widget.visible = false
+			--left_widget.visible = false
 		end
 
 		widgets[#widgets + 1] = left_widget
@@ -728,6 +728,7 @@ mod.filter_settings = function(self, category)
 
 	local grid_data
 	if OptionsFilter and OptionsFilter.filter then
+		OptionsFilter.prepare(category_widgets)
 		grid_data = OptionsFilter.filter(category_widgets, search_text, false)
 	else
 		grid_data = category_widgets
@@ -751,12 +752,12 @@ mod.filter_settings = function(self, category)
 				-- Force show mod_title and description!
 				if index == 1 or index == 2 then
 					if widget.type == "description" or widget.type == "group_header" then
-						visible = true
+						--visible = true
 					end
 				end
 				if has_toggle and (index == 2 or index == 3) then
 					if widget.type == "description" then
-						visible = true
+						--visible = true
 					end
 				end
 			end
@@ -790,6 +791,10 @@ mod.filter_settings = function(self, category)
 
 	self._settings_content_widgets = visible_widgets
 	self._settings_alignment_list = visible_alignment
+
+	if self._mod_tab_grid then
+		self:_set_options_header_layout(self._settings_header_height, self._settings_header_spacing, true)
+	end
 
 	self._settings_content_grid = UIWidgetGrid:new(
 		visible_widgets,
@@ -966,6 +971,18 @@ mod._addModTabs = function(self, dt, t, input_service)
 	local category = mod.current_category
 	local mod_tabs_enabled = mod:get("enable_mod_tabs")
 
+	if category then
+		local header_height = self._settings_header_height or view_settings.settings_header_height
+		self:_set_scenegraph_position("mod_tab_area", nil, header_height + view_settings.settings_tab_spacing - 8)
+
+		if mod_tabs_enabled and self._mod_tab_grid then
+			self:_set_options_header_layout(self._settings_header_height, self._settings_header_spacing, true)
+			self._settings_content_grid:on_resolution_modified(self._render_scale)
+		end
+
+		self:_force_update_scenegraph()
+	end
+
 	if mod._prev_mod_tabs_enabled == nil then
 		mod._prev_mod_tabs_enabled = mod_tabs_enabled
 	end
@@ -1011,11 +1028,19 @@ mod._addModTabs = function(self, dt, t, input_service)
 		mod._grid_ref = self._settings_content_grid
 	end
 
+	
 	if self._mod_tab_grid then
 		self._mod_tab_grid:update(dt, t, input_service)
 	end
 
 	if mod:get("enable_mod_tabs") and input_service then
+
+		dbg_1 = self
+		-- disable new DMF options tab indicator if my tabs are enabled.
+		if self and self._options_tab_indicator then
+			self._options_tab_indicator._visible = false
+		end
+
 		local ok, err = pcall(function()
 			local using_gamepad = not self:using_cursor_navigation()
 

@@ -97,13 +97,18 @@ local function reset_tab_settings(self)
 	end
 end
 
+local orig_settings_grid_background = nil
+local orig_settings_grid_mask = nil
+local orig_settings_grid_interaction = nil
+local orig_settings_header = nil
+
 mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
 	func(self, definitions, settings, context, dynamic_package_name)
 
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
-
+	dbg_1 = self
 	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
@@ -114,7 +119,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 		horizontal_alignment = "left",
 		vertical_alignment = "top",
 		size = { 900, 60 },
-		position = { 50, -55, 10 },
+		position = { 0, -55, 20 },
 	}
 
 	defs.scenegraph_definition.mod_tab_content = {
@@ -138,12 +143,38 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	then
 		defs.scenegraph_definition.settings_grid_start.position = { 0, 0, 0 }
 	end
+
 	if
 		defs.scenegraph_definition.settings_grid_content_pivot
 		and not defs.scenegraph_definition.settings_grid_content_pivot.position
 	then
 		defs.scenegraph_definition.settings_grid_content_pivot.position = { 0, 0, 0 }
 	end
+
+	if not orig_settings_grid_background then
+		orig_settings_grid_background = defs.scenegraph_definition.settings_grid_background
+	end
+	if not orig_settings_grid_mask then
+		orig_settings_grid_mask = defs.scenegraph_definition.settings_grid_mask
+	end
+	if not orig_settings_grid_interaction then
+		orig_settings_grid_interaction = defs.scenegraph_definition.settings_grid_interaction
+	end
+	if not orig_settings_header then
+		orig_settings_header = defs.scenegraph_definition.settings_header
+	end
+
+	defs.scenegraph_definition.settings_header.position[2] = orig_settings_header.position[2] - 40
+	defs.scenegraph_definition.settings_grid_background.size[1] = orig_settings_grid_background.size[1] + 80
+	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
+	defs.scenegraph_definition.settings_grid_background.position[1] = orig_settings_grid_background.position[1] + 80
+	defs.scenegraph_definition.settings_grid_background.position[2] = 16
+	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
+	defs.scenegraph_definition.settings_grid_mask.size[1] = orig_settings_grid_mask.size[1] + 160
+	defs.scenegraph_definition.settings_grid_mask.size[2] = 2000
+	defs.scenegraph_definition.settings_grid_mask.position[1] = orig_settings_grid_mask.position[1] - 80
+	defs.scenegraph_definition.settings_grid_mask.position[2] = 10
+	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
 
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
 
@@ -219,11 +250,17 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
 	end
+
+	orig_settings_grid_background = nil
+	orig_settings_grid_mask = nil
+	orig_settings_grid_interaction = nil
+	orig_settings_header = nil
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._rgb_last_category = nil
+		mod._color_widget_last_category = nil
 		mod._ensure_icon_packages_loaded()
 	end
 end)
@@ -235,25 +272,30 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
-	if mod:get("enable_scroll_position_saving") then
-		mod._saveScrollPosition(self)
-	end
+	--if mod:get("enable_scroll_position_saving") then
+	--	mod._saveScrollPosition(self)
+	--end
 
 	mod._addModTabs(self, dt, t, input_service)
 
-	if mod:get("enable_RGB_widget") then
+	if mod:get("enable_RGB_widget") == "argb_sliders" then
 		mod._addRgbSliders(self)
+	elseif mod:get("enable_RGB_widget") == "color_widget" then
+		mod._addColorWidgetReplacements(self)
 	end
-	if mod:get("enable_RGB_widget") then
+
+	if mod:get("enable_RGB_widget") ~= "disabled" then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 
 	if mod:get("enable_dropdown_icons") then
 		mod._addDropdownIcons(self, dt, t, input_service)
 	end
+
 	if mod:get("enable_font_support") then
 		mod._addFontSupport(self, dt, t, input_service)
 	end
+
 	if mod:get("enable_scrollable_dropdown") then
 		mod._addScrollableDropdown(self, dt, t, input_service)
 	end

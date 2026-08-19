@@ -211,7 +211,6 @@ mod._ensure_icon_packages_loaded = function()
 		return false
 	end
 
-	dbg_1 = mod._required_icon_packages
 	_load_package_list(mod._required_icon_packages)
 
 	return _all_packages_loaded(mod._required_icon_packages)
