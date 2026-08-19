@@ -4,6 +4,21 @@ mod.default_tab = Localize("loc_settings_menu_group_other_settings") or mod:loca
 
 mod.settings_widgets = {}
 
+local rgb_widget_styles = {
+	{
+		text = "rgb_replacement_argb_sliders",
+		value = "argb_sliders",
+	},
+	{
+		text = "rgb_replacement_color_widget",
+		value = "color_widget",
+	},
+	{
+		text = "rgb_replacement_disabled",
+		value = "disabled",
+	},
+}
+
 table.insert(mod.settings_widgets, {
 	setting_id = "general_settings",
 	type = "group",
@@ -14,12 +29,12 @@ table.insert(mod.settings_widgets, {
 			default_value = true,
 			tooltip = "mod_name_pizazz_tooltip",
 		},
-		{
-			setting_id = "enable_scroll_position_saving",
-			type = "checkbox",
-			default_value = true,
-			tooltip = "enable_scroll_position_saving_tooltip",
-		},
+		--{
+		--	setting_id = "enable_scroll_position_saving",
+		--	type = "checkbox",
+		--	default_value = true,
+		--	tooltip = "enable_scroll_position_saving_tooltip",
+		--},
 		{
 			setting_id = "enable_mod_tabs",
 			type = "checkbox",
@@ -34,23 +49,24 @@ table.insert(mod.settings_widgets, {
 		},
 		{
 			setting_id = "enable_RGB_widget",
-			type = "checkbox",
-			default_value = true,
+			type = "dropdown",
+			default_value = "argb_sliders",
 			tooltip = "enable_RGB_widget_tooltip",
+			options = rgb_widget_styles,
 		},
-		{
-			setting_id = "reload_mods_keybind",
-			type = "keybind",
-			default_value = {
-				"r",
-				"left shift",
-				"left ctrl",
-			},
-			keybind_trigger = "pressed",
-			keybind_type = "function_call",
-			function_name = "reload_all_mods",
-			keybind_global = true,
-		},
+		--{
+		--	setting_id = "reload_mods_keybind",
+		--	type = "keybind",
+		--	default_value = {
+		--		"r",
+		--		"left shift",
+		--		"left ctrl",
+		--	},
+		--	keybind_trigger = "pressed",
+		--	keybind_type = "function_call",
+		--	function_name = "reload_all_mods",
+		--	keybind_global = true,
+		--},
 		{
 			setting_id = "enable_dropdown_icons",
 			type = "checkbox",

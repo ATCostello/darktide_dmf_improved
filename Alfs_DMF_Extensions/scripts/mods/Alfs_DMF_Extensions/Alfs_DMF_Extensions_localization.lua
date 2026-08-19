@@ -1,5 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "1.2.02"
+mod.version = "2.0"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
@@ -116,10 +116,19 @@ mod.localisation = {
 			.. ")}These are automatically created using the mod's existing settings structure, and may be innacurate.{#reset()} \n\nIf this setting is disabled, only mods that have specifically added tab support for 'Alf's DMF Extensions' will have tabs.",
 	},
 	enable_RGB_widget = {
-		en = "Custom RGB Widget",
+		en = "Color Widget Replacement",
 	},
 	enable_RGB_widget_tooltip = {
-		en = "Toggles a customised RGB widget which will replace default RGB sliders for mods that have support/have made their RGB sliders compatible.",
+		en = "Controls how color settings are displayed.\n\n{#color(169,191,153)}ARGB Sliders{#reset()} - Replaces individual R/G/B/A sliders with a combined RGB widget.\n{#color(169,191,153)}Color Widget{#reset()} - Replaces DMF's native color picker with the extension's RGB slider widget.\n{#color(169,191,153)}Disabled{#reset()} - No color widget replacement.",
+	},
+	rgb_replacement_argb_sliders = {
+		en = "ARGB Sliders",
+	},
+	rgb_replacement_color_widget = {
+		en = "Color Widget",
+	},
+	rgb_replacement_disabled = {
+		en = "Disabled",
 	},
 	reload_mods_keybind = {
 		en = "Reload Mods Keybind",

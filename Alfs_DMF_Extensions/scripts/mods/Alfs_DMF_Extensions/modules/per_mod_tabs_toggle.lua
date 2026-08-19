@@ -195,7 +195,7 @@ mod.inject_gen_tabs_toggle_into_content = function(self, category, visible_widge
 	end
 
 	if widget and alignment then
-		alignment.offset = { 740, 80 }
+		alignment.offset = { 800, 0 }
 
 		widget.visible = true
 		alignment.visible = true

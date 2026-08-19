@@ -3,6 +3,19 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local dmf = get_mod("DMF")
 mod.dmf = dmf
 
+mod._group_tooltip_lookup = mod._group_tooltip_lookup or {}
+
+local function collect_group_tooltips(widgets, mod_name, tooltips)
+	for _, widget in ipairs(widgets) do
+		if widget.type == "group" and widget.title and widget.tooltip then
+			tooltips[mod_name .. "|" .. widget.title] = widget.tooltip
+		end
+		if widget.sub_widgets then
+			collect_group_tooltips(widget.sub_widgets, mod_name, tooltips)
+		end
+	end
+end
+
 local original_initialize_mod_data = dmf.initialize_mod_data
 
 dmf.initialize_mod_data = function(mod_instance, mod_data)
@@ -73,6 +86,10 @@ dmf.initialize_mod_options = function(passed_mod, options)
 		end
 	end
 	collect_overrides(options.widgets)
+
+	if options and options.widgets then
+		collect_group_tooltips(options.widgets, passed_mod.name, mod._group_tooltip_lookup)
+	end
 
 	for _, initialized in ipairs(initialized_widgets) do
 		local raw = raw_lookup[initialized.setting_id]
@@ -189,10 +206,21 @@ dmf.create_mod_options_settings = function(self, options_templates)
 	for _, template in ipairs(settings) do
 		if template.widget_type == "group_header" and template.indentation_level == nil and template.display_name then
 			local depth_key = template.display_name and mod.compound_key(template.category, template.display_name)
-			local depth = group_depth_lookup[depth_key]
+			local depth = depth_key and group_depth_lookup[depth_key]
 
 			if depth ~= nil then
 				template.indentation_level = depth
+			end
+		end
+
+		if template.widget_type == "group_header" and template.display_name and not template.tooltip_text then
+			local mod_name = category_mod_map[template.category]
+			if mod_name then
+				local key = mod_name .. "|" .. template.display_name
+				local tooltip = mod._group_tooltip_lookup[key]
+				if tooltip then
+					template.tooltip_text = tooltip
+				end
 			end
 		end
 	end
@@ -345,3 +373,48 @@ mod.on_all_mods_loaded = function()
 
 	mod._ensure_icon_packages_loaded()
 end
+
+local function patch_group_header_blueprint()
+	local ok, blueprints = pcall(function()
+		return mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_content_blueprints")
+	end)
+
+	if not ok or not blueprints or not blueprints.group_header then
+		return
+	end
+
+	local group_bp = blueprints.group_header
+
+	local has_hotspot = false
+	for _, pass in ipairs(group_bp.pass_template or {}) do
+		if pass.pass_type == "hotspot" then
+			has_hotspot = true
+			break
+		end
+	end
+
+	if not has_hotspot then
+		table.insert(group_bp.pass_template, 1, {
+			pass_type = "hotspot",
+			content_id = "hotspot",
+			content = {},
+		})
+	end
+
+	local original_init = group_bp.init
+	group_bp.init = function(parent, widget, entry, callback_name, changed_callback_name)
+		if original_init then
+			original_init(parent, widget, entry, callback_name, changed_callback_name)
+		end
+		if entry then
+			widget.content.entry = entry
+			if entry.tooltip_text then
+				widget.content.tooltip_text = entry.tooltip_text
+			end
+		end
+	end
+end
+
+patch_group_header_blueprint()
+
+
