@@ -156,7 +156,7 @@ mod.create_gen_tabs_toggle = function(self, category)
 	widget.type = "settings_button"
 	widget.content.text = entry.display_name
 	widget.content.entry = entry
-	widget.content.size = size
+	widget.content.size = { 200, height }
 
 	local hotspot = widget.content.hotspot
 

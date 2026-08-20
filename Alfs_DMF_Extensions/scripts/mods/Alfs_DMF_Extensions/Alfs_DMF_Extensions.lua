@@ -108,7 +108,6 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
-	dbg_1 = self
 	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
@@ -165,16 +164,20 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	end
 
 	defs.scenegraph_definition.settings_header.position[2] = orig_settings_header.position[2] - 40
+
 	defs.scenegraph_definition.settings_grid_background.size[1] = orig_settings_grid_background.size[1] + 80
 	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
 	defs.scenegraph_definition.settings_grid_background.position[1] = orig_settings_grid_background.position[1] + 80
 	defs.scenegraph_definition.settings_grid_background.position[2] = 16
+
 	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
-	defs.scenegraph_definition.settings_grid_mask.size[1] = orig_settings_grid_mask.size[1] + 160
-	defs.scenegraph_definition.settings_grid_mask.size[2] = 2000
-	defs.scenegraph_definition.settings_grid_mask.position[1] = orig_settings_grid_mask.position[1] - 80
-	defs.scenegraph_definition.settings_grid_mask.position[2] = 10
+
 	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
+
+	defs.scenegraph_definition.settings_grid_mask.size[1] = defs.scenegraph_definition.settings_grid_interaction.size[1] + 20
+	defs.scenegraph_definition.settings_grid_mask.size[2] = defs.scenegraph_definition.settings_grid_interaction.size[2] + 20
+	defs.scenegraph_definition.settings_grid_mask.position[1] = defs.scenegraph_definition.settings_grid_interaction.position[1] - 20
+	defs.scenegraph_definition.settings_grid_mask.position[2] = defs.scenegraph_definition.settings_grid_interaction.position[2]
 
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
 

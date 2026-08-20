@@ -11,6 +11,13 @@ local function ends_with(str, ending)
 	return str and ending ~= "" and str:sub(-#ending):lower() == ending:lower()
 end
 
+local _COLOR_VALUE_IDS = {
+	"color_value_1",
+	"color_value_2",
+	"color_value_3",
+	"color_value_4",
+}
+
 local SUFFIX_MAP = {
 	["_R"] = "R",
 	["_red"] = "R",
@@ -383,12 +390,7 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	local colors_equal = ColorUtils.equal
 	local copy_color = ColorUtils.copy
 
-	local COLOR_VALUE_IDS = {
-		"color_value_1",
-		"color_value_2",
-		"color_value_3",
-		"color_value_4",
-	}
+	local COLOR_VALUE_IDS = _COLOR_VALUE_IDS
 
 	local function first_channel_index(alpha)
 		return alpha and 1 or 2
@@ -528,7 +530,6 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 
 	refresh_color_value_text(content)
 
-	local original_update = nil
 	local GAMEPAD_CHANNEL_SPEED_UPDATE = 150
 
 	local function color_widget_update(parent, widget, input_service, dt)

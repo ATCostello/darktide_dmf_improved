@@ -154,13 +154,13 @@ mod.localisation = {
 		en = "Color Widget Replacement",
 	},
 	enable_RGB_widget_tooltip = {
-		en = "Controls how color settings are displayed.\n\n{#color(169,191,153)}ARGB Sliders{#reset()} - Replaces individual R/G/B/A sliders with a combined RGB widget.\n{#color(169,191,153)}Color Widget{#reset()} - Replaces DMF's native color picker with the extension's RGB slider widget.\n{#color(169,191,153)}Disabled{#reset()} - No color widget replacement.",
+		en = "Controls how color settings are displayed.\n\n{#color(169,191,153)}ARGB Sliders{#reset()} - Replaces individual R/G/B/A sliders with my own custom, combined RGB widget.\n{#color(169,191,153)}Color Widget{#reset()} - Replaces individual R/G/B/A sliders with DMF's new RGB widget.\n{#color(169,191,153)}Disabled{#reset()} - No color widget replacement, keep the sliders seperated..",
 	},
 	rgb_replacement_argb_sliders = {
-		en = "ARGB Sliders",
+		en = "Alf's Custom ARGB Widget",
 	},
 	rgb_replacement_color_widget = {
-		en = "Color Widget",
+		en = "Native DMF Color Widget",
 	},
 	rgb_replacement_disabled = {
 		en = "Disabled",
@@ -186,7 +186,7 @@ mod.localisation = {
 		ru = "Иконки в выпадающих списках",
 	},
 	enable_dropdown_icons_tooltip = {
-		en = "Toggles icon support for DMF settings dropdowns. These need to be implemented by the mod author.",
+		en = "Toggles icon support for DMF settings dropdowns. These need to be implemented by the mod author, I'd suggest using DMF's new icon dropdown system instead, this is kept here for backwards compatibility. ",
 		ru = "Включает поддержку иконок в выпадающих списках настроек DMF. Их должны реализовать авторы модов.",
 	},
 	enable_font_support = {
@@ -235,8 +235,8 @@ mod.localisation = {
 		ru = "{#color(255,180,180)}Вкладки отключены{#reset()}",
 	},
 	gen_tabs_toggle_tooltip = {
-		en = "Toggle generalized tabs for this mod. When OFF, all settings are shown without tab filtering.",
-		ru = "Включение обобщённых вкладок для этого мода. При выключении все настройки показываются без фильтрации по вкладкам.",
+		en = "Toggle tabs for this mod.",
+		ru = "Включение вкладок для этого мода.",
 	},
 	enable_tab_reset = {
 		en = "Per-Tab Reset to Defaults",

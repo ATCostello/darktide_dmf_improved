@@ -6,11 +6,17 @@ end
 local SETTINGS_VALUE_WIDTH = 500
 local ICON_CONSTANT_OFFSET = 0
 
+local _reusable_color = { 0, 0, 0, 0 }
+
 local function copy_color(color)
 	if not color then
 		return nil
 	end
-	return { color[1], color[2], color[3], color[4] }
+	_reusable_color[1] = color[1]
+	_reusable_color[2] = color[2]
+	_reusable_color[3] = color[3]
+	_reusable_color[4] = color[4]
+	return _reusable_color
 end
 
 local function get_widget_icon_x(widget)
