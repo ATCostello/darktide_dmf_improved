@@ -1,7 +1,7 @@
 {
   "name": "Alf's DMF Extensions",
   "description": "Extensions to the Darktide Mod Framework settings menu, that will benefit users and mod creators in various ways. All designed to be optional, integrated extensions - not mandatory changes.",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "author": "Alfthebigheaded",
   "homepage": "https://www.nexusmods.com/warhammer40kdarktide/mods/864",
   "source": "https://github.com/stars/ATCostello/lists/alf-s-darktide-mods",
