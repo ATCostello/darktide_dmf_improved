@@ -266,7 +266,7 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
-	if self.view_name ~= "dmf_options_view" and self.view_name ~= "options_view" then
+	if self.view_name ~= "dmf_options_view" then
 		return
 	end
 

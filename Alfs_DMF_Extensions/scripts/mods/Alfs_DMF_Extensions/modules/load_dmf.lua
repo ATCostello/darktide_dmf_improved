@@ -6,6 +6,10 @@ mod.dmf = dmf
 mod._group_tooltip_lookup = mod._group_tooltip_lookup or {}
 
 local function collect_group_tooltips(widgets, mod_name, tooltips)
+	if not mod_name then
+		return
+	end
+
 	for _, widget in ipairs(widgets) do
 		if widget.type == "group" and widget.title and widget.tooltip then
 			tooltips[mod_name .. "|" .. widget.title] = widget.tooltip
@@ -88,7 +92,7 @@ dmf.initialize_mod_options = function(passed_mod, options)
 	collect_overrides(options.widgets)
 
 	if options and options.widgets then
-		collect_group_tooltips(options.widgets, passed_mod.name, mod._group_tooltip_lookup)
+		collect_group_tooltips(options.widgets, passed_mod:get_name(), mod._group_tooltip_lookup)
 	end
 
 	for _, initialized in ipairs(initialized_widgets) do
