@@ -11,8 +11,15 @@ local function collect_group_tooltips(widgets, mod_name, tooltips)
 	end
 
 	for _, widget in ipairs(widgets) do
-		if widget.type == "group" and widget.title and widget.tooltip then
-			tooltips[mod_name .. "|" .. widget.title] = widget.tooltip
+		if widget.type == "group" and widget.tooltip then
+			local key_by_title = widget.title and (mod_name .. "|" .. widget.title)
+			local key_by_id = widget.setting_id and (mod_name .. "|" .. widget.setting_id)
+			if key_by_title then
+				tooltips[key_by_title] = widget.tooltip
+			end
+			if key_by_id then
+				tooltips[key_by_id] = widget.tooltip
+			end
 		end
 		if widget.sub_widgets then
 			collect_group_tooltips(widget.sub_widgets, mod_name, tooltips)
@@ -125,6 +132,7 @@ dmf.create_mod_options_settings = function(self, options_templates)
 	local tab_lookup = {}
 	local setting_id_lookup = {}
 	local category_mod_map = {}
+	mod._category_mod_map = category_mod_map
 	local group_depth_lookup = {}
 
 	for _, mod_widgets in ipairs(dmf.options_widgets_data) do
@@ -222,6 +230,10 @@ dmf.create_mod_options_settings = function(self, options_templates)
 			if mod_name then
 				local key = mod_name .. "|" .. template.display_name
 				local tooltip = mod._group_tooltip_lookup[key]
+				if not tooltip and template.setting_id then
+					local id_key = mod_name .. "|" .. template.setting_id
+					tooltip = mod._group_tooltip_lookup[id_key]
+				end
 				if tooltip then
 					template.tooltip_text = tooltip
 				end

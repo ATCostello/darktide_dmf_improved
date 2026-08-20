@@ -275,6 +275,37 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
+	dbg_1 = self
+
+	
+	-- Inject tooltip_text on hovered group_header entries BEFORE DMF's draw
+	-- checks them. DMF's update() clears tooltips, then our hook_safe runs,
+	-- then DMF's draw() reads entry.tooltip_text in _draw_grid.
+	for _, w in ipairs(self._settings_content_widgets or {}) do
+		if w and w.content then
+			local wh = w.content.hotspot
+			local entry = w.content.entry
+			if wh and wh.is_hover and entry and entry.widget_type == "group_header" and not entry.tooltip_text then
+				if mod.current_category then
+					local cat_mod = mod._category_mod_map and mod._category_mod_map[mod.current_category]
+					if cat_mod then
+						local tooltip = nil
+						if entry.display_name then
+							tooltip = mod._group_tooltip_lookup and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.display_name]
+						end
+						if not tooltip and entry.setting_id then
+							tooltip = mod._group_tooltip_lookup and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.setting_id]
+						end
+						if tooltip then
+							entry.tooltip_text = tooltip
+							w.content.tooltip_text = tooltip
+						end
+					end
+				end
+			end
+		end
+	end
+
 	--if mod:get("enable_scroll_position_saving") then
 	--	mod._saveScrollPosition(self)
 	--end

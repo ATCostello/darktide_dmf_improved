@@ -229,10 +229,21 @@ mod.inject_tabs_into_widgets = function(self, category)
 	local fallback_tab = mod.default_tab
 	local templates = self._options_templates.settings or {}
 
-	local cat_templates = {}
+	local tab_by_entry = {}
+
 	for _, tpl in ipairs(templates) do
 		if tpl.category == category then
-			cat_templates[#cat_templates + 1] = tpl
+			if tpl.widget_type == "group_header" then
+				local resolved = tpl.tab or resolve_widget_tab_from_dmf_data(category, tpl.setting_id, tpl.display_name)
+
+				if resolved then
+					current_group_tab = resolved
+				elseif tpl.indentation_level and tpl.indentation_level == 0 then
+					current_group_tab = nil
+				end
+			end
+
+			tab_by_entry[tpl] = current_group_tab or fallback_tab
 		end
 	end
 
@@ -243,24 +254,14 @@ mod.inject_tabs_into_widgets = function(self, category)
 			goto continue
 		end
 
-		local tpl = cat_templates[i]
+		local entry = data.entry or widget.content.entry
+		local tpl_tab = entry and tab_by_entry[entry]
 
-		if tpl then
-			widget.content.indentation_level = tpl.indentation_level
-
-			if tpl.widget_type == "group_header" then
-				local resolved = tpl.tab
-					or resolve_widget_tab_from_dmf_data(category, tpl.setting_id, tpl.display_name)
-
-				if resolved then
-					current_group_tab = resolved
-				elseif tpl.indentation_level and tpl.indentation_level == 0 then
-					current_group_tab = nil
-				end
-			end
+		if tpl_tab ~= nil then
+			widget.content.tab = tpl_tab
+		else
+			widget.content.tab = current_group_tab or fallback_tab
 		end
-
-		widget.content.tab = current_group_tab or fallback_tab
 
 		::continue::
 	end
@@ -331,7 +332,17 @@ mod.inject_generalised_tabs = function(self, category)
 	mod._tab_inject_state[state_key] = new_state
 
 	local current_tab = mod.default_tab
-	local ti = 1
+	local tab_by_entry = {}
+
+	for _, tpl in ipairs(templates) do
+		if tpl.category == category then
+			if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+				current_tab = tpl.display_name or current_tab
+			end
+
+			tab_by_entry[tpl] = current_tab or mod.default_tab
+		end
+	end
 
 	for _, data in ipairs(widgets) do
 		local widget = data.widget
@@ -339,20 +350,12 @@ mod.inject_generalised_tabs = function(self, category)
 			goto continue
 		end
 
-		while ti <= #templates do
-			local tpl = templates[ti]
-			ti = ti + 1
-
-			if tpl.category == category then
-				if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
-					current_tab = tpl.display_name or current_tab
-				end
-
-				break
-			end
+		local entry = data.entry or widget.content.entry
+		if entry and tab_by_entry[entry] then
+			widget.content.tab = tab_by_entry[entry]
+		else
+			widget.content.tab = mod.default_tab
 		end
-
-		widget.content.tab = current_tab or mod.default_tab
 
 		::continue::
 	end
@@ -747,18 +750,13 @@ mod.filter_settings = function(self, category)
 				visible = true
 			else
 				local widget_tab = content.tab
-				visible = (widget_tab == nil) or (widget_tab == selected_tab)
 
-				-- Force show mod_title and description!
-				if index == 1 or index == 2 then
-					if widget.type == "description" or widget.type == "group_header" then
-						--visible = true
-					end
-				end
-				if has_toggle and (index == 2 or index == 3) then
-					if widget.type == "description" then
-						--visible = true
-					end
+				if widget_tab == nil and selected_tab == "Other" then
+					visible = true
+				elseif widget_tab == selected_tab then
+					visible = true
+				else
+					visible = false
 				end
 			end
 
@@ -772,7 +770,7 @@ mod.filter_settings = function(self, category)
 		end
 	end
 
-	if #visible_widgets <= 2 then
+	--[[if #visible_widgets <= 2 then
 		for index, data in ipairs(category_widgets) do
 			local widget = data.widget
 			local alignment_widget = data.alignment_widget
@@ -787,7 +785,7 @@ mod.filter_settings = function(self, category)
 				end
 			end
 		end
-	end
+	end]]
 
 	-- Clear stale hotspot.on_pressed before replacing the grid to prevent
 	-- DMF from re-acting on a press that already occurred (causes infinite
@@ -842,9 +840,7 @@ mod.filter_settings = function(self, category)
 
 		local scroll_length = self._settings_content_grid:scroll_length()
 		if scroll_length > 0 then
-			self._settings_content_grid:set_scrollbar_progress(
-				math.clamp(saved_scroll_progress, 0, 1)
-			)
+			self._settings_content_grid:set_scrollbar_progress(math.clamp(saved_scroll_progress, 0, 1))
 		end
 	end
 
@@ -877,65 +873,65 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 					if hotspot then
 						local old_hover = hotspot.is_hover
 
-				hotspot.is_hover = true
+						hotspot.is_hover = true
 
-					for _, widget in ipairs(self._mod_tab_widgets) do
-						local w_hotspot = widget.content.hotspot
+						for _, widget in ipairs(self._mod_tab_widgets) do
+							local w_hotspot = widget.content.hotspot
 
-						if w_hotspot and w_hotspot.on_pressed then
-							local tab_key = widget.content._tab_key or widget.content.text
+							if w_hotspot and w_hotspot.on_pressed then
+								local tab_key = widget.content._tab_key or widget.content.text
 
-							if
-								tab_key == mod:localize("tab_arrow_left")
-								or tab_key == mod:localize("tab_arrow_right")
-							then
-								w_hotspot.on_pressed = false
-							else
-								mod.selected_tabs[mod_storage_key] = tab_key
+								if
+									tab_key == mod:localize("tab_arrow_left")
+									or tab_key == mod:localize("tab_arrow_right")
+								then
+									w_hotspot.on_pressed = false
+								else
+									mod.selected_tabs[mod_storage_key] = tab_key
 
-								mod.filter_settings(self, mod.current_category)
+									mod.filter_settings(self, mod.current_category)
 
-								w_hotspot.on_pressed = false
+									w_hotspot.on_pressed = false
+								end
 							end
 						end
-					end
 
-					local render_settings = self._render_settings
-					local ui_renderer = self._ui_renderer
-					local ui_scenegraph = self._ui_scenegraph
+						local render_settings = self._render_settings
+						local ui_renderer = self._ui_renderer
+						local ui_scenegraph = self._ui_scenegraph
 
-					UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
+						UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
 
-					for j = 1, #self._mod_tab_widgets do
-						local widget = self._mod_tab_widgets[j]
+						for j = 1, #self._mod_tab_widgets do
+							local widget = self._mod_tab_widgets[j]
 
-						if grid:is_widget_visible(widget) then
-							UIWidget.draw(widget, ui_renderer)
+							if grid:is_widget_visible(widget) then
+								UIWidget.draw(widget, ui_renderer)
+							end
 						end
+
+						UIRenderer.end_pass(ui_renderer)
+
+						hotspot.is_hover = old_hover
 					end
-
-					UIRenderer.end_pass(ui_renderer)
-
-					hotspot.is_hover = old_hover
 				end
-			end
-		else
-			local render_settings = self._render_settings
-			local ui_renderer = self._ui_renderer
-			local ui_scenegraph = self._ui_scenegraph
+			else
+				local render_settings = self._render_settings
+				local ui_renderer = self._ui_renderer
+				local ui_scenegraph = self._ui_scenegraph
 
-			UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
+				UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
 
-			for j = 1, #self._mod_tab_widgets do
-				local widget = self._mod_tab_widgets[j]
+				for j = 1, #self._mod_tab_widgets do
+					local widget = self._mod_tab_widgets[j]
 
-				if grid:is_widget_visible(widget) then
-					UIWidget.draw(widget, ui_renderer)
+					if grid:is_widget_visible(widget) then
+						UIWidget.draw(widget, ui_renderer)
+					end
 				end
-			end
 
-			UIRenderer.end_pass(ui_renderer)
-		end
+				UIRenderer.end_pass(ui_renderer)
+			end
 		end
 	end
 
@@ -1141,13 +1137,11 @@ mod._addModTabs = function(self, dt, t, input_service)
 		mod._grid_ref = self._settings_content_grid
 	end
 
-	
 	if self._mod_tab_grid then
 		self._mod_tab_grid:update(dt, t, input_service)
 	end
 
 	if mod:get("enable_mod_tabs") and input_service then
-
 		-- disable new DMF options tab indicator if my tabs are enabled.
 		if self and self._options_tab_indicator then
 			self._options_tab_indicator._visible = false

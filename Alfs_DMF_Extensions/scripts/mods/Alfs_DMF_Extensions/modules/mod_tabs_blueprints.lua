@@ -112,6 +112,12 @@ local blueprints = {
 				change_function = function(content, style)
 					local hotspot = content.hotspot
 
+					if hotspot.disabled then
+						style.color = table.clone(COLORS.frame_disabled)
+						style.color[1] = 0
+						return
+					end
+
 					local progress = math.max(hotspot.anim_hover_progress or 0, hotspot.anim_select_progress or 0)
 
 					style.color[1] = 255 * progress
@@ -146,6 +152,11 @@ local blueprints = {
 
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
+
+					if content.hotspot and content.hotspot.disabled then
+						style.color[1] = 0
+						return
+					end
 
 					style.color[1] = selected and 255 or 0
 				end,
@@ -212,6 +223,11 @@ local blueprints = {
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
 
+					if hotspot.disabled then
+						style.color[1] = 5
+						return
+					end
+
 					if selected then
 						style.color[1] = 70
 					elseif hotspot.is_hover then
@@ -248,6 +264,11 @@ local blueprints = {
 
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
+
+					if hotspot.disabled then
+						style.color = table.clone(COLORS.frame_disabled)
+						return
+					end
 
 					if selected then
 						style.color = COLORS.frame_selected
@@ -290,6 +311,15 @@ local blueprints = {
 
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
+
+					if hotspot.disabled then
+						local c = COLORS.disabled
+						style.text_color[1] = c[1]
+						style.text_color[2] = c[2]
+						style.text_color[3] = c[3]
+						style.text_color[4] = c[4]
+						return
+					end
 
 					local c
 					if selected then
