@@ -1,8 +1,9 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "2.0.4"
+mod.version = "2.0.5"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
+local InputUtils = require("scripts/managers/input/input_utils")
 
 local colours = {
 	title = "200,140,20",
@@ -50,13 +51,34 @@ mod.gradientText = function(text, startColor, endColor, colorSpaces)
 		end
 	end
 
-	result = "{#color(" .. colours.title .. ")}" .. result .. "{#reset()}"
+	result = "{#color(" .. colours.title .. ")} " .. result .. "{#reset()}"
 	return result
 end
 
 --local name = mod.gradientText("Alf's DMF Extensions", { 255, 255, 0 }, { 255, 0, 255 }, true)
 --Clipboard.put(name)
 --mod:echo(name)
+
+mod._available_aliases = {
+	"character_create_randomize",
+	"hotkey_item_favorite",
+	"hotkey_help",
+	"hotkey_inventory",
+	"hotkey_loadout",
+	"hotkey_menu_special_1",
+	"hotkey_menu_special_2",
+	"hotkey_toggle_item_tooltip",
+	"accept_invite_notification",
+	"hotkey_item_inspect",
+	"hotkey_item_discard",
+	"hotkey_start_game",
+	"group_finder_group_inspect",
+	"next_hint",
+	"cycle_list_secondary",
+	"notification_option_a",
+	"notification_option_b",
+	"talent_unequip",
+}
 
 local mod_name = {
 	en = "Alf's DMF Extensions",
@@ -388,6 +410,18 @@ mod.localisation = {
 		["zh-cn"] = "将当前选中的标签页恢复为模组默认设置",
 		["zh-tw"] = "將當前選中的分頁恢復為模組預設設定",
 	},
+	legend_settings = {
+		en = "{#color(" .. colours.title .. ")}Keybind Settings{#reset()}",
+		ru = "{#color(" .. colours.title .. ")}Настройки привязок клавиш{#reset()}",
+		["zh-cn"] = "{#color(" .. colours.title .. ")}快捷键设置{#reset()}",
+		["zh-tw"] = "{#color(" .. colours.title .. ")}快捷鍵設定{#reset()}",
+	},
+	keybind_reset_tab = {
+		en = "Reset tab keybind"
+	},
+	keybind_reset_tab_tooltip = {
+		en = "Choose a hotkey to use as the 'reset tab to default settings' keybind."
+	},
 }
 
 -- Group localisations so they can be managed easier.
@@ -473,6 +507,12 @@ local apply_colours = function()
 	end
 
 	return mod.localisation
+end
+
+for _, action in ipairs(mod._available_aliases) do
+	local alias_key = Managers.ui:get_input_alias_key(action, "View")
+	local input_text = InputUtils.input_text_for_current_input_device("View", alias_key)
+	mod.localisation[action] = { en = input_text }
 end
 
 mod.toggle_pizazz = function()

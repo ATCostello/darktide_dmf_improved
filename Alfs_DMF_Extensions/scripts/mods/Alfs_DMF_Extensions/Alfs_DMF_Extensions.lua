@@ -108,6 +108,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
+
 	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
@@ -174,10 +175,14 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 
 	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
 
-	defs.scenegraph_definition.settings_grid_mask.size[1] = defs.scenegraph_definition.settings_grid_interaction.size[1] + 20
-	defs.scenegraph_definition.settings_grid_mask.size[2] = defs.scenegraph_definition.settings_grid_interaction.size[2] + 20
-	defs.scenegraph_definition.settings_grid_mask.position[1] = defs.scenegraph_definition.settings_grid_interaction.position[1] - 20
-	defs.scenegraph_definition.settings_grid_mask.position[2] = defs.scenegraph_definition.settings_grid_interaction.position[2]
+	defs.scenegraph_definition.settings_grid_mask.size[1] = defs.scenegraph_definition.settings_grid_interaction.size[1]
+		+ 20
+	defs.scenegraph_definition.settings_grid_mask.size[2] = defs.scenegraph_definition.settings_grid_interaction.size[2]
+		+ 20
+	defs.scenegraph_definition.settings_grid_mask.position[1] = defs.scenegraph_definition.settings_grid_interaction.position[1]
+		- 20
+	defs.scenegraph_definition.settings_grid_mask.position[2] =
+		defs.scenegraph_definition.settings_grid_interaction.position[2]
 
 	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
 
@@ -230,7 +235,7 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 
 		defs.legend_inputs = defs.legend_inputs or {}
 		table.insert(defs.legend_inputs, {
-			input_action = "hotkey_menu_special_1",
+			input_action = mod:get("keybind_reset_tab"),
 			display_name = "loc_alf_dmf_ext_reset_tab",
 			on_pressed_callback = "cb_reset_tab_to_default",
 			visibility_function = function(parent)
@@ -238,6 +243,9 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 					return false
 				end
 				if not mod:get("enable_mod_tabs") then
+					return false
+				end
+				if self.is_text_input_focused then
 					return false
 				end
 				return has_multiple_tabs(parent)
@@ -275,9 +283,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
-	dbg_1 = self
-
-	
 	-- Inject tooltip_text on hovered group_header entries BEFORE DMF's draw
 	-- checks them. DMF's update() clears tooltips, then our hook_safe runs,
 	-- then DMF's draw() reads entry.tooltip_text in _draw_grid.
@@ -291,10 +296,12 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 					if cat_mod then
 						local tooltip = nil
 						if entry.display_name then
-							tooltip = mod._group_tooltip_lookup and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.display_name]
+							tooltip = mod._group_tooltip_lookup
+								and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.display_name]
 						end
 						if not tooltip and entry.setting_id then
-							tooltip = mod._group_tooltip_lookup and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.setting_id]
+							tooltip = mod._group_tooltip_lookup
+								and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.setting_id]
 						end
 						if tooltip then
 							entry.tooltip_text = tooltip

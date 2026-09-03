@@ -19,6 +19,15 @@ local rgb_widget_styles = {
 	},
 }
 
+local _get_keybind_list = function()
+	local list = {
+	}
+	for _, action in ipairs(mod._available_aliases) do
+		list[#list + 1] = { text = action, value = action }
+	end
+	return list
+end
+
 table.insert(mod.settings_widgets, {
 	setting_id = "general_settings",
 	type = "group",
@@ -90,6 +99,13 @@ table.insert(mod.settings_widgets, {
 			type = "checkbox",
 			default_value = true,
 			tooltip = "enable_tab_reset_tooltip",
+		},
+		{
+			setting_id = "keybind_reset_tab",
+			type = "dropdown",
+			default_value = "hotkey_menu_special_1",
+			options = _get_keybind_list(),
+			tooltip = "keybind_reset_tab_tooltip",
 		},
 	},
 })
