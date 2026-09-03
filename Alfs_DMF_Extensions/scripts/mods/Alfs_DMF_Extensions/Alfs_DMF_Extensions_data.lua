@@ -6,6 +6,9 @@ mod.settings_widgets = {}
 
 local rgb_widget_styles = {
 	{
+
+		icon = "content/ui/materials/icons/circumstances/havoc/havoc_mutator_heinous_rituals",
+		icon_style = { size = { 48, 48 }, color = { 255, 255, 0, 0 }, default_color = { 255, 255, 0, 0 }, hover_color = { 255, 255, 0, 0 }, },
 		text = "rgb_replacement_argb_sliders",
 		value = "argb_sliders",
 	},
@@ -20,8 +23,7 @@ local rgb_widget_styles = {
 }
 
 local _get_keybind_list = function()
-	local list = {
-	}
+	local list = {}
 	for _, action in ipairs(mod._available_aliases) do
 		list[#list + 1] = { text = action, value = action }
 	end
@@ -76,12 +78,12 @@ table.insert(mod.settings_widgets, {
 		--	function_name = "reload_all_mods",
 		--	keybind_global = true,
 		--},
-		{
-			setting_id = "enable_dropdown_icons",
-			type = "checkbox",
-			default_value = true,
-			tooltip = "enable_dropdown_icons_tooltip",
-		},
+		--{
+		--	setting_id = "enable_dropdown_icons",
+		--	type = "checkbox",
+		--	default_value = true,
+		--	tooltip = "enable_dropdown_icons_tooltip",
+		--},
 		{
 			setting_id = "enable_font_support",
 			type = "checkbox",

@@ -329,9 +329,9 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 
-	if mod:get("enable_dropdown_icons") then
-		mod._addDropdownIcons(self, dt, t, input_service)
-	end
+	--if mod:get("enable_dropdown_icons") then
+	--	mod._addDropdownIcons(self, dt, t, input_service)
+	--end
 
 	if mod:get("enable_font_support") then
 		mod._addFontSupport(self, dt, t, input_service)
