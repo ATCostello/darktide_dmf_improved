@@ -6,9 +6,6 @@ mod.settings_widgets = {}
 
 local rgb_widget_styles = {
 	{
-
-		icon = "content/ui/materials/icons/circumstances/havoc/havoc_mutator_heinous_rituals",
-		icon_style = { size = { 48, 48 }, color = { 255, 255, 0, 0 }, default_color = { 255, 255, 0, 0 }, hover_color = { 255, 255, 0, 0 }, },
 		text = "rgb_replacement_argb_sliders",
 		value = "argb_sliders",
 	},

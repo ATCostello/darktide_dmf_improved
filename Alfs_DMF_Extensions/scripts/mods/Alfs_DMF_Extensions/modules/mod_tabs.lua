@@ -634,7 +634,7 @@ mod.create_tab_bar = function(self, category)
 			if hotspot then
 				hotspot.pressed_callback = function()
 					mod.selected_tabs[mod_storage_key] = tab_name
-					mod.filter_settings(self, category)
+					mod.filter_settings(self, category, true)
 				end
 			end
 			widget.content.selected_tab_key = mod_storage_key
@@ -682,9 +682,14 @@ mod.create_tab_bar = function(self, category)
 
 	self._mod_tab_widgets = widgets
 	self._mod_tab_grid = grid
+
+	if mod._mem_track then
+		mod._mem_track("view._mod_tab_widgets", self._mod_tab_widgets)
+		mod._mem_track("view._mod_tab_grid", grid)
+	end
 end
 
-mod.filter_settings = function(self, category)
+mod.filter_settings = function(self, category, scroll_to_top)
 	local mod_storage_key = get_mod_storage_key(self, category)
 
 	local selected_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
@@ -787,12 +792,34 @@ mod.filter_settings = function(self, category)
 		end
 	end]]
 
-	-- Clear stale hotspot.on_pressed before replacing the grid to prevent
-	-- DMF from re-acting on a press that already occurred (causes infinite
-	-- rebuild loops and memory exhaustion when the pressed widget gets
-	-- scrolled off-screen before its state is consumed).
 	local old_grid = self._settings_content_grid
-	local saved_scroll_progress = old_grid and old_grid:scrollbar_progress() or 0
+	local saved_scroll_progress = 0
+	local saved_scroll_amount = nil
+
+	if old_grid then
+		local grid_rebuilt_by_dmf = old_grid ~= mod._grid_ref
+		local progress = 0
+
+		if old_grid._scrollbar_active then
+			progress = old_grid:scrollbar_progress()
+
+			if (not progress or progress == 0) and old_grid._scrollbar_widget then
+				local value = old_grid._scrollbar_widget.content and old_grid._scrollbar_widget.content.value
+
+				if type(value) == "number" then
+					progress = value
+				end
+			end
+		end
+
+		progress = progress or 0
+
+		if grid_rebuilt_by_dmf then
+			saved_scroll_amount = old_grid:scroll_length() * progress
+		else
+			saved_scroll_progress = progress
+		end
+	end
 
 	for _, data in ipairs(category_widgets) do
 		local w = data.widget
@@ -840,7 +867,18 @@ mod.filter_settings = function(self, category)
 
 		local scroll_length = self._settings_content_grid:scroll_length()
 		if scroll_length > 0 then
-			self._settings_content_grid:set_scrollbar_progress(math.clamp(saved_scroll_progress, 0, 1))
+			local scroll_progress
+
+			if scroll_to_top then
+				scroll_progress = 0
+			elseif saved_scroll_amount ~= nil then
+				scroll_progress = math.clamp(saved_scroll_amount, 0, scroll_length) / scroll_length
+			else
+				scroll_progress = math.clamp(saved_scroll_progress, 0, 1)
+			end
+
+			self._settings_content_grid:set_scrollbar_progress(scroll_progress)
+			self._settings_content_grid:_update_scroll_progress(true)
 		end
 	end
 
@@ -852,6 +890,12 @@ mod.filter_settings = function(self, category)
 	self._navigation_widget_index = 1
 
 	self:_update_grid_navigation_selection()
+
+	if mod._mem_track then
+		mod._mem_track("view._filter_grid", self._settings_content_grid)
+		mod._mem_track("view._filter_widgets", self._settings_content_widgets)
+		mod._mem_track("view._category_widgets", category_widgets)
+	end
 end
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
@@ -889,7 +933,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 								else
 									mod.selected_tabs[mod_storage_key] = tab_key
 
-									mod.filter_settings(self, mod.current_category)
+									mod.filter_settings(self, mod.current_category, true)
 
 									w_hotspot.on_pressed = false
 								end
@@ -1059,7 +1103,7 @@ mod._handle_gamepad_tab_navigation = function(self, view, input_service)
 	if new_tab and new_tab ~= current_tab then
 		mod.selected_tabs[mod_storage_key] = new_tab
 
-		mod.filter_settings(view, mod.current_category)
+		mod.filter_settings(view, mod.current_category, true)
 
 		local start_index = tonumber(mod.tab_scroll_index[mod_storage_key]) or 1
 		local max_visible_tabs = tonumber(mod.max_visible_tabs) or 5

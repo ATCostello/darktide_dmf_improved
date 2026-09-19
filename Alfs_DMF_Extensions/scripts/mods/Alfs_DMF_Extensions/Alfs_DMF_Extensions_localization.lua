@@ -1,5 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "2.0.6"
+mod.version = "2.0.7"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next
@@ -469,31 +469,16 @@ local apply_colours = function()
 			end
 		end
 
-		-- apply border colours
-		if key == "Gold" or key == "Silver" or key == "Steel" or key == "Tarnished" then
-			for language, text in next, values do
-				local argb = mod.lookup_border_color(key)
-
-				if argb ~= nil then
-					local temp = apply_color_to_text(key, argb[2], argb[3], argb[4])
-
-					if mod.localisation[temp] == nil then
-						mod.localisation[temp] = {}
-						mod.localisation[temp][language] = temp
-					else
-						mod.localisation[temp][language] = temp
-					end
-				end
-			end
-		end
-
 		-- adjust tooltip text opacity
 		if string.find(key, "_tooltip") then
 			for language, text in next, values do
 				local rgb = { 144, 155, 136 }
 
 				if rgb ~= nil then
-					local text = apply_color_to_text(text, rgb[1], rgb[2], rgb[3])
+					-- Strip any colour tags applied by a previous pass, otherwise every
+					-- call wraps the already-wrapped string again and grows it forever.
+					local clean = string.gsub(text, "{#.-}", "")
+					local text = apply_color_to_text(clean, rgb[1], rgb[2], rgb[3])
 
 					if mod.localisation[key] == nil then
 						mod.localisation[key] = {}
