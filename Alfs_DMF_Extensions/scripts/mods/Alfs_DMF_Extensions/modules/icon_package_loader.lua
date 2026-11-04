@@ -147,6 +147,10 @@ local function _package_is_available(package_name)
 		return application.can_get_resource("package", package_name)
 	end)
 
+	if not ok then
+		mod:error("package not loaded: " .. package_name)
+	end
+
 	return ok and exists or false
 end
 
@@ -159,6 +163,10 @@ local function _package_is_loaded(package_name)
 	end
 
 	local ok, is_loaded = pcall(package_manager.has_loaded, package_manager, package_name)
+
+	if not ok then
+		mod:error("package not loaded: " .. package_name)
+	end
 
 	return ok and is_loaded or false
 end
@@ -182,6 +190,8 @@ local function _load_package_list(package_list)
 
 				if ok then
 					mod._required_icon_packages[pkg] = true
+				else
+					mod:error("package not loaded: " .. pkg)
 				end
 			end
 		end

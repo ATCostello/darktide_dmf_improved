@@ -21,7 +21,6 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/drop
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
-mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/keybindings_fix")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/icon_package_loader")
 
 mod.get_time = function()
@@ -45,34 +44,7 @@ end
 mod.DEBUG = false
 if mod.DEBUG then
 	dbg_mod = mod
-
-	local MemProfile = mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/utils/mem_profile")
-	mod.mem_profile = MemProfile
-
-	local function track(name, value)
-		if mod.mem_profile then
-			mod.mem_profile.track(name, value)
-		end
-	end
-
-	local function untrack(name)
-		if mod.mem_profile then
-			mod.mem_profile.untrack(name)
-		end
-	end
-
-	mod._mem_track = track
-	mod._mem_untrack = untrack
-
-	mod.update = function(dt)
-		mod.mem_profile.tick(dt)
-		mod.mem_profile.render_gui()
-	end
 end
-
--- NOTE: Slider text input has been removed. The new DMF (dmf_test_patch) includes
--- NumericInput natively in its value_slider blueprint, providing click-to-type on
--- slider values. Our previous custom implementation conflicted with it.
 
 mod.last_category = nil
 mod.current_category = nil
@@ -309,17 +281,6 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 		mod._grid_ref = nil
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
-
-		if mod._mem_untrack then
-			mod._mem_untrack("view._widgets_by_name")
-			mod._mem_untrack("view._settings_content_widgets")
-			mod._mem_untrack("view._settings_content_grid")
-			mod._mem_untrack("view._category_widgets")
-			mod._mem_untrack("view._mod_tab_widgets")
-			mod._mem_untrack("view._mod_tab_grid")
-			mod._mem_untrack("view._filter_widgets")
-			mod._mem_untrack("view._filter_grid")
-		end
 	end
 
 	orig_settings_grid_background = nil
@@ -343,45 +304,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 
 	mod.current_category = self._selected_category
 
-	if mod._mem_track then
-		-- Persistent mod-level tables that must NOT grow across menu open/close cycles.
-		mod._mem_track("mod.selected_tabs", mod.selected_tabs)
-		mod._mem_track("mod.tab_scroll_index", mod.tab_scroll_index)
-		mod._mem_track("mod._tab_inject_state", mod._tab_inject_state)
-		mod._mem_track("mod._gen_tabs_toggle_widgets", mod._gen_tabs_toggle_widgets)
-		mod._mem_track("mod._required_icon_packages", mod._required_icon_packages)
-		mod._mem_track("mod._group_tooltip_lookup", mod._group_tooltip_lookup)
-		mod._mem_track("mod.custom_step_sizes", mod.custom_step_sizes)
-		mod._mem_track("mod.custom_tab_data", mod.custom_tab_data)
-		mod._mem_track("mod._grid_ref", mod._grid_ref)
-		-- View-scoped tables (resample every frame while open).
-		mod._mem_track("view._widgets_by_name", self._widgets_by_name)
-		mod._mem_track("view._widgets", self._widgets)
-		mod._mem_track("view._options_templates", self._options_templates)
-		mod._mem_track("view._validation_mapping", self._validation_mapping)
-		mod._mem_track("view._settings_content_widgets", self._settings_content_widgets)
-		mod._mem_track("view._settings_content_grid", self._settings_content_grid)
-		mod._mem_track("view._category_widgets", self._settings_category_widgets and self._settings_category_widgets[mod.current_category])
-		mod._mem_track("view._mod_tab_widgets", self._mod_tab_widgets)
-		mod._mem_track("view._mod_tab_grid", self._mod_tab_grid)
-		-- enemies_improved settings state (persists across menu sessions, rebuilt on setting changes)
-		local ei = get_mod("enemies_improved")
-		if ei then
-			mod._mem_track("ei.localisation", ei.localisation)
-			mod._mem_track("ei.BREED_COLOURS", ei.BREED_COLOURS)
-			mod._mem_track("ei.BREED_COLOURS_DEFAULT", ei.BREED_COLOURS_DEFAULT)
-			mod._mem_track("ei.BREED_COLOURS_OVERRIDE", ei.BREED_COLOURS_OVERRIDE)
-			mod._mem_track("ei.OUTLINE_COLOURS_OVERRIDE", ei.OUTLINE_COLOURS_OVERRIDE)
-			mod._mem_track("ei.ICON_SETTINGS", ei.ICON_SETTINGS)
-			mod._mem_track("ei.ICON_COLOURS", ei.ICON_COLOURS)
-			mod._mem_track("ei.frame_settings", ei.frame_settings)
-			mod._mem_track("ei.debuffs", ei.debuffs)
-		end
-	end
-
-	-- Inject tooltip_text on hovered group_header entries BEFORE DMF's draw
-	-- checks them. DMF's update() clears tooltips, then our hook_safe runs,
-	-- then DMF's draw() reads entry.tooltip_text in _draw_grid.
 	for _, w in ipairs(self._settings_content_widgets or {}) do
 		if w and w.content then
 			local wh = w.content.hotspot
@@ -410,7 +332,7 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	end
 
 	--if mod:get("enable_scroll_position_saving") then
-		--mod._saveScrollPosition(self)
+	--mod._saveScrollPosition(self)
 	--end
 
 	mod._addModTabs(self, dt, t, input_service)

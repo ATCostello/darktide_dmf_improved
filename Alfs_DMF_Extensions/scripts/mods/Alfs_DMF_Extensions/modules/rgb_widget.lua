@@ -457,7 +457,8 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	local settings_value_width = 500
 	local settings_value_height = 64
 
-	local pass_template = ColorWidgetPasses.create(settings_grid_width, settings_value_height, settings_value_width, has_alpha)
+	local pass_template =
+		ColorWidgetPasses.create(settings_grid_width, settings_value_height, settings_value_width, has_alpha)
 	local widget_definition = UIWidget.create_definition(pass_template, "settings_grid_content_pivot", nil, {
 		settings_grid_width,
 		settings_value_height,
@@ -566,7 +567,8 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 		end
 
 		if content.gamepad_active_channel then
-			local gamepad_channel_value = content.gamepad_channel_value or content.preview_color[content.gamepad_active_channel]
+			local gamepad_channel_value = content.gamepad_channel_value
+				or content.preview_color[content.gamepad_active_channel]
 			local dt_real = Manager.time:dt("ui")
 
 			if input_service:get("move_left_per_second") then
@@ -599,10 +601,11 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 
 	widget.update = color_widget_update
 
-	local alignment_widget = original_widget and original_widget.alignment_widget or {
-		horizontal_alignment = "right",
-		size = { settings_grid_width, settings_value_height },
-	}
+	local alignment_widget = original_widget and original_widget.alignment_widget
+		or {
+			horizontal_alignment = "right",
+			size = { settings_grid_width, settings_value_height },
+		}
 
 	return widget, alignment_widget
 end
@@ -672,7 +675,8 @@ local function inject_color_widget_replacements(self, widgets)
 
 					if rgb then
 						local has_alpha = rgb.A ~= nil
-						local color_widget, alignment_widget = create_dmf_color_widget(self, base_name, rgb, has_alpha, row)
+						local color_widget, alignment_widget =
+							create_dmf_color_widget(self, base_name, rgb, has_alpha, row)
 
 						if color_widget then
 							color_widget.content.tab = row.widget.content.tab
@@ -688,7 +692,9 @@ local function inject_color_widget_replacements(self, widgets)
 
 							local remove = {}
 							for j = i + 1, #widgets do
-								local e2 = widgets[j] and widgets[j].widget and widgets[j].widget.content
+								local e2 = widgets[j]
+									and widgets[j].widget
+									and widgets[j].widget.content
 									and widgets[j].widget.content.entry
 								if e2 and e2.setting_id and get_suffix_type(e2.setting_id) then
 									local name = strip_suffix(e2.setting_id)

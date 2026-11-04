@@ -46,6 +46,11 @@ local function safe_input_get(input_service, action_name, default)
 		return default
 	end
 	local ok, result = pcall(input_service.get, input_service, action_name)
+
+	if not ok then
+		mod:error("input service error: " .. action_name)
+	end
+
 	return ok and result or default
 end
 
@@ -900,6 +905,10 @@ local function build_blueprint(has_alpha)
 			local ok_gamepad, cursor_result = pcall(parent.using_cursor_navigation, parent)
 			local using_gamepad = ok_gamepad and not cursor_result or false
 
+			if not ok_gamepad then
+				mod:error("input service error")
+			end
+
 			if using_gamepad and not dropdown_open and not dropdown_just_closed then
 				handle_gamepad_inputs(parent, widget, content, input_service)
 			end
@@ -972,6 +981,10 @@ local function build_blueprint(has_alpha)
 
 		local ok_cursor, cursor_result = pcall(parent.using_cursor_navigation, parent)
 		local using_gamepad = ok_cursor and not cursor_result or false
+
+		if not ok_cursor then
+			mod:error("input service error")
+		end
 
 		if using_gamepad and not dropdown_open and not dropdown_just_closed then
 			handle_gamepad_inputs(parent, widget, content, input_service)

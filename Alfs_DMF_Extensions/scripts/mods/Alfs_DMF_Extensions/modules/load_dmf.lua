@@ -396,6 +396,7 @@ local function patch_group_header_blueprint()
 	end)
 
 	if not ok or not blueprints or not blueprints.group_header then
+		mod:error("dmf options view conten blueprints not loaded")
 		return
 	end
 
@@ -432,5 +433,3 @@ local function patch_group_header_blueprint()
 end
 
 patch_group_header_blueprint()
-
-

@@ -1,3 +1,0 @@
--- REMOVED: The new DMF handles mouse key names natively with the "mouse " prefix convention
--- in core/keybindings.lua (global_key_to_setting_key / setting_key_to_global_key).
--- This fix is no longer needed and would conflict with DMF's new implementation.

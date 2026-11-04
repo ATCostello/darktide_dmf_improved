@@ -682,11 +682,6 @@ mod.create_tab_bar = function(self, category)
 
 	self._mod_tab_widgets = widgets
 	self._mod_tab_grid = grid
-
-	if mod._mem_track then
-		mod._mem_track("view._mod_tab_widgets", self._mod_tab_widgets)
-		mod._mem_track("view._mod_tab_grid", grid)
-	end
 end
 
 mod.filter_settings = function(self, category, scroll_to_top)
@@ -890,12 +885,6 @@ mod.filter_settings = function(self, category, scroll_to_top)
 	self._navigation_widget_index = 1
 
 	self:_update_grid_navigation_selection()
-
-	if mod._mem_track then
-		mod._mem_track("view._filter_grid", self._settings_content_grid)
-		mod._mem_track("view._filter_widgets", self._settings_content_widgets)
-		mod._mem_track("view._category_widgets", category_widgets)
-	end
 end
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
@@ -1194,7 +1183,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 		local ok, err = pcall(mod._handle_gamepad_tab_navigation, mod, self, input_service)
 
 		if not ok then
-			mod:debug("mod_tabs input error: %s", tostring(err))
+			mod:error("mod_tabs input error: %s", tostring(err))
 		end
 	end
 end

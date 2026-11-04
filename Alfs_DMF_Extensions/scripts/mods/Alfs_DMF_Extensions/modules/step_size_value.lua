@@ -33,8 +33,6 @@ end
 local orig_initialize_mod_options = dmf.initialize_mod_options
 dmf.initialize_mod_options = function(calling_mod, options)
 	local result = orig_initialize_mod_options(calling_mod, options)
-	-- Inject tab field back into DMF's processed widget data so
-	-- existing tab resolution functions can find it by w.tab
 	local mod_data = dmf.options_widgets_data[#dmf.options_widgets_data]
 	if mod_data then
 		local header = mod_data[1]
