@@ -1218,7 +1218,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 		mod._tab_inject_state = {}
 	end
 
-	if category then
+	if category and self._ui_scenegraph and self._ui_scenegraph.mod_tab_area then
 		local header_height = self._settings_header_height or view_settings.settings_header_height
 		self:_set_scenegraph_position("mod_tab_area", nil, header_height + view_settings.settings_tab_spacing - 8)
 

@@ -16,6 +16,8 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/step
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/save_scroll_position")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/per_mod_tabs_toggle")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/preset_editor")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/settings_profile_importer")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/dropdown_icons")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
@@ -62,6 +64,98 @@ local function has_multiple_tabs(self)
 	end
 	local tabs = mod.get_tabs and mod.get_tabs(self, category)
 	return tabs and #tabs > 1
+end
+
+local option_values = {}
+
+mod.on_setting_changed = function(setting_id)
+	option_values[setting_id] = nil
+
+	local Core = mod._preset_core
+
+	if Core and type(Core.invalidate_setting) == "function" then
+		Core.invalidate_setting(setting_id)
+	end
+end
+
+local function cached_option(setting_id)
+	if option_values[setting_id] == nil then
+		option_values[setting_id] = mod:get(setting_id)
+	end
+
+	return option_values[setting_id]
+end
+
+local cached_group_widgets
+local cached_group_widgets_for
+local cached_group_count = 0
+
+local function group_header_widgets(self)
+	local widgets = self._settings_content_widgets
+
+	if not widgets then
+		return nil, 0
+	end
+
+	if widgets == cached_group_widgets_for and cached_group_widgets then
+		return cached_group_widgets, cached_group_count
+	end
+
+	local headers = {}
+	local count = 0
+
+	for index = 1, #widgets do
+		local widget = widgets[index]
+		local entry = widget and widget.content and widget.content.entry
+
+		if entry and entry.widget_type == "group_header" then
+			count = count + 1
+			headers[count] = widget
+		end
+	end
+
+	cached_group_widgets_for = widgets
+	cached_group_widgets = headers
+	cached_group_count = count
+
+	return headers, count
+end
+
+local function hovered_group_tooltip(self)
+	local headers, count = group_header_widgets(self)
+	local category = self._selected_category
+	local category_mod = category and mod._category_mod_map and mod._category_mod_map[category] or nil
+
+	if not headers or not category_mod then
+		return nil, nil
+	end
+
+	local lookup = mod._group_tooltip_lookup
+
+	for index = 1, count do
+		local widget = headers[index]
+		local content = widget and widget.content
+		local hotspot = content and content.hotspot
+		local entry = content and content.entry
+
+		if hotspot and hotspot.is_hover and entry and not entry.tooltip_text then
+			local tooltip = nil
+
+			if entry.display_name then
+				tooltip = lookup and lookup[category_mod .. "|" .. entry.display_name]
+			end
+
+			if not tooltip and entry.setting_id then
+				tooltip = lookup and lookup[category_mod .. "|" .. entry.setting_id]
+			end
+
+			if tooltip then
+				return tooltip, content
+			end
+		end
+	end
+
+	return nil, nil
 end
 
 local function reset_tab_settings(self)
@@ -123,10 +217,14 @@ local orig_settings_header = nil
 mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
 	func(self, definitions, settings, context, dynamic_package_name)
 
+	mod._install_character_hooks()
+
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
 
+	mod._prepare_global_preset_cog(definitions, settings)
+	mod._install_preset_cog_hooks()
 	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
@@ -275,12 +373,22 @@ end)
 mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	mod.last_category = nil
 
+	if mod._dismiss_preset_popup_for_view then
+		mod._dismiss_preset_popup_for_view(self)
+	end
+
 	if self.view_name == "dmf_options_view" then
+		cached_group_widgets = nil
+		cached_group_widgets_for = nil
+		cached_group_count = 0
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
+		mod._preset_editor_widgets = {}
+		mod._rgb_original_widgets = {}
 		mod._grid_ref = nil
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
+		mod._rgb_active_mode = nil
 	end
 
 	orig_settings_grid_background = nil
@@ -290,60 +398,63 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
+	mod._install_character_hooks()
+
+	if mod._install_preset_popup_hooks then
+		mod._install_preset_popup_hooks()
+	end
+
+	mod._sync_auto_presets_with_current_player()
+	mod._try_show_pending_profile_prompts()
+
 	if self.view_name == "dmf_options_view" then
+		mod._rgb_original_widgets = {}
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
+		mod._rgb_active_mode = mod.current_rgb_mode and mod.current_rgb_mode() or mod:get("enable_RGB_widget")
 		mod._ensure_icon_packages_loaded()
 	end
 end)
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
+	if mod._update_auto_presets then
+		mod._update_auto_presets(t)
+	end
+
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
 
+	mod._handle_global_preset_cog(self)
+
 	mod.current_category = self._selected_category
 
-	for _, w in ipairs(self._settings_content_widgets or {}) do
-		if w and w.content then
-			local wh = w.content.hotspot
-			local entry = w.content.entry
-			if wh and wh.is_hover and entry and entry.widget_type == "group_header" and not entry.tooltip_text then
-				if mod.current_category then
-					local cat_mod = mod._category_mod_map and mod._category_mod_map[mod.current_category]
-					if cat_mod then
-						local tooltip = nil
-						if entry.display_name then
-							tooltip = mod._group_tooltip_lookup
-								and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.display_name]
-						end
-						if not tooltip and entry.setting_id then
-							tooltip = mod._group_tooltip_lookup
-								and mod._group_tooltip_lookup[cat_mod .. "|" .. entry.setting_id]
-						end
-						if tooltip then
-							entry.tooltip_text = tooltip
-							w.content.tooltip_text = tooltip
-						end
-					end
-				end
-			end
-		end
+	local tooltip, tooltip_content = hovered_group_tooltip(self)
+
+	if tooltip and tooltip_content and tooltip_content.entry then
+		tooltip_content.entry.tooltip_text = tooltip
+		tooltip_content.tooltip_text = tooltip
 	end
 
 	--if mod:get("enable_scroll_position_saving") then
 	--mod._saveScrollPosition(self)
 	--end
 
+	if mod.sync_rgb_mode then
+		mod.sync_rgb_mode(self)
+	end
+
 	mod._addModTabs(self, dt, t, input_service)
 
-	if mod:get("enable_RGB_widget") == "argb_sliders" then
+	local rgb_mode = mod.current_rgb_mode and mod.current_rgb_mode() or cached_option("enable_RGB_widget")
+
+	if rgb_mode == "argb_sliders" then
 		mod._addRgbSliders(self)
-	elseif mod:get("enable_RGB_widget") == "color_widget" then
+	elseif rgb_mode == "color_widget" then
 		mod._addColorWidgetReplacements(self)
 	end
 
-	if mod:get("enable_RGB_widget") ~= "disabled" then
+	if rgb_mode ~= "disabled" then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 
@@ -351,11 +462,11 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	--	mod._addDropdownIcons(self, dt, t, input_service)
 	--end
 
-	if mod:get("enable_font_support") then
+	if cached_option("enable_font_support") then
 		mod._addFontSupport(self, dt, t, input_service)
 	end
 
-	if mod:get("enable_scrollable_dropdown") then
+	if cached_option("enable_scrollable_dropdown") then
 		mod._addScrollableDropdown(self, dt, t, input_service)
 	end
 

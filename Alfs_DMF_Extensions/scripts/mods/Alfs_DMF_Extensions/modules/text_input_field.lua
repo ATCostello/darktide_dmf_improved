@@ -99,7 +99,14 @@ function text_input_field.handle_edit_commands(content, value_key, set_value_fn,
 	end
 
 	if Keyboard.pressed(ENTER_INDEX) then
-		text_input_field.confirm_value(content, value_key, content[value_key .. "_edit_buffer"] or "", set_value_fn, min, max)
+		text_input_field.confirm_value(
+			content,
+			value_key,
+			content[value_key .. "_edit_buffer"] or "",
+			set_value_fn,
+			min,
+			max
+		)
 		text_input_field.stop_editing(content, value_key)
 		return true
 	end

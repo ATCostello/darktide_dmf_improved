@@ -37,6 +37,17 @@ table.insert(mod.settings_widgets, {
 			default_value = true,
 			tooltip = "mod_name_pizazz_tooltip",
 		},
+		{
+			setting_id = "enable_presets",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_presets_tooltip",
+			on_activated = function(value)
+				if value == false and type(mod._close_preset_panel_if_open) == "function" then
+					mod._close_preset_panel_if_open()
+				end
+			end,
+		},
 		--{
 		--	setting_id = "enable_scroll_position_saving",
 		--	type = "checkbox",
