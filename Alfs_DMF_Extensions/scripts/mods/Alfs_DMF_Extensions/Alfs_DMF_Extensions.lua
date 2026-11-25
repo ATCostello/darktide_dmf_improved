@@ -281,6 +281,10 @@ end)
 mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	mod.last_category = nil
 
+	if mod._dismiss_preset_popup_for_view then
+		mod._dismiss_preset_popup_for_view(self)
+	end
+
 	if self.view_name == "dmf_options_view" then
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
@@ -300,6 +304,11 @@ end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 	mod._install_character_hooks()
+
+	if mod._install_preset_popup_hooks then
+		mod._install_preset_popup_hooks()
+	end
+
 	mod._sync_auto_presets_with_current_player()
 	mod._try_show_pending_profile_prompts()
 
