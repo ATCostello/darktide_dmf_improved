@@ -7,29 +7,45 @@ local ViewElementBase = require("scripts/ui/view_elements/view_element_base")
 local ViewElementGrid = require("scripts/ui/view_elements/view_element_grid/view_element_grid")
 local ViewElementInputLegend = require("scripts/ui/view_elements/view_element_input_legend/view_element_input_legend")
 
-local info_font_style = table.clone(UIFontSettings.body or UIFontSettings.button_primary)
-info_font_style.font_size = 20
-info_font_style.text_horizontal_alignment = "left"
-info_font_style.text_vertical_alignment = "center"
-info_font_style.horizontal_alignment = "left"
-info_font_style.vertical_alignment = "center"
-info_font_style.offset = { 6, 0, 2 }
-info_font_style.text_color = Color.terminal_text_header(255, true)
+local PORTRAIT_MATERIAL = "content/ui/materials/base/ui_portrait_frame_base"
+local PORTRAIT_NO_RENDER = "content/ui/materials/base/ui_portrait_frame_base_no_render"
 
-local selected_text_style = table.clone(info_font_style)
-selected_text_style.font_size = 18
-selected_text_style.text_color = Color.terminal_text_header_selected(255, true)
+local function ease(progress)
+	return math.easeCubic and math.easeCubic(progress) or progress
+end
 
-local tooltip_text_style = table.clone(UIFontSettings.body_small or UIFontSettings.body or UIFontSettings.button_primary)
-tooltip_text_style.font_size = 17
-tooltip_text_style.text_horizontal_alignment = "left"
-tooltip_text_style.text_vertical_alignment = "center"
-tooltip_text_style.horizontal_alignment = "left"
-tooltip_text_style.vertical_alignment = "center"
-tooltip_text_style.offset = { 12, 0, 2 }
-tooltip_text_style.size = { 396, 66 }
-tooltip_text_style.word_wrap = true
-tooltip_text_style.text_color = Color.white(255, true)
+local function panel_scope_key(scope)
+	if scope and scope.kind == "global" then
+		return "global"
+	end
+
+	return scope and scope.mod_name and ("mod:" .. scope.mod_name) or "unknown"
+end
+
+local function make_text_style(font_size, offset, color, alignment)
+	local style = table.clone(UIFontSettings.body or UIFontSettings.button_primary)
+
+	style.font_size = font_size
+	style.text_horizontal_alignment = alignment or "left"
+	style.text_vertical_alignment = "center"
+	style.horizontal_alignment = "left"
+	style.vertical_alignment = "center"
+	style.offset = offset
+	style.text_color = color or Color.terminal_text_header(255, true)
+
+	return style
+end
+
+local info_font_style = make_text_style(18, { 10, 0, 2 }, Color.terminal_text_header(255, true))
+local card_name_style = make_text_style(20, { 94, 2, 3 })
+local card_archetype_style = make_text_style(17, { 400, 2, 3 }, Color.ui_grey_light and Color.ui_grey_light(255, true) or Color.terminal_text_header(255, true))
+local card_check_style = make_text_style(20, { 60, 2, 3 }, Color.terminal_text_header_selected(255, true), "center")
+local tooltip_text_style = make_text_style(18, { 12, 0, 2 }, Color.white(255, true))
+
+tooltip_text_style.size = { 1136, 30 }
+tooltip_text_style.word_wrap = false
+
+local selected_text_style = make_text_style(18, { 0, 0, 2 }, Color.terminal_text_header_selected(255, true))
 
 local function init_hotspot_widget(parent, widget, element, callback_name)
 	widget.content.hotspot.pressed_callback = callback_name and callback(parent, callback_name, widget, element) or nil
@@ -38,53 +54,137 @@ local function init_hotspot_widget(parent, widget, element, callback_name)
 	widget.content.tooltip_text = element.tooltip or ""
 end
 
-local function make_character_toggle_template()
-	local template = {}
+local function clear_portrait(widget)
+	local style = widget and widget.style and widget.style.character_portrait
+	local material_values = style and style.material_values
 
-	for index, pass in ipairs(ButtonPassTemplates.list_button_with_background) do
-		local cloned_pass = table.clone(pass)
-
-		if pass.style then
-			cloned_pass.style = table.clone(pass.style)
-		end
-
-		if cloned_pass.style_id == "text" and cloned_pass.style then
-			cloned_pass.style.offset = { 62, 0, 4 }
-		end
-
-		template[index] = cloned_pass
+	if not material_values then
+		return
 	end
 
-	local texture_index = 1
+	material_values.use_placeholder_texture = 1
+	material_values.rows = nil
+	material_values.columns = nil
+	material_values.grid_index = nil
+	material_values.texture_icon = nil
 
-	for index, pass in ipairs(template) do
-		if pass.pass_type ~= "hotspot" then
-			texture_index = index
-			break
-		end
+	if widget.content then
+		widget.content.character_portrait = PORTRAIT_NO_RENDER
+	end
+end
+
+local function set_portrait(widget, grid_index, rows, columns, render_target)
+	local style = widget and widget.style and widget.style.character_portrait
+	local material_values = style and style.material_values
+
+	if not material_values then
+		return
 	end
 
-	table.insert(template, texture_index, {
+	material_values.use_placeholder_texture = 0
+	material_values.rows = rows
+	material_values.columns = columns
+	material_values.grid_index = grid_index - 1
+	material_values.texture_icon = render_target
+end
+
+local function load_portrait(parent, widget, element)
+	local profile = element and element.profile
+	local ui = Managers and Managers.ui
+
+	if not widget or not profile or not ui or type(ui.load_profile_portrait) ~= "function" then
+		return
+	end
+
+	widget.content.portrait_load_id = ui:load_profile_portrait(profile, function(grid_index, rows, columns, render_target)
+		set_portrait(widget, grid_index, rows, columns, render_target)
+	end, { size = { 40, 46 } }, function()
+		clear_portrait(widget)
+	end)
+end
+
+local function unload_portrait(parent, widget)
+	local ui = Managers and Managers.ui
+	local load_id = widget and widget.content and widget.content.portrait_load_id
+
+	if load_id and ui and type(ui.unload_profile_portrait) == "function" then
+		ui:unload_profile_portrait(load_id)
+	end
+
+	if widget and widget.content then
+		widget.content.portrait_load_id = nil
+	end
+
+	clear_portrait(widget)
+end
+
+local character_toggle_template = {
+	{
+		pass_type = "hotspot",
+		content_id = "hotspot",
+		content = { use_is_focused = true },
+	},
+	{
+		pass_type = "rect",
+		style_id = "background",
+		style = {
+			color = Color.terminal_background(255, true),
+		},
+		change_function = function(content, style)
+			local hotspot = content.hotspot
+			local selected = hotspot and hotspot.is_selected
+			local hovered = hotspot and (hotspot.is_hover or hotspot.is_focused)
+
+			style.color = selected and Color.terminal_background_gradient_selected(255, true)
+				or hovered and Color.terminal_background_gradient(255, true)
+				or Color.terminal_background(255, true)
+		end,
+	},
+	{
 		pass_type = "texture",
-		value_id = "archetype_icon",
-		style_id = "archetype_icon",
+		style_id = "frame",
+		value = "content/ui/materials/frames/frame_tile_2px",
+		style = {
+			color = Color.terminal_corner(255, true),
+			scale_to_material = true,
+		},
+	},
+	{
+		pass_type = "texture",
+		style_id = "character_portrait",
+		value = PORTRAIT_MATERIAL,
+		value_id = "character_portrait",
 		style = {
 			horizontal_alignment = "left",
 			vertical_alignment = "center",
-			color = Color.terminal_text_header(255, true),
-			size = { 48, 48 },
-			offset = { 8, 0, 3 },
+			size = { 40, 46 },
+			offset = { 10, 0, 3 },
+			material_values = { use_placeholder_texture = 1 },
 		},
-	})
-
-	return template
-end
-
-local character_toggle_template = make_character_toggle_template()
+	},
+	{
+		pass_type = "text",
+		value_id = "assignment_text",
+		style_id = "assignment_text",
+		style = card_check_style,
+	},
+	{
+		pass_type = "text",
+		value_id = "character_name",
+		style_id = "character_name",
+		style = card_name_style,
+	},
+	{
+		pass_type = "text",
+		value_id = "character_archetype_title",
+		style_id = "character_archetype_title",
+		style = card_archetype_style,
+	},
+}
 
 local blueprints = {
 	preset_entry = {
-		size = { 480, 58 },
+		size = { 400, 42 },
 		pass_template = ButtonPassTemplates.list_button_with_background,
 		init = function(parent, widget, element, callback_name)
 			init_hotspot_widget(parent, widget, element, callback_name)
@@ -93,26 +193,32 @@ local blueprints = {
 		end,
 	},
 	action_button = {
-		size = { 980, 56 },
+		size = { 640, 40 },
 		pass_template = ButtonPassTemplates.terminal_button,
 		init = init_hotspot_widget,
 	},
 	scope_option = {
-		size = { 980, 56 },
+		size = { 640, 40 },
 		pass_template = ButtonPassTemplates.terminal_button,
 		init = init_hotspot_widget,
 	},
 	character_toggle = {
-		size = { 980, 54 },
+		size = { 640, 52 },
 		pass_template = character_toggle_template,
 		init = function(parent, widget, element, callback_name)
 			init_hotspot_widget(parent, widget, element, callback_name)
-			widget.content.archetype_icon = element.archetype_icon or "content/ui/materials/icons/classes/veteran"
-			widget.content.archetype_name = element.archetype_name or ""
+			widget.content.profile = element.profile
+			widget.content.character_portrait = PORTRAIT_MATERIAL
+			widget.content.assignment_text = element.assigned and "\226\156\147" or ""
+			widget.content.character_name = element.name or ""
+			widget.content.character_archetype_title = element.archetype_name or ""
 		end,
+		load_icon = load_portrait,
+		unload_icon = unload_portrait,
+		destroy = unload_portrait,
 	},
 	info = {
-		size = { 980, 42 },
+		size = { 640, 32 },
 		pass_template = {
 			{
 				pass_type = "text",
@@ -133,92 +239,105 @@ local scenegraph_definition = {
 		size = { 1920, 1080 },
 		position = { 0, 0, 100 },
 	},
-	title_divider = {
+	popup = {
 		parent = "screen",
+		horizontal_alignment = "center",
+		vertical_alignment = "center",
+		size = { 1180, 640 },
+		position = { 0, -8, 101 },
+	},
+	popup_background = {
+		parent = "popup",
+		horizontal_alignment = "center",
+		vertical_alignment = "center",
+		size = { 1180, 640 },
+		position = { 0, 0, 1 },
+	},
+	title_divider = {
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 380, 18 },
-		position = { 140, 130, 101 },
+		size = { 240, 18 },
+		position = { 40, 34, 2 },
 	},
 	title_text = {
-		parent = "title_divider",
-		vertical_alignment = "bottom",
+		parent = "popup",
+		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 900, 50 },
-		position = { 0, -35, 101 },
+		size = { 700, 42 },
+		position = { 40, 50, 2 },
 	},
 	description_text = {
-		parent = "screen",
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 900, 50 },
-		position = { 140, 180, 101 },
+		size = { 760, 44 },
+		position = { 40, 96, 2 },
 	},
 	selected_preset_text = {
-		parent = "screen",
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 1000, 30 },
-		position = { 140, 224, 101 },
+		size = { 700, 24 },
+		position = { 40, 142, 2 },
 	},
 	preset_list_pivot = {
-		parent = "screen",
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 500, 720 },
-		position = { 140, 260, 101 },
+		size = { 420, 350 },
+		position = { 40, 178, 2 },
 	},
 	actions_pivot = {
-		parent = "screen",
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
-		size = { 1000, 560 },
-		position = { -180, 260, 101 },
+		size = { 660, 350 },
+		position = { -40, 178, 2 },
 	},
-	bottom_actions = {
-		parent = "screen",
+	scope_dropdown_pivot = {
+		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 1000, 64 },
-		position = { 740, 930, 101 },
+		size = { 760, 220 },
+		position = { 40, 142, 3 },
+	},
+	bottom_actions = {
+		parent = "popup",
+		vertical_alignment = "bottom",
+		horizontal_alignment = "left",
+		size = { 1100, 56 },
+		position = { 40, -38, 2 },
 	},
 	bottom_save = {
 		parent = "bottom_actions",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 280, 56 },
+		size = { 280, 48 },
 		position = { 0, 0, 1 },
 	},
 	bottom_import = {
 		parent = "bottom_actions",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 280, 56 },
-		position = { 300, 0, 1 },
+		size = { 280, 48 },
+		position = { 292, 0, 1 },
 	},
 	bottom_export_current = {
 		parent = "bottom_actions",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 280, 56 },
-		position = { 600, 0, 1 },
+		size = { 280, 48 },
+		position = { 584, 0, 1 },
 	},
 	bottom_close = {
 		parent = "bottom_actions",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 80, 56 },
-		position = { 920, 0, 1 },
+		size = { 80, 48 },
+		position = { 1020, 0, 1 },
 	},
 }
-
-local function scope_key(scope)
-	if scope and scope.kind == "global" then
-		return "global"
-	end
-
-	return scope and scope.mod_name and ("mod:" .. tostring(scope.mod_name)) or "unknown"
-end
 
 local bottom_buttons = {
 	{
@@ -226,28 +345,28 @@ local bottom_buttons = {
 		action = "save",
 		text_key = "preset_editor_save",
 		tooltip_key = "preset_editor_save_tooltip",
-		size = { 280, 56 },
+		size = { 280, 48 },
 	},
 	{
 		name = "bottom_import",
 		action = "import",
 		text_key = "preset_editor_import",
 		tooltip_key = "preset_editor_import_tooltip",
-		size = { 280, 56 },
+		size = { 280, 48 },
 	},
 	{
 		name = "bottom_export_current",
 		action = "export_current",
 		text_key = "preset_editor_export_current",
 		tooltip_key = "preset_editor_export_current_tooltip",
-		size = { 280, 56 },
+		size = { 280, 48 },
 	},
 	{
 		name = "bottom_close",
 		action = "close_back",
 		text_key = "preset_editor_close",
 		tooltip_key = "preset_editor_close_tooltip",
-		size = { 80, 56 },
+		size = { 80, 48 },
 	},
 }
 
@@ -260,10 +379,10 @@ local tooltip_definitions = {
 		},
 		tooltip = {
 			parent = "screen",
-			vertical_alignment = "top",
 			horizontal_alignment = "left",
-			size = { 420, 78 },
-			position = { 0, 0, 105 },
+			vertical_alignment = "top",
+			size = { 1160, 44 },
+			position = { 380, 1010, 105 },
 		},
 	},
 	widget_definitions = {
@@ -308,10 +427,26 @@ local widget_definitions = {
 		{
 			pass_type = "rect",
 			style = {
-				color = Color.black(190, true),
+				color = Color.black(70, true),
 			},
 		},
 	}, "screen"),
+	popup_background = UIWidget.create_definition({
+		{
+			pass_type = "rect",
+			style = {
+				color = Color.terminal_background(215, true),
+			},
+		},
+		{
+			pass_type = "texture",
+			value = "content/ui/materials/frames/frame_tile_2px",
+			style = {
+				color = Color.terminal_corner(255, true),
+				scale_to_material = true,
+			},
+		},
+	}, "popup_background"),
 	title_divider = UIWidget.create_definition({
 		{
 			pass_type = "texture",
@@ -331,7 +466,7 @@ local widget_definitions = {
 		original_text = "",
 		tooltip_text = "",
 		hotspot = {},
-	}, { 900, 50 }),
+	}, { 760, 44 }),
 	selected_preset_text = UIWidget.create_definition({
 		{
 			pass_type = "text",
@@ -352,31 +487,45 @@ for _, button in ipairs(bottom_buttons) do
 end
 
 local list_grid_settings = {
-	scrollbar_width = 8,
+	scrollbar_width = 6,
 	no_resource_rendering = true,
 	use_terminal_background = true,
 	ignore_divider_height = true,
 	title_height = 0,
-	top_padding = 12,
-	bottom_chin = 12,
-	grid_spacing = { 10, 10 },
-	grid_size = { 480, 720 },
-	mask_size = { 500, 720 },
-	edge_padding = 20,
+	top_padding = 8,
+	bottom_chin = 8,
+	grid_spacing = { 6, 6 },
+	grid_size = { 420, 350 },
+	mask_size = { 420, 350 },
+	edge_padding = 14,
 }
 
 local actions_grid_settings = {
-	scrollbar_width = 8,
+	scrollbar_width = 6,
 	no_resource_rendering = true,
 	use_terminal_background = true,
 	ignore_divider_height = true,
 	title_height = 0,
-	top_padding = 12,
-	bottom_chin = 12,
-	grid_spacing = { 10, 10 },
-	grid_size = { 980, 560 },
-	mask_size = { 1000, 560 },
-	edge_padding = 20,
+	top_padding = 8,
+	bottom_chin = 8,
+	grid_spacing = { 6, 6 },
+	grid_size = { 660, 350 },
+	mask_size = { 660, 350 },
+	edge_padding = 14,
+}
+
+local scope_grid_settings = {
+	scrollbar_width = 6,
+	no_resource_rendering = true,
+	use_terminal_background = true,
+	ignore_divider_height = true,
+	title_height = 0,
+	top_padding = 6,
+	bottom_chin = 6,
+	grid_spacing = { 4, 4 },
+	grid_size = { 760, 220 },
+	mask_size = { 760, 220 },
+	edge_padding = 12,
 }
 
 local legend_inputs = {
@@ -388,6 +537,41 @@ local legend_inputs = {
 	},
 }
 
+local animation_definitions = {
+	on_enter = {
+		{
+			name = "fade_in",
+			start_time = 0,
+			end_time = 0.18,
+			init = function(parent)
+				parent._render_settings.alpha_multiplier = 0
+			end,
+			update = function(parent, _, _, _, progress)
+				parent._render_settings.alpha_multiplier = ease(progress)
+			end,
+			on_complete = function(parent)
+				parent._render_settings.alpha_multiplier = 1
+			end,
+		},
+	},
+	on_exit = {
+		{
+			name = "fade_out",
+			start_time = 0,
+			end_time = 0.14,
+			init = function(parent)
+				parent._render_settings.alpha_multiplier = 1
+			end,
+			update = function(parent, _, _, _, progress)
+				parent._render_settings.alpha_multiplier = 1 - ease(progress)
+			end,
+			on_complete = function(parent)
+				parent._render_settings.alpha_multiplier = 0
+			end,
+		},
+	},
+}
+
 local definitions = {
 	scenegraph_definition = scenegraph_definition,
 	widget_definitions = widget_definitions,
@@ -395,6 +579,8 @@ local definitions = {
 	legend_inputs = legend_inputs,
 	list_grid_settings = list_grid_settings,
 	actions_grid_settings = actions_grid_settings,
+	scope_grid_settings = scope_grid_settings,
+	animations = animation_definitions,
 }
 
 local PresetTooltipElement = class("PresetTooltipElement", "ViewElementBase")
@@ -434,8 +620,9 @@ end
 PresetEditorPanelView.init = function(self, settings)
 	PresetEditorPanelView.super.init(self, definitions, settings)
 
-	self._pass_draw = false
+	self._pass_draw = true
 	self._pass_input = false
+	self._allow_close_hotkey = true
 	self._scope = nil
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
@@ -445,6 +632,8 @@ PresetEditorPanelView.init = function(self, settings)
 	self._pending_actions_rebuild = false
 	self._pending_full_rebuild = false
 	self._pending_scope = nil
+	self._open_anim_id = nil
+	self._close_anim_id = nil
 
 	local description = self._widgets_by_name.description_text
 
@@ -456,7 +645,7 @@ PresetEditorPanelView.init = function(self, settings)
 	for _, button in ipairs(bottom_buttons) do
 		local widget = self._widgets_by_name[button.name]
 
-		if widget then
+		if widget and widget.content.hotspot then
 			widget.content.hotspot.pressed_callback = callback(self, "cb_on_bottom_pressed", button.action)
 		end
 	end
@@ -491,27 +680,8 @@ PresetEditorPanelView._update_tooltip = function(self)
 	end
 
 	local tooltip_text
-	local tooltip_x = 0
-	local tooltip_y = 0
-	local tooltip_width, tooltip_height = 420, 78
 
-	if type(tooltip_element._scenegraph_size) == "function" then
-		local width, height = tooltip_element:_scenegraph_size("tooltip")
-
-		if width then
-			tooltip_width = width
-		end
-
-		if height then
-			tooltip_height = height
-		end
-	end
-
-	local function apply_widget(widget, x, y, width, height)
-		if tooltip_text then
-			return
-		end
-
+	local function check_widget(widget)
 		local content = widget and widget.content
 
 		if not content or not content.tooltip_text or content.tooltip_text == "" then
@@ -520,63 +690,34 @@ PresetEditorPanelView._update_tooltip = function(self)
 
 		local hotspot = content.hotspot
 
-		if hotspot and hotspot.is_hover == false then
+		if not hotspot or not (hotspot.is_hover or hotspot.is_focused) then
 			return
 		end
 
 		tooltip_text = content.tooltip_text
-		local widget_x = x + (widget.offset and widget.offset[1] or 0)
-		local widget_y = y + (widget.offset and widget.offset[2] or 0)
-		local widget_width = width or content.size and content.size[1] or 0
-		local widget_height = height or content.size and content.size[2] or 0
-		local gap = 20
-
-		if widget_x + widget_width + gap + tooltip_width <= 1920 then
-			tooltip_x = widget_x + widget_width + gap
-		else
-			tooltip_x = widget_x - tooltip_width - gap
-		end
-
-		tooltip_y = widget_y + (widget_height - tooltip_height) * 0.5
 	end
 
-	for _, grid in ipairs({ self._list_grid, self._actions_grid }) do
-		local ui_grid = grid and grid._grid
+	if not self._scope_mode then
+		for _, grid in ipairs({ self._list_grid, self._actions_grid }) do
+			local ui_grid = grid and grid._grid
+			local index = ui_grid and type(ui_grid.hovered_grid_index) == "function" and ui_grid:hovered_grid_index()
+			local widget = index and grid._grid_widgets and grid._grid_widgets[index]
+
+			check_widget(widget)
+		end
+	else
+		local ui_grid = self._scope_grid and self._scope_grid._grid
 		local index = ui_grid and type(ui_grid.hovered_grid_index) == "function" and ui_grid:hovered_grid_index()
-		local widget = index and grid._grid_widgets and grid._grid_widgets[index]
-		local grid_position
+		local widget = index and self._scope_grid._grid_widgets and self._scope_grid._grid_widgets[index]
 
-		if widget then
-			if type(grid.scenegraph_world_position) == "function" then
-				grid_position = grid:scenegraph_world_position("grid_content_pivot", grid._render_scale)
-			elseif type(grid.scenegraph_position) == "function" then
-				grid_position = grid:scenegraph_position("grid_content_pivot")
-			end
-		end
-
-		apply_widget(widget, grid_position and grid_position[1] or 0, grid_position and grid_position[2] or 0)
+		check_widget(widget)
 	end
 
-	if not tooltip_text and type(self._scenegraph_world_position) == "function" then
-		for _, button in ipairs(bottom_buttons) do
-			local widget = self._widgets_by_name[button.name]
-			local position = self:_scenegraph_world_position(button.name)
-
-			apply_widget(widget, position and position[1] or 0, position and position[2] or 0, button.size[1], button.size[2])
-		end
-
-		local description = self._widgets_by_name.description_text
-		local description_position = self:_scenegraph_world_position("description_text")
-
-		apply_widget(description, description_position and description_position[1] or 0, description_position and description_position[2] or 0, 900, 50)
+	for _, button in ipairs(bottom_buttons) do
+		check_widget(self._widgets_by_name[button.name])
 	end
 
-	tooltip_element:set_tooltip(
-		tooltip_text,
-		math.max(0, math.min(tooltip_x, 1920 - tooltip_width)),
-		math.max(0, math.min(tooltip_y, 1080 - tooltip_height)),
-		tooltip_text ~= nil
-	)
+	tooltip_element:set_tooltip(tooltip_text, 0, 0, tooltip_text ~= nil)
 end
 
 PresetEditorPanelView.on_enter = function(self)
@@ -598,26 +739,41 @@ PresetEditorPanelView.on_enter = function(self)
 
 	self._list_grid = self:_add_element(ViewElementGrid, "preset_list", 102, list_grid_settings, "preset_list_pivot")
 	self._actions_grid = self:_add_element(ViewElementGrid, "preset_actions", 103, actions_grid_settings, "actions_pivot")
-	self._list_grid:set_visibility(true)
-	self._actions_grid:set_visibility(true)
-	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 104)
+	self._scope_grid = self:_add_element(ViewElementGrid, "scope_dropdown", 104, scope_grid_settings, "scope_dropdown_pivot")
+	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 105)
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
 
 	self:_rebuild()
+	self._open_anim_id = self:_start_animation("on_enter", self._widgets_by_name, self)
 end
 
 PresetEditorPanelView.on_exit = function(self)
 	PresetEditorPanelView.super.on_exit(self)
 
+	self._open_anim_id = nil
+	self._close_anim_id = nil
 	self._list_grid = nil
 	self._actions_grid = nil
+	self._scope_grid = nil
 	self._tooltip_element = nil
 	self._character_request_id = self._character_request_id + 1
 end
 
+PresetEditorPanelView.trigger_on_exit_animation = function(self)
+	if self._close_anim_id then
+		return
+	end
+
+	self._close_anim_id = self:_start_animation("on_exit", self._widgets_by_name, self)
+end
+
+PresetEditorPanelView.on_exit_animation_done = function(self)
+	return self._close_anim_id ~= nil and self:_is_animation_completed(self._close_anim_id)
+end
+
 PresetEditorPanelView._rebuild = function(self)
-	if not self._list_grid or not self._actions_grid then
+	if not self._list_grid or not self._actions_grid or not self._scope_grid then
 		return
 	end
 
@@ -625,7 +781,7 @@ PresetEditorPanelView._rebuild = function(self)
 	self._character_mode = false
 	self._scope_mode = false
 
-	local current_scope_key = scope_key(self._scope)
+	local current_scope_key = panel_scope_key(self._scope)
 	local names = mod._preset_panel_get_names(self._scope)
 	local selected_is_valid = false
 
@@ -719,18 +875,21 @@ PresetEditorPanelView._update_selected_text = function(self)
 end
 
 PresetEditorPanelView._rebuild_actions = function(self)
-	if not self._actions_grid then
+	if not self._actions_grid or not self._scope_grid then
 		return
 	end
 
 	self:_update_selected_text()
 
-	local layout = {}
-
 	if self._scope_mode then
-		layout[#layout + 1] = {
-			widget_type = "info",
-			text = mod:localize("preset_editor_select_scope_title"),
+		self._actions_grid:set_visibility(false)
+		self._scope_grid:set_visibility(true)
+
+		local layout = {
+			{
+				widget_type = "info",
+				text = mod:localize("preset_editor_select_scope_title"),
+			},
 		}
 
 		for _, entry in ipairs(mod._preset_panel_get_scope_options()) do
@@ -742,19 +901,23 @@ PresetEditorPanelView._rebuild_actions = function(self)
 			}
 		end
 
-		self._actions_grid:present_grid_layout(layout, blueprints, callback(self, "cb_on_scope_option_pressed"))
+		self._scope_grid:present_grid_layout(layout, blueprints, callback(self, "cb_on_scope_option_pressed"))
 		self:_update_bottom_buttons()
 
 		return
 	end
 
+	self._actions_grid:set_visibility(true)
+	self._scope_grid:set_visibility(false)
+
+	local layout = {}
+
 	if self._character_mode and self._selected_name then
-		local loading_layout = {
-			{
-				widget_type = "info",
-				text = mod:localize("preset_editor_character_hint", self._selected_name),
-			},
+		layout[1] = {
+			widget_type = "info",
+			text = mod:localize("preset_editor_character_hint", self._selected_name),
 		}
+
 		local request_id = self._character_request_id + 1
 		local applied = false
 
@@ -766,26 +929,22 @@ PresetEditorPanelView._rebuild_actions = function(self)
 			end
 
 			applied = true
-			layout = table.clone(loading_layout)
+			layout = {
+				{
+					widget_type = "info",
+					text = mod:localize("preset_editor_character_hint", self._selected_name),
+				},
+			}
 
 			for _, profile in ipairs(profiles) do
-				local assigned = mod._preset_panel_is_character_assigned(self._scope, self._selected_name, profile.id)
-
-				local archetype_name = profile.archetype_name or ""
-				local character_text = string.format(
-					"%s  %s%s",
-					assigned and "\226\156\147" or " ",
-					tostring(profile.name),
-					archetype_name ~= "" and ("  -  " .. archetype_name) or ""
-				)
-
 				layout[#layout + 1] = {
 					widget_type = "character_toggle",
 					id = profile.id,
 					name = profile.name,
-					archetype_name = archetype_name,
-					archetype_icon = profile.archetype_icon,
-					text = character_text,
+					archetype_name = profile.archetype_name,
+					profile = profile.profile,
+					assigned = mod._preset_panel_is_character_assigned(self._scope, self._selected_name, profile.id),
+					text = profile.name,
 					tooltip = mod:localize("preset_editor_character_tooltip", tostring(profile.name)),
 				}
 			end
@@ -797,7 +956,7 @@ PresetEditorPanelView._rebuild_actions = function(self)
 		mod._preset_panel_get_characters(present_characters)
 
 		if not applied then
-			self._actions_grid:present_grid_layout(loading_layout, blueprints, callback(self, "cb_on_character_pressed"))
+			self._actions_grid:present_grid_layout(layout, blueprints, callback(self, "cb_on_character_pressed"))
 		end
 
 		self:_update_bottom_buttons()
@@ -889,7 +1048,21 @@ PresetEditorPanelView._handle_close_back = function(self)
 		return
 	end
 
-	Managers.ui:close_view(self.view_name)
+	local ui = Managers and Managers.ui
+
+	if not ui or type(ui.close_view) ~= "function" then
+		return
+	end
+
+	if type(ui.view_active) == "function" and not ui:view_active(self.view_name) then
+		return
+	end
+
+	if type(ui.is_view_closing) == "function" and ui:is_view_closing(self.view_name) then
+		return
+	end
+
+	ui:close_view(self.view_name)
 end
 
 PresetEditorPanelView.cb_on_preset_pressed = function(self, _, element)
@@ -960,17 +1133,12 @@ PresetEditorPanelView.cb_on_character_pressed = function(self, widget, element)
 	end
 
 	local assigned = mod._preset_panel_toggle_character(self._scope, self._selected_name, element.id, element.name)
-	local archetype_name = element.archetype_name or ""
-	local text = string.format(
-		"%s  %s%s",
-		assigned and "\226\156\147" or " ",
-		tostring(element.name),
-		archetype_name ~= "" and ("  -  " .. archetype_name) or ""
-	)
+	local content = widget and widget.content
 
-	if widget and widget.content then
-		widget.content.text = text
-		widget.content.original_text = text
+	if content then
+		content.assignment_text = assigned and "\226\156\147" or ""
+		content.character_name = element.name or ""
+		content.character_archetype_title = element.archetype_name or ""
 	end
 end
 

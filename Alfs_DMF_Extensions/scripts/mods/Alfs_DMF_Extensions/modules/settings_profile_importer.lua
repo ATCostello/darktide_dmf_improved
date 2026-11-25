@@ -104,7 +104,7 @@ end
 local function position_tooltip(content, style)
 	local button_width = content.size and content.size[1] or 280
 
-	style.offset[1] = button_width * 0.5 + tooltip_gap
+	style.offset[1] = button_width * 0.5 + tooltip_gap + tooltip_size[1] * 0.5
 	style.offset[2] = 0
 end
 

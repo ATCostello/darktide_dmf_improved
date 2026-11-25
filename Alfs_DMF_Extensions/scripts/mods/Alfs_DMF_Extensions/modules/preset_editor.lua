@@ -15,6 +15,7 @@ local GLOBAL_COG_ID = "global_preset_cog"
 local COG_SIZE = 32
 local COG_GAP = 6
 local COG_Y = 14
+local PIN_SIZE = 44
 local COG_MATERIAL = "content/ui/materials/symbols/cog_small"
 local PRESET_PANEL_VIEW = "alfs_preset_editor_panel_view"
 local PRESET_PANEL_PATH = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/preset_panel_view"
@@ -22,10 +23,15 @@ local PRESET_PANEL_PATH = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/
 local show_global_export
 local show_global_import
 local show_global_save
+local refresh_preset_panel
+
+local COG_NORMAL_COLOR = { 255, 226, 199, 126 }
+local COG_HOVER_COLOR = Color.ui_brown_super_light and Color.ui_brown_super_light(255, true)
+	or Color.terminal_text_header_selected(nil, true)
 
 local COLORS = {
-	normal = Color.terminal_text_header(nil, true),
-	hover = Color.terminal_text_header_selected(nil, true),
+	normal = COG_NORMAL_COLOR,
+	hover = COG_HOVER_COLOR,
 
 	background = Color.terminal_background(nil, true),
 	background_hover = Color.terminal_background_gradient(nil, true),
@@ -246,6 +252,38 @@ local function capture_all_settings()
 	end
 
 	return mods
+end
+
+local function make_backup_name()
+	local base = "BACKUP " .. tostring(os.date("%Y-%m-%d %H-%M-%S"))
+	local presets = get_global_preset_store()
+	local name = base
+	local index = 2
+
+	while presets[name] do
+		name = string.format("%s (%d)", base, index)
+		index = index + 1
+	end
+
+	return name
+end
+
+local function backup_global_settings()
+	local mods = capture_all_settings()
+
+	if not mods then
+		return false
+	end
+
+	local presets = get_global_preset_store()
+
+	presets[make_backup_name()] = {
+		mods = mods,
+		backup = true,
+	}
+	save_global_preset_store(presets)
+
+	return true
 end
 
 local function make_mod_scope(mod_name, category)
@@ -901,6 +939,8 @@ local function show_import(view, category, target_mod_name)
 				)
 
 				show_confirmation(view, "Import Preset", description, function()
+					backup_global_settings()
+
 					local presets = get_preset_store()
 					local mod_presets = presets[target_mod_name]
 
@@ -1075,6 +1115,8 @@ local function show_preset_options(view, category, target_mod_name, name)
 						current_mod_presets[name] = nil
 						save_preset_store(current_presets)
 					end
+
+					refresh_preset_panel(view)
 				end)
 			end,
 		},
@@ -1097,7 +1139,7 @@ local function show_preset_options(view, category, target_mod_name, name)
 	})
 end
 
-local function refresh_preset_panel(view)
+refresh_preset_panel = function(view)
 	local ui = Managers and Managers.ui
 	local instance = nil
 
@@ -1244,14 +1286,6 @@ local function archetype_display_name(archetype)
 	return tostring(name)
 end
 
-local function archetype_icon(archetype)
-	if not archetype then
-		return nil
-	end
-
-	return archetype.archetype_badge or archetype.archetype_icon_large or archetype.archetype_icon_selection_large
-end
-
 mod._preset_panel_get_scope = function()
 	return mod._preset_panel_context or make_global_scope()
 end
@@ -1311,7 +1345,7 @@ mod._preset_panel_delete = function(view, scope, name)
 end
 
 mod._preset_panel_show_save = function(view, scope)
-	if scope and scope.kind == "global" then
+	if scope and (scope.kind == "global" or scope_key(scope) == "global") then
 		show_global_save(view)
 		return
 	end
@@ -1415,7 +1449,7 @@ mod._preset_panel_get_characters = function(callback)
 						id = id,
 						name = profile_display_name(profile) or id,
 						archetype_name = archetype_display_name(archetype),
-						archetype_icon = archetype_icon(archetype),
+						profile = profile,
 					}
 				end
 			end
@@ -1429,7 +1463,7 @@ mod._preset_panel_get_characters = function(callback)
 				id = current_id,
 				name = profile_display_name(profile) or current_id,
 				archetype_name = archetype_display_name(archetype),
-				archetype_icon = archetype_icon(archetype),
+				profile = profile,
 			}
 		end
 
@@ -1465,14 +1499,24 @@ mod._preset_panel_get_characters = function(callback)
 end
 
 mod._preset_panel_get_scope_options = function()
-	local mod_options = {}
+	local regular_options = {}
+	local pinned_options = {}
 	local dmf = get_dmf()
 	local seen = {}
+	local favorites = dmf and type(dmf.get) == "function" and dmf:get("options_menu_favorite_mods") or nil
+	local favorite_lookup = {}
+
+	if type(favorites) == "table" then
+		for _, favorite in pairs(favorites) do
+			favorite_lookup[resolve_mod_name(favorite) or favorite] = true
+		end
+	end
 
 	if dmf then
 		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
 			local header = mod_widgets[1]
 			local mod_name = header and resolve_mod_name(header.mod_name)
+			local display_name = get_display_mod_name(mod_name)
 
 			if
 				mod_name
@@ -1482,17 +1526,21 @@ mod._preset_panel_get_scope_options = function()
 				and #mod_widgets > 1
 			then
 				seen[mod_name] = true
-				mod_options[#mod_options + 1] = {
-					display_name = get_display_mod_name(mod_name),
+
+				local entry = {
+					display_name = display_name,
 					scope = make_mod_scope(mod_name),
 				}
+
+				if favorite_lookup[mod_name] then
+					entry.display_name = "{#color(226,199,126)}\u{e02a}{#reset()} " .. tostring(display_name)
+					pinned_options[#pinned_options + 1] = entry
+				else
+					regular_options[#regular_options + 1] = entry
+				end
 			end
 		end
 	end
-
-	table.sort(mod_options, function(a, b)
-		return tostring(a.display_name) < tostring(b.display_name)
-	end)
 
 	local options = {
 		{
@@ -1501,7 +1549,11 @@ mod._preset_panel_get_scope_options = function()
 		},
 	}
 
-	for _, entry in ipairs(mod_options) do
+	for _, entry in ipairs(pinned_options) do
+		options[#options + 1] = entry
+	end
+
+	for _, entry in ipairs(regular_options) do
 		options[#options + 1] = entry
 	end
 
@@ -1514,6 +1566,10 @@ mod._preset_panel_set_scope = function(view, scope)
 	end
 
 	mod._preset_panel_context = scope
+
+	if view then
+		view._scope = scope
+	end
 
 	if view and type(view._set_scope) == "function" then
 		view:_set_scope(scope)
@@ -1817,6 +1873,8 @@ show_global_import = function(view)
 				)
 
 				show_confirmation(view, "Import Global Preset", description, function()
+					backup_global_settings()
+
 					local presets = get_global_preset_store()
 
 					presets[name] = preserve_assignment_fields(presets[name], {
@@ -1968,6 +2026,7 @@ local function show_global_preset_options(view, name)
 
 					current_presets[name] = nil
 					save_global_preset_store(current_presets)
+					refresh_preset_panel(view)
 				end)
 			end,
 		},
@@ -2106,6 +2165,7 @@ mod.apply_global_profile_settings = function(mods)
 		return false
 	end
 
+	backup_global_settings()
 	apply_global_settings(nil, mods, nil)
 	flush_settings()
 
@@ -2267,18 +2327,24 @@ local function position_mod_cog(self)
 
 	local title_width = self:_scenegraph_size("title") or 0
 	local cog_x = title_width + COG_GAP
+	local cog_y = COG_Y
 
-	if self._alfs_cog_x == cog_x then
+	if self._has_pin then
+		local pin_position = type(self.scenegraph_position) == "function" and self:scenegraph_position("pin") or nil
+		local pin_x = pin_position and pin_position[1] or (title_width + COG_GAP)
+		local pin_y = pin_position and pin_position[2] or (COG_Y - (PIN_SIZE - COG_SIZE) * 0.5)
+
+		cog_x = pin_x + PIN_SIZE + COG_GAP
+		cog_y = pin_y + (PIN_SIZE - COG_SIZE) * 0.5
+	end
+
+	if self._alfs_cog_x == cog_x and self._alfs_cog_y == cog_y then
 		return
 	end
 
 	self._alfs_cog_x = cog_x
-	self:_set_scenegraph_position(MOD_COG_ID, cog_x, COG_Y)
-
-	if self._has_pin then
-		self:_set_scenegraph_position("pin", cog_x + COG_SIZE + COG_GAP, nil)
-	end
-
+	self._alfs_cog_y = cog_y
+	self:_set_scenegraph_position(MOD_COG_ID, cog_x, cog_y)
 	self:_force_update_scenegraph()
 end
 
