@@ -204,7 +204,7 @@ PresetEditorPanelView.init = function(self, settings, context)
 end
 
 PresetEditorPanelView.update = function(self, dt, t, input_service)
-	PresetEditorPanelView.super.update(self, dt, t, input_service)
+	local pass_input, pass_draw = PresetEditorPanelView.super.update(self, dt, t, input_service)
 
 	Dropdown.update(self, dt, t, input_service)
 
@@ -228,6 +228,8 @@ PresetEditorPanelView.update = function(self, dt, t, input_service)
 	end
 
 	self:_update_tooltip()
+
+	return pass_input, pass_draw
 end
 
 PresetEditorPanelView._update_tooltip = function(self)
@@ -302,8 +304,8 @@ PresetEditorPanelView.on_exit = function(self)
 	self._actions_grid = nil
 	self._tooltip_element = nil
 
-	if mod._preset_panel_restore_settings_state_bound then
-		mod._preset_panel_restore_settings_state_bound()
+	if mod._preset_panel_restore_settings_state_bound_if_settings_closed then
+		mod._preset_panel_restore_settings_state_bound_if_settings_closed()
 	end
 end
 

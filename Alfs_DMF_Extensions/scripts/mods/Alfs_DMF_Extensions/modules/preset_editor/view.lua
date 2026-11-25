@@ -22,8 +22,8 @@ local function clear_stale_preset_panel_view(handler)
 	if not instance then
 		active_views_data[Constants.PRESET_PANEL_VIEW] = nil
 
-		if mod._preset_panel_restore_settings_state_bound then
-			mod._preset_panel_restore_settings_state_bound()
+		if mod._preset_panel_restore_settings_state_bound_if_settings_closed then
+			mod._preset_panel_restore_settings_state_bound_if_settings_closed()
 		end
 	end
 
@@ -164,6 +164,16 @@ mod._preset_panel_restore_settings_state_bound = function()
 	end
 end
 
+mod._preset_panel_restore_settings_state_bound_if_settings_closed = function()
+	local ui = Managers and Managers.ui
+
+	if ui and type(ui.view_active) == "function" and ui:view_active("dmf_options_view") then
+		return
+	end
+
+	mod._preset_panel_restore_settings_state_bound()
+end
+
 mod._close_preset_panel_if_open = function()
 	local ui = Managers and Managers.ui
 
@@ -219,7 +229,7 @@ View.open_panel = function(scope)
 		false,
 		nil,
 		scope,
-		{ use_transition_ui = false, game_world_blur = 1.1 }
+		{ use_transition_ui = false, game_world_blur = Constants.PRESET_PANEL_BLUR }
 	)
 
 	if opened == false then
@@ -478,8 +488,8 @@ if not mod._preset_panel_registered and type(mod.add_require_path) == "function"
 			class = "PresetEditorPanelView",
 			path = Constants.PRESET_PANEL_PATH,
 			disable_game_world = false,
-			game_world_blur = 1.1,
-			close_on_hotkey_pressed = true,
+			game_world_blur = Constants.PRESET_PANEL_BLUR,
+			close_on_hotkey_pressed = false,
 			state_bound = false,
 			parent_transition_view = "dmf_options_view",
 			use_transition_ui = false,

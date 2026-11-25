@@ -286,6 +286,10 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	end
 
 	if self.view_name == "dmf_options_view" then
+		if mod._preset_panel_restore_settings_state_bound then
+			mod._preset_panel_restore_settings_state_bound()
+		end
+
 		if mod._close_preset_panel_if_open then
 			mod._close_preset_panel_if_open()
 		end

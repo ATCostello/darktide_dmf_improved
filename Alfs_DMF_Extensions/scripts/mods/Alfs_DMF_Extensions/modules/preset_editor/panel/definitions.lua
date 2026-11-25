@@ -15,6 +15,8 @@ local POPUP_WIDTH = 1180
 local POPUP_HEIGHT = 780
 local POPUP_BORDER_WIDTH = POPUP_WIDTH + 10
 local POPUP_BORDER_HEIGHT = POPUP_HEIGHT + 30
+local POPUP_BACKING_WIDTH = POPUP_BORDER_WIDTH
+local POPUP_BACKING_HEIGHT = POPUP_BORDER_HEIGHT
 local SCOPE_DROPDOWN_WIDTH = 504
 local SCOPE_ROW_HEIGHT = 30
 local SCOPE_MAX_VISIBLE_OPTIONS = 6
@@ -49,6 +51,13 @@ local scenegraph_definition = {
 		size = { POPUP_WIDTH, POPUP_HEIGHT },
 		position = { 0, -8, 101 },
 	},
+	popup_backing_box = {
+		parent = "popup",
+		horizontal_alignment = "center",
+		vertical_alignment = "center",
+		size = { POPUP_BACKING_WIDTH, POPUP_BACKING_HEIGHT },
+		position = { 0, 0, -3 },
+	},
 	popup_background = {
 		parent = "popup",
 		horizontal_alignment = "center",
@@ -68,7 +77,7 @@ local scenegraph_definition = {
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
 		size = { 240, 18 },
-		position = { 40, 70, 2 },
+		position = { 40, 75, 2 },
 	},
 	title_text = {
 		parent = "popup",
@@ -195,6 +204,7 @@ local bottom_buttons = {
 }
 
 local widget_draw_order = {
+	"popup_backing_box",
 	"popup_background",
 	"popup_frame",
 	"list_frame",
@@ -282,7 +292,8 @@ local tooltip_definitions = {
 	},
 }
 
-local title_text_style = table.clone(UIFontSettings.header_1 or UIFontSettings.header_3 or UIFontSettings.button_primary or {})
+local title_text_style =
+	table.clone(UIFontSettings.header_1 or UIFontSettings.header_3 or UIFontSettings.button_primary or {})
 title_text_style.text_horizontal_alignment = "left"
 title_text_style.text_vertical_alignment = "center"
 title_text_style.text_color = Styles.copy_color(Styles.COLORS.normal)
@@ -290,13 +301,15 @@ title_text_style.offset = { 0, 0, 2 }
 
 local selected_text_style = text_style(18, { 0, 0, 2 }, Styles.COLORS.normal, "right", { 260, 40 })
 
-local dropdown_passes = Styles.customize_dropdown(DropdownPassTemplates.settings_dropdown(
-	SCOPE_DROPDOWN_WIDTH,
-	SCOPE_ROW_HEIGHT,
-	SCOPE_DROPDOWN_WIDTH,
-	SCOPE_MAX_VISIBLE_OPTIONS,
-	false
-))
+local dropdown_passes = Styles.customize_dropdown(
+	DropdownPassTemplates.settings_dropdown(
+		SCOPE_DROPDOWN_WIDTH,
+		SCOPE_ROW_HEIGHT,
+		SCOPE_DROPDOWN_WIDTH,
+		SCOPE_MAX_VISIBLE_OPTIONS,
+		false
+	)
+)
 
 local popup_background_style = {
 	horizontal_alignment = "center",
@@ -307,27 +320,81 @@ local popup_background_style = {
 	color = Color.terminal_grid_background(255, true),
 }
 
-local function divider_pass(material, vertical_alignment)
+local backing_solid_color = Color.terminal_background and Color.terminal_background(255, true)
+	or Color.terminal_grid_background(255, true)
+local backing_gradient_color = Color.terminal_background_gradient and Color.terminal_background_gradient(0, true)
+	or Color.terminal_grid_background(0, true)
+local backing_cog_color = Styles.copy_color(Styles.COLORS.normal)
+
+backing_cog_color[1] = 25
+
+local popup_backing_passes = {
+	{
+		pass_type = "rect",
+		style_id = "solid",
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			offset = { 0, 0, 0 },
+			color = backing_solid_color,
+		},
+	},
+	{
+		pass_type = "texture",
+		style_id = "gradient",
+		value = "content/ui/materials/masks/gradient_horizontal_sides_dynamic_02",
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			scale_to_material = true,
+			size_addition = { 150, -2 },
+			offset = { -20, 0, 1 },
+			color = backing_gradient_color,
+		},
+	},
+	{
+		pass_type = "slug_icon",
+		style_id = "settings_cog",
+		value = "content/ui/vector_textures/symbols/cog_skull_01",
+		style = {
+			horizontal_alignment = "right",
+			vertical_alignment = "center",
+			size = { 360, 360 },
+			offset = { -40, 0, 2 },
+			color = backing_cog_color,
+		},
+	},
+}
+
+for _, pass in
+	ipairs(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.frame, Styles.COLORS.corner))
+do
+	popup_backing_passes[#popup_backing_passes + 1] = pass
+end
+
+local function divider_pass(material, vertical_alignment, height, offset_y)
 	return {
-		pass_type = "texture_uv",
+		pass_type = "texture",
 		style_id = "frame_" .. vertical_alignment,
 		value = material,
 		style = {
-			color = Color.terminal_text_header(nil, true),
 			horizontal_alignment = "center",
 			vertical_alignment = vertical_alignment,
 			scale_to_material = true,
-			size = { POPUP_BORDER_WIDTH, 10 },
-			offset = { 0, 0, 1 },
-			uvs = {
-				{ 0, 0 },
-				{ 1, 1 },
-			},
+			size = { POPUP_BORDER_WIDTH + 75, height + 50 },
+			size_addition = { 0, 0 },
+			offset = { 0, offset_y, 3 },
 		},
 	}
 end
 
 local widget_definitions = {
+	popup_backing_box = UIWidget.create_definition(
+		popup_backing_passes,
+		"popup_backing_box",
+		nil,
+		{ POPUP_BACKING_WIDTH, POPUP_BACKING_HEIGHT }
+	),
 	popup_background = UIWidget.create_definition({
 		{
 			pass_type = "texture",
@@ -335,12 +402,21 @@ local widget_definitions = {
 			value = "content/ui/materials/backgrounds/terminal_basic",
 			style = popup_background_style,
 		},
-		divider_pass("content/ui/materials/dividers/horizontal_dynamic_upper", "top"),
-		divider_pass("content/ui/materials/dividers/horizontal_dynamic_lower", "bottom"),
+		divider_pass("content/ui/materials/frames/premium_store/details_upper", "top", 56, -72),
+		divider_pass("content/ui/materials/frames/premium_store/details_lower_basic", "bottom", 72, 38),
 	}, "popup_background"),
-	popup_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "popup_frame"),
-	list_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "list_frame"),
-	actions_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "actions_frame"),
+	popup_frame = UIWidget.create_definition(
+		Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner),
+		"popup_frame"
+	),
+	list_frame = UIWidget.create_definition(
+		Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner),
+		"list_frame"
+	),
+	actions_frame = UIWidget.create_definition(
+		Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner),
+		"actions_frame"
+	),
 	title_divider = UIWidget.create_definition({
 		{
 			pass_type = "texture",
@@ -355,16 +431,21 @@ local widget_definitions = {
 			style = title_text_style,
 		},
 	}, "title_text"),
-	description_text = UIWidget.create_definition({
+	description_text = UIWidget.create_definition(
 		{
-			pass_type = "text",
-			value_id = "text",
-			style_id = "text",
-			style = text_style(18, { 10, 0, 3 }, Styles.COLORS.text, "left", { 740, 44 }),
+			{
+				pass_type = "text",
+				value_id = "text",
+				style_id = "text",
+				style = text_style(18, { 10, 0, 3 }, Styles.COLORS.text, "left", { 740, 44 }),
+			},
 		},
-	}, "description_text", {
-		text = "",
-	}, { 760, 44 }),
+		"description_text",
+		{
+			text = "",
+		},
+		{ 760, 44 }
+	),
 	scope_dropdown = UIWidget.create_definition(dropdown_passes, "scope_dropdown", {
 		options = {},
 		options_by_value = {},

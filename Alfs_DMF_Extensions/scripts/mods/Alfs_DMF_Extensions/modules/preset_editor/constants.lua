@@ -21,6 +21,7 @@ Constants.COG_MATERIAL = "content/ui/materials/backgrounds/scanner/scanner_map_g
 
 Constants.PRESET_PANEL_VIEW = "alfs_preset_editor_panel_view"
 Constants.PRESET_PANEL_PATH = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/preset_editor/panel/view"
+Constants.PRESET_PANEL_BLUR = 1.1
 
 Constants.COG_NORMAL_COLOR = { 255, 226, 199, 126 }
 Constants.COG_HOVER_COLOR = Color.ui_brown_super_light and Color.ui_brown_super_light(255, true)
