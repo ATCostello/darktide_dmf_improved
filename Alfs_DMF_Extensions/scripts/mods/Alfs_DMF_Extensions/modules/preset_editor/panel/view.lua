@@ -418,7 +418,7 @@ PresetEditorPanelView._update_selected_text = function(self)
 		return
 	end
 
-	widget.content.selected_text = mod:localize("preset_editor_selected", self._selected_name)
+	--widget.content.selected_text = mod:localize("preset_editor_selected", self._selected_name)
 end
 
 PresetEditorPanelView._invalidate_character_request = function(self)

@@ -18,6 +18,7 @@ local POPUP_BORDER_HEIGHT = POPUP_HEIGHT + 30
 local SCOPE_DROPDOWN_WIDTH = 504
 local SCOPE_ROW_HEIGHT = 30
 local SCOPE_MAX_VISIBLE_OPTIONS = 6
+local ACTIONS_LIST_HEIGHT = 424
 
 Definitions.POPUP_WIDTH = POPUP_WIDTH
 Definitions.POPUP_HEIGHT = POPUP_HEIGHT
@@ -122,7 +123,7 @@ local scenegraph_definition = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
-		size = { 644, 428 },
+		size = { 644, ACTIONS_LIST_HEIGHT },
 		position = { -48, 226, 2 },
 	},
 	bottom_actions = {
@@ -394,12 +395,13 @@ for _, button in ipairs(bottom_buttons) do
 	}, button.size)
 end
 
-local function grid_settings(width, height)
+local function grid_settings(width, height, visual_margin)
 	local inner_width = math.max(1, width - 16)
 	local inner_height = math.max(1, height - 32)
 
 	return {
 		scrollbar_width = 6,
+		scrollbar_vertical_margin = -40,
 		no_resource_rendering = true,
 		use_terminal_background = false,
 		hide_background = true,
@@ -408,7 +410,7 @@ local function grid_settings(width, height)
 		title_height = 0,
 		top_padding = 0,
 		bottom_chin = 0,
-		widget_visual_margin = -8,
+		widget_visual_margin = visual_margin or -8,
 		grid_spacing = { 6, 6 },
 		grid_size = { inner_width, inner_height },
 		mask_size = { inner_width, inner_height },
@@ -423,7 +425,7 @@ Definitions.tooltip_definitions = tooltip_definitions
 Definitions.blueprints = Blueprints
 Definitions.bottom_buttons = bottom_buttons
 Definitions.list_grid_settings = grid_settings(420, 460)
-Definitions.actions_grid_settings = grid_settings(660, 460)
+Definitions.actions_grid_settings = grid_settings(660, ACTIONS_LIST_HEIGHT + 32, -64)
 Definitions.legend_inputs = {
 	{
 		input_action = "back",
