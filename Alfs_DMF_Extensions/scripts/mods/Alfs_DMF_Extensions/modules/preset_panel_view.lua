@@ -18,6 +18,7 @@ info_font_style.text_color = Color.terminal_text_header(255, true)
 local function init_hotspot_widget(parent, widget, element, callback_name)
 	widget.content.hotspot.pressed_callback = callback_name and callback(parent, callback_name, widget, element) or nil
 	widget.content.text = element.text or ""
+	widget.content.original_text = element.text or ""
 end
 
 local blueprints = {
@@ -96,6 +97,14 @@ local scenegraph_definition = {
 }
 
 local widget_definitions = {
+	scrim = UIWidget.create_definition({
+		{
+			pass_type = "rect",
+			style = {
+				color = Color.black(190, true),
+			},
+		},
+	}, "screen"),
 	title_divider = UIWidget.create_definition({
 		{
 			pass_type = "texture",
