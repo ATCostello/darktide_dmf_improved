@@ -16,6 +16,8 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/step
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/save_scroll_position")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/per_mod_tabs_toggle")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_tabs")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/preset_editor")
+mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/settings_profile_importer")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/rgb_widget")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/dropdown_icons")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
@@ -123,10 +125,14 @@ local orig_settings_header = nil
 mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
 	func(self, definitions, settings, context, dynamic_package_name)
 
+	mod._install_character_hooks()
+
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
 
+	mod._prepare_global_preset_cog(definitions, settings)
+	mod._install_preset_cog_hooks()
 	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
@@ -278,9 +284,12 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	if self.view_name == "dmf_options_view" then
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
+		mod._preset_editor_widgets = {}
+		mod._rgb_original_widgets = {}
 		mod._grid_ref = nil
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
+		mod._rgb_active_mode = nil
 	end
 
 	orig_settings_grid_background = nil
@@ -290,9 +299,15 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
+	mod._install_character_hooks()
+	mod._sync_auto_presets_with_current_player()
+	mod._try_show_pending_profile_prompts()
+
 	if self.view_name == "dmf_options_view" then
+		mod._rgb_original_widgets = {}
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
+		mod._rgb_active_mode = mod.current_rgb_mode and mod.current_rgb_mode() or mod:get("enable_RGB_widget")
 		mod._ensure_icon_packages_loaded()
 	end
 end)
@@ -301,6 +316,8 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
+
+	mod._handle_global_preset_cog(self)
 
 	mod.current_category = self._selected_category
 
@@ -335,15 +352,21 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	--mod._saveScrollPosition(self)
 	--end
 
+	if mod.sync_rgb_mode then
+		mod.sync_rgb_mode(self)
+	end
+
 	mod._addModTabs(self, dt, t, input_service)
 
-	if mod:get("enable_RGB_widget") == "argb_sliders" then
+	local rgb_mode = mod.current_rgb_mode and mod.current_rgb_mode() or mod:get("enable_RGB_widget")
+
+	if rgb_mode == "argb_sliders" then
 		mod._addRgbSliders(self)
-	elseif mod:get("enable_RGB_widget") == "color_widget" then
+	elseif rgb_mode == "color_widget" then
 		mod._addColorWidgetReplacements(self)
 	end
 
-	if mod:get("enable_RGB_widget") ~= "disabled" then
+	if rgb_mode ~= "disabled" then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
 

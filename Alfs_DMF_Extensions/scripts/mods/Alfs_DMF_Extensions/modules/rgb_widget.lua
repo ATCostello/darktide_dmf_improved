@@ -323,6 +323,47 @@ local function inject_cluster_rgb_widgets(self, widgets)
 	end
 end
 
+mod._rgb_original_widgets = mod._rgb_original_widgets or {}
+
+local function snapshot_widgets(category, widgets)
+	local stored = mod._rgb_original_widgets[category]
+
+	if stored and stored.widgets == widgets then
+		return
+	end
+
+	local rows = {}
+
+	for i = 1, #widgets do
+		rows[i] = widgets[i]
+	end
+
+	mod._rgb_original_widgets[category] = {
+		widgets = widgets,
+		rows = rows,
+	}
+end
+
+local function restore_original_widgets(self)
+	for category, stored in pairs(mod._rgb_original_widgets) do
+		local widgets = self
+			and self._settings_category_widgets
+			and self._settings_category_widgets[category]
+
+		if widgets == stored.widgets then
+			for i = #widgets, 1, -1 do
+				widgets[i] = nil
+			end
+
+			for i = 1, #stored.rows do
+				widgets[i] = stored.rows[i]
+			end
+		end
+	end
+
+	mod._rgb_original_widgets = {}
+end
+
 mod.inject_rgb_widgets = function(self, category)
 	if not self._settings_category_widgets then
 		return
@@ -333,6 +374,8 @@ mod.inject_rgb_widgets = function(self, category)
 	if not widgets then
 		return
 	end
+
+	snapshot_widgets(category, widgets)
 
 	inject_group_rgb_widgets(self, widgets)
 	inject_cluster_rgb_widgets(self, widgets)
@@ -360,6 +403,31 @@ mod._updateRGBSliders = function(self, input_service, dt, t)
 	end
 end
 
+mod.current_rgb_mode = function()
+	return mod:get("enable_RGB_widget") or "disabled"
+end
+
+mod.sync_rgb_mode = function(self)
+	local mode = mod.current_rgb_mode()
+
+	if mode == mod._rgb_active_mode then
+		return
+	end
+
+	restore_original_widgets(self)
+
+	mod._rgb_active_mode = mode
+	mod._rgb_last_category = nil
+	mod._color_widget_last_category = nil
+	mod._rgb_last_mode = nil
+	mod._color_widget_last_mode = nil
+
+	if mode == "disabled" and self and self._selected_category and type(mod.filter_settings) == "function" then
+		mod.filter_settings(self, self._selected_category, true)
+		mod._grid_ref = self._settings_content_grid
+	end
+end
+
 mod._addRgbSliders = function(self)
 	local category = mod.current_category
 
@@ -367,7 +435,7 @@ mod._addRgbSliders = function(self)
 		return
 	end
 
-	local mode = mod:get("enable_RGB_widget")
+	local mode = mod.current_rgb_mode()
 	local mode_changed = mode ~= mod._rgb_last_mode
 
 	if category ~= mod._rgb_last_category or mode_changed then
@@ -387,7 +455,6 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	local ColorUtils = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/color/color_utils")
 	local ColorWidgetPasses = mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/color/color_widget_passes")
 
-	local colors_equal = ColorUtils.equal
 	local copy_color = ColorUtils.copy
 
 	local COLOR_VALUE_IDS = _COLOR_VALUE_IDS
@@ -419,6 +486,9 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 		return { a, r, g, b }
 	end
 
+	local synthetic_setting_id = "__alfs_rgb_color_" .. base_name
+	local target_mod = get_mod(rgb_entries.R.mod_name or "Alfs_DMF_Extensions")
+
 	local function set_combined_color(new_color)
 		if rgb_entries.R.on_activated then
 			rgb_entries.R.on_activated(new_color[2] or 0)
@@ -432,14 +502,22 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 		if has_alpha and rgb_entries.A.on_activated then
 			rgb_entries.A.on_activated(new_color[1] or 255)
 		end
+
+		if target_mod then
+			target_mod:set(synthetic_setting_id, copy_color(new_color), false)
+		end
 	end
 
 	local default_color = get_combined_color()
 
+	if target_mod then
+		target_mod:set(synthetic_setting_id, copy_color(default_color), false)
+	end
+
 	local entry = {
 		widget_type = "color",
 		mod_name = rgb_entries.R.mod_name or "Alfs_DMF_Extensions",
-		setting_id = base_name,
+		setting_id = synthetic_setting_id,
 		display_name = rgb_entries.R.display_name and rgb_entries.R.display_name:gsub(" R$", "") or base_name,
 		has_alpha = has_alpha,
 		default_value = default_color,
@@ -530,76 +608,6 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	end
 
 	refresh_color_value_text(content)
-
-	local GAMEPAD_CHANNEL_SPEED_UPDATE = 150
-
-	local function color_widget_update(parent, widget, input_service, dt)
-		local content = widget.content
-		local entry = content.entry
-		local is_disabled = entry.disabled or false
-		local drag_active = content.drag_active and not is_disabled
-		local using_gamepad = not parent:using_cursor_navigation()
-
-		content.disabled = is_disabled
-
-		if not content.exclusive_focus or not using_gamepad then
-			content.gamepad_selected_control = nil
-			stop_gamepad_channel_edit(content)
-		elseif not content.gamepad_selected_control then
-			content.gamepad_selected_control = "preview"
-		end
-
-		if content.preview_hotspot.on_pressed and not is_disabled and not using_gamepad then
-			parent:show_color_picker(entry)
-		elseif not drag_active and not content.gamepad_active_channel then
-			local setting_color = get_combined_color()
-
-			if not colors_equal(content.preview_color, setting_color) then
-				content.preview_color = copy_color(setting_color)
-				content.color_value_text_dirty = true
-			end
-		end
-
-		if drag_active and not parent._selected_settings_widget then
-			parent:set_exclusive_focus_on_grid_widget(widget.name)
-		elseif content.drag_previously_active and not drag_active then
-			parent:set_exclusive_focus_on_grid_widget(nil)
-		end
-
-		if content.gamepad_active_channel then
-			local gamepad_channel_value = content.gamepad_channel_value
-				or content.preview_color[content.gamepad_active_channel]
-			local dt_real = Manager.time:dt("ui")
-
-			if input_service:get("move_left_per_second") then
-				gamepad_channel_value = math.max(0, gamepad_channel_value - GAMEPAD_CHANNEL_SPEED_UPDATE * dt_real)
-			elseif input_service:get("move_right_per_second") then
-				gamepad_channel_value = math.min(255, gamepad_channel_value + GAMEPAD_CHANNEL_SPEED_UPDATE * dt_real)
-			end
-
-			if input_service:get("confirm") then
-				content.preview_color[content.gamepad_active_channel] = gamepad_channel_value
-				content.on_color_changed()
-				stop_gamepad_channel_edit(content)
-			elseif input_service:get("back") then
-				stop_gamepad_channel_edit(content)
-			else
-				content.gamepad_channel_value = gamepad_channel_value
-				content.preview_color[content.gamepad_active_channel] = gamepad_channel_value
-				content.on_color_changed()
-			end
-		end
-
-		content.drag_previously_active = drag_active
-
-		if content.color_value_text_dirty then
-			refresh_color_value_text(content)
-		end
-
-		return true
-	end
-
-	widget.update = color_widget_update
 
 	local alignment_widget = original_widget and original_widget.alignment_widget
 		or {
@@ -736,6 +744,8 @@ mod.inject_color_widgets = function(self, category)
 		return
 	end
 
+	snapshot_widgets(category, widgets)
+
 	inject_color_widget_replacements(self, widgets)
 end
 
@@ -746,7 +756,7 @@ mod._addColorWidgetReplacements = function(self)
 		return
 	end
 
-	local mode = mod:get("enable_RGB_widget")
+	local mode = mod.current_rgb_mode()
 	local mode_changed = mode ~= mod._color_widget_last_mode
 
 	if category ~= mod._color_widget_last_category or mode_changed then
