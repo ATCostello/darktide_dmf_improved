@@ -96,11 +96,18 @@ View.open_panel = function(scope)
 
 	clear_stale_preset_panel_view(ui._view_handler)
 
+	mod._preset_panel_context = scope
+
 	if type(ui.view_active) == "function" and ui:view_active(Constants.PRESET_PANEL_VIEW) then
+		local instance = type(ui.view_instance) == "function" and ui:view_instance(Constants.PRESET_PANEL_VIEW) or nil
+
+		if instance and type(instance._set_scope) == "function" then
+			instance:_set_scope(scope)
+		end
+
 		return true
 	end
 
-	mod._preset_panel_context = scope
 	ui:open_view(
 		Constants.PRESET_PANEL_VIEW,
 		nil,
@@ -108,7 +115,7 @@ View.open_panel = function(scope)
 		false,
 		nil,
 		scope,
-		{ use_transition_ui = false }
+		{ use_transition_ui = false, game_world_blur = true }
 	)
 
 	return true
@@ -116,6 +123,20 @@ end
 
 mod._preset_panel_get_scope = function()
 	return mod._preset_panel_context or Core.make_global_scope()
+end
+
+mod._preset_panel_scope_for_view = function(view)
+	if view then
+		if type(view._scope) == "table" then
+			return view._scope
+		end
+
+		if type(view._pending_scope) == "table" then
+			return view._pending_scope
+		end
+	end
+
+	return mod._preset_panel_get_scope()
 end
 
 mod._preset_panel_get_scope_name = function()
@@ -349,6 +370,7 @@ if not mod._preset_panel_registered and type(mod.add_require_path) == "function"
 			class = "PresetEditorPanelView",
 			path = Constants.PRESET_PANEL_PATH,
 			disable_game_world = false,
+			game_world_blur = true,
 			close_on_hotkey_pressed = true,
 			state_bound = true,
 			use_transition_ui = false,

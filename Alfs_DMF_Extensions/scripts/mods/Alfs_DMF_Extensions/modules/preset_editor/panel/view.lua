@@ -174,13 +174,13 @@ PresetEditorPanelView._update_elements = function(self, dt, t, input_service)
 	end
 end
 
-PresetEditorPanelView.init = function(self, settings)
-	PresetEditorPanelView.super.init(self, Definitions, settings)
+PresetEditorPanelView.init = function(self, settings, context)
+	PresetEditorPanelView.super.init(self, Definitions, settings, context)
 
 	self._pass_draw = false
 	self._pass_input = false
 	self._allow_close_hotkey = true
-	self._scope = nil
+	self._scope = type(context) == "table" and (context.kind == "global" or context.mod_name ~= nil) and context or nil
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
 	self._character_mode = false
@@ -320,7 +320,11 @@ PresetEditorPanelView._rebuild = function(self)
 		return
 	end
 
-	self._scope = mod._preset_panel_get_scope()
+	if type(self._scope) ~= "table" then
+		self._scope = mod._preset_panel_get_scope()
+	end
+
+	mod._preset_panel_context = self._scope
 	self._character_mode = false
 
 	local current_scope_key = panel_scope_key(self._scope)
@@ -463,7 +467,13 @@ PresetEditorPanelView._rebuild_actions = function(self)
 					name = profile.name,
 					archetype_name = profile.archetype_name,
 					profile = profile.profile,
-					assigned = mod._preset_panel_is_character_assigned(self._scope, selected_name, profile.id),
+					level = profile.level,
+					title = profile.title,
+					assigned = mod._preset_panel_is_character_assigned(
+						mod._preset_panel_scope_for_view(self),
+						selected_name,
+						profile.id
+					),
 					text = profile.name,
 					tooltip = mod:localize("preset_editor_character_tooltip", tostring(profile.name)),
 				}
@@ -552,6 +562,7 @@ PresetEditorPanelView._set_scope = function(self, scope)
 	end
 
 	self:_invalidate_character_request()
+	self._scope = scope
 	self._pending_scope = scope
 	self._pending_full_rebuild = true
 	self._character_mode = false
@@ -607,19 +618,20 @@ end
 
 PresetEditorPanelView.cb_on_action_pressed = function(self, _, element)
 	local action = element and element.action
+	local scope = mod._preset_panel_scope_for_view(self)
 
 	if action == "apply" then
-		mod._preset_panel_apply(self, self._scope, self._selected_name)
+		mod._preset_panel_apply(self, scope, self._selected_name)
 	elseif action == "export" then
-		mod._preset_panel_show_export(self, self._scope, self._selected_name)
+		mod._preset_panel_show_export(self, scope, self._selected_name)
 	elseif action == "export_current" then
-		mod._preset_panel_show_current_export(self, self._scope)
+		mod._preset_panel_show_current_export(self, scope)
 	elseif action == "delete" then
-		mod._preset_panel_delete(self, self._scope, self._selected_name)
+		mod._preset_panel_delete(self, scope, self._selected_name)
 	elseif action == "save" then
-		mod._preset_panel_show_save(self, self._scope)
+		mod._preset_panel_show_save(self, scope)
 	elseif action == "import" then
-		mod._preset_panel_show_import(self, self._scope)
+		mod._preset_panel_show_import(self, scope)
 	elseif action == "characters" then
 		self._character_mode = true
 		self._pending_actions_rebuild = true
@@ -658,13 +670,23 @@ PresetEditorPanelView.cb_on_character_pressed = function(self, widget, element)
 		return
 	end
 
-	local assigned = mod._preset_panel_toggle_character(self._scope, self._selected_name, element.id, element.name)
+	local assigned = mod._preset_panel_toggle_character(
+		mod._preset_panel_scope_for_view(self),
+		self._selected_name,
+		element.id,
+		element.name
+	)
 	local content = widget and widget.content
 
 	if content then
+		local archetype_name = element.archetype_name or ""
+		local level = element.level or ""
+
+		content.assigned = assigned == true
 		content.assignment_text = assigned and "\226\156\147" or ""
 		content.character_name = element.name or ""
-		content.character_archetype_title = element.archetype_name or ""
+		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
+		content.character_title = element.title or ""
 	end
 end
 

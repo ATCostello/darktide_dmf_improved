@@ -14,8 +14,10 @@ Constants.GLOBAL_COG_ID = "global_preset_cog"
 Constants.COG_SIZE = 32
 Constants.COG_GAP = 6
 Constants.COG_Y = 14
+Constants.PIN_COG_Y_OFFSET = 4
+Constants.GLOBAL_COG_Y = -30
 Constants.PIN_SIZE = 44
-Constants.COG_MATERIAL = "content/ui/materials/symbols/cog_small"
+Constants.COG_MATERIAL = "content/ui/materials/backgrounds/scanner/scanner_map_greek_14"
 
 Constants.PRESET_PANEL_VIEW = "alfs_preset_editor_panel_view"
 Constants.PRESET_PANEL_PATH = "Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/preset_editor/panel/view"

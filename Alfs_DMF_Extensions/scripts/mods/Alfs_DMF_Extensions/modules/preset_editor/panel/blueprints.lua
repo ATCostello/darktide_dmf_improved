@@ -1,5 +1,7 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
+local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
+
 local Styles = mod._preset_panel_styles
 local Portraits = mod._preset_panel_portraits
 
@@ -21,32 +23,128 @@ local function init_hotspot_widget(parent, widget, element, callback_name)
 	content.tooltip_text = element and element.tooltip or ""
 end
 
-local character_toggle_template = {}
-
-for _, pass in ipairs(Styles.button_passes("left", 20, { 94, 0, 3 })) do
-	if pass.style_id ~= "text" then
-		character_toggle_template[#character_toggle_template + 1] = pass
-	end
-end
-
-character_toggle_template[#character_toggle_template + 1] = Portraits.pass({ 40, 46 }, { 10, 0, 3 })
-character_toggle_template[#character_toggle_template + 1] = {
-	pass_type = "text",
-	value_id = "assignment_text",
-	style_id = "assignment_text",
-	style = Styles.make_text_style(20, { 60, 2, 3 }, Styles.COLORS.normal, "center"),
-}
-character_toggle_template[#character_toggle_template + 1] = {
-	pass_type = "text",
-	value_id = "character_name",
-	style_id = "character_name",
-	style = Styles.make_text_style(20, { 94, 2, 3 }, Styles.COLORS.text),
-}
-character_toggle_template[#character_toggle_template + 1] = {
-	pass_type = "text",
-	value_id = "character_archetype_title",
-	style_id = "character_archetype_title",
-	style = Styles.make_text_style(17, { 400, 2, 3 }, Styles.COLORS.muted),
+local character_toggle_template = {
+	{
+		content_id = "hotspot",
+		pass_type = "hotspot",
+		content = {
+			use_is_focused = false,
+			anim_hover_speed = 8,
+			anim_focus_speed = 8,
+			anim_input_speed = 8,
+			anim_select_speed = 8,
+			on_hover_sound = UISoundEvents.default_mouse_hover,
+		},
+	},
+	{
+		pass_type = "texture",
+		style_id = "background",
+		value = "content/ui/materials/backgrounds/default_square",
+		style = {
+			scale_to_material = true,
+			rest_color = Styles.copy_color(Styles.COLORS.background),
+			hover_color = Styles.copy_color(Styles.COLORS.background_hover),
+			selected_color = Styles.copy_color(Styles.COLORS.background_selected),
+			color = Styles.copy_color(Styles.COLORS.background),
+			size_addition = { nil, -2 },
+			offset = { 0, 0, 0 },
+		},
+		visibility_function = function(content)
+			return Styles.selected(content)
+		end,
+		change_function = function(content, style)
+			Styles.state_color(content, style)
+		end,
+	},
+	{
+		pass_type = "texture",
+		style_id = "background_gradient",
+		value = "content/ui/materials/masks/gradient_horizontal_sides_dynamic_02",
+		style = {
+			scale_to_material = true,
+			rest_color = Styles.copy_color(Styles.COLORS.gradient),
+			hover_color = Styles.copy_color(Styles.COLORS.gradient),
+			selected_color = Styles.copy_color(Styles.COLORS.gradient_selected),
+			color = Styles.copy_color(Styles.COLORS.gradient),
+			size_addition = { nil, -2 },
+			offset = { 0, 0, 1 },
+		},
+		visibility_function = function(content)
+			return Styles.hovered_or_selected(content)
+		end,
+		change_function = function(content, style)
+			Styles.state_color(content, style)
+		end,
+	},
+	{
+		pass_type = "texture",
+		style_id = "frame",
+		value = "content/ui/materials/frames/frame_tile_2px",
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			scale_to_material = true,
+			rest_color = Styles.copy_color(Styles.COLORS.line),
+			hover_color = Styles.copy_color(Styles.COLORS.line_hover),
+			selected_color = Styles.copy_color(Styles.COLORS.line_selected),
+			color = Styles.copy_color(Styles.COLORS.line),
+			size_addition = { nil, 2 },
+			offset = { 0, -1, 4 },
+		},
+		visibility_function = function(content)
+			return Styles.hovered_or_selected(content)
+		end,
+		change_function = function(content, style)
+			Styles.state_color(content, style)
+		end,
+	},
+	{
+		pass_type = "texture",
+		style_id = "corner",
+		value = "content/ui/materials/frames/frame_corner_2px",
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			scale_to_material = true,
+			rest_color = Styles.copy_color(Styles.COLORS.corner),
+			hover_color = Styles.copy_color(Styles.COLORS.corner_hover),
+			selected_color = Styles.copy_color(Styles.COLORS.corner_selected),
+			color = Styles.copy_color(Styles.COLORS.corner),
+			size_addition = { nil, 2 },
+			offset = { 0, -1, 5 },
+		},
+		visibility_function = function(content)
+			return Styles.hovered_or_selected(content)
+		end,
+		change_function = function(content, style)
+			Styles.state_color(content, style)
+		end,
+	},
+	Portraits.pass({ 52, 58 }, { 8, 0, 3 }),
+	{
+		pass_type = "text",
+		value_id = "assignment_text",
+		style_id = "assignment_text",
+		style = Styles.make_text_style(22, { 610, 0, 3 }, Styles.COLORS.normal, "center", { 30, 40 }),
+	},
+	{
+		pass_type = "text",
+		value_id = "character_name",
+		style_id = "character_name",
+		style = Styles.make_text_style(20, { 72, -10, 3 }, Styles.COLORS.text, "left", { 380, 26 }),
+	},
+	{
+		pass_type = "text",
+		value_id = "character_archetype_title",
+		style_id = "character_archetype_title",
+		style = Styles.make_text_style(16, { 72, 12, 3 }, Styles.COLORS.muted, "left", { 390, 24 }),
+	},
+	{
+		pass_type = "text",
+		value_id = "character_title",
+		style_id = "character_title",
+		style = Styles.make_text_style(14, { 470, -10, 3 }, Styles.COLORS.normal, "right", { 130, 24 }),
+	},
 }
 
 Blueprints.preset_entry = {
@@ -71,7 +169,7 @@ Blueprints.action_button = {
 }
 
 Blueprints.character_toggle = {
-	size = { 640, 52 },
+	size = { 640, 64 },
 	pass_template = character_toggle_template,
 	init = function(parent, widget, element, callback_name)
 		init_hotspot_widget(parent, widget, element, callback_name)
@@ -82,11 +180,16 @@ Blueprints.character_toggle = {
 			return
 		end
 
+		local archetype_name = element and element.archetype_name or ""
+		local level = element and element.level or ""
+
 		content.profile = element and element.profile or nil
-		content.character_portrait = Portraits.frame_material(content.profile)
-		content.assignment_text = element and element.assigned and "\226\156\147" or ""
+		Portraits.set_frame(widget, content.profile)
+		content.assigned = element and element.assigned == true
+		content.assignment_text = content.assigned and "\226\156\147" or ""
 		content.character_name = element and element.name or ""
-		content.character_archetype_title = element and element.archetype_name or ""
+		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
+		content.character_title = element and element.title or ""
 	end,
 	load_icon = Portraits.load,
 	unload_icon = Portraits.unload,

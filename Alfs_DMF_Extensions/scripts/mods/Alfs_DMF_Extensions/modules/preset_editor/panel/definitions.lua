@@ -13,12 +13,16 @@ mod._preset_panel_definitions = Definitions
 
 local POPUP_WIDTH = 1180
 local POPUP_HEIGHT = 780
+local POPUP_BORDER_WIDTH = POPUP_WIDTH + 10
+local POPUP_BORDER_HEIGHT = POPUP_HEIGHT + 30
 local SCOPE_DROPDOWN_WIDTH = 760
 local SCOPE_ROW_HEIGHT = 40
 local SCOPE_MAX_VISIBLE_OPTIONS = 3
 
 Definitions.POPUP_WIDTH = POPUP_WIDTH
 Definitions.POPUP_HEIGHT = POPUP_HEIGHT
+Definitions.POPUP_BORDER_WIDTH = POPUP_BORDER_WIDTH
+Definitions.POPUP_BORDER_HEIGHT = POPUP_BORDER_HEIGHT
 Definitions.SCOPE_DROPDOWN_SIZE = { SCOPE_DROPDOWN_WIDTH, SCOPE_ROW_HEIGHT }
 Definitions.SCOPE_MAX_VISIBLE_OPTIONS = SCOPE_MAX_VISIBLE_OPTIONS
 Definitions.SCOPE_DROPDOWN_ROWS = SCOPE_MAX_VISIBLE_OPTIONS
@@ -48,14 +52,14 @@ local scenegraph_definition = {
 		parent = "popup",
 		horizontal_alignment = "center",
 		vertical_alignment = "center",
-		size = { POPUP_WIDTH, POPUP_HEIGHT },
+		size = { POPUP_BORDER_WIDTH, POPUP_BORDER_HEIGHT },
 		position = { 0, 0, -2 },
 	},
 	popup_frame = {
 		parent = "popup",
 		horizontal_alignment = "center",
 		vertical_alignment = "center",
-		size = { POPUP_WIDTH, POPUP_HEIGHT },
+		size = { POPUP_BORDER_WIDTH, POPUP_BORDER_HEIGHT },
 		position = { 0, 0, -1 },
 	},
 	title_divider = {
@@ -251,6 +255,19 @@ local tooltip_definitions = {
 				end,
 			},
 			{
+				pass_type = "texture",
+				style_id = "corner",
+				value = "content/ui/materials/frames/frame_corner_2px",
+				style = {
+					color = Styles.copy_color(tooltip_frame_color),
+					scale_to_material = true,
+				},
+				change_function = function(content, style)
+					Styles.set_color(style.color, tooltip_frame_color)
+					style.color[1] = content.visible and 255 or 0
+				end,
+			},
+			{
 				pass_type = "text",
 				value_id = "tooltip_text",
 				style_id = "tooltip_text",
@@ -280,27 +297,49 @@ local dropdown_passes = Styles.customize_dropdown(DropdownPassTemplates.settings
 	false
 ))
 
+local popup_background_style = {
+	horizontal_alignment = "center",
+	vertical_alignment = "center",
+	scale_to_material = true,
+	offset = { 0, 0, 0 },
+	size = { POPUP_BORDER_WIDTH, POPUP_BORDER_HEIGHT },
+	color = Color.terminal_grid_background(160, true),
+}
+
+local function divider_pass(material, vertical_alignment)
+	return {
+		pass_type = "texture_uv",
+		style_id = "frame_" .. vertical_alignment,
+		value = material,
+		style = {
+			color = Color.terminal_text_header(nil, true),
+			horizontal_alignment = "center",
+			vertical_alignment = vertical_alignment,
+			scale_to_material = true,
+			size = { POPUP_BORDER_WIDTH, 10 },
+			offset = { 0, 0, 1 },
+			uvs = {
+				{ 0, 0 },
+				{ 1, 1 },
+			},
+		},
+	}
+end
+
 local widget_definitions = {
 	popup_background = UIWidget.create_definition({
 		{
-			pass_type = "texture_uv",
+			pass_type = "texture",
 			style_id = "terminal",
 			value = "content/ui/materials/backgrounds/terminal_basic",
-			style = {
-				color = Styles.COLORS.popup_background,
-				horizontal_alignment = "center",
-				vertical_alignment = "center",
-				scale_to_material = true,
-				offset = { 0, 0, 0 },
-				size = { POPUP_WIDTH, POPUP_HEIGHT },
-				size_addition = { 0, 0 },
-				uvs = { { 0, 0 }, { 1, 1 } },
-			},
+			style = popup_background_style,
 		},
+		divider_pass("content/ui/materials/dividers/horizontal_dynamic_upper", "top"),
+		divider_pass("content/ui/materials/dividers/horizontal_dynamic_lower", "bottom"),
 	}, "popup_background"),
-	popup_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.frame), "popup_frame"),
-	list_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.frame), "list_frame"),
-	actions_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.frame), "actions_frame"),
+	popup_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "popup_frame"),
+	list_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "list_frame"),
+	actions_frame = UIWidget.create_definition(Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner), "actions_frame"),
 	title_divider = UIWidget.create_definition({
 		{
 			pass_type = "texture",

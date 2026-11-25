@@ -6,7 +6,24 @@ local Constants = mod._preset_constants
 local Core = mod._preset_core or {}
 mod._preset_core = Core
 
+Core.silent = false
+
+local IMPORT_STATE_MOD = "Alfs_Darktide_Improved_profile_settings"
+local IMPORT_STATE_SETTING = "has_been_imported"
+
+local function is_import_state_setting(mod_name, setting_id)
+	return setting_id == IMPORT_STATE_SETTING and Utils.resolve_mod_name(mod_name) == IMPORT_STATE_MOD
+end
+
+Core.set_silent = function(value)
+	Core.silent = value == true
+end
+
 local function message(view, title, text)
+	if Core.silent then
+		return
+	end
+
 	local popups = mod._preset_popups
 
 	if popups and type(popups.show_message) == "function" then
@@ -101,10 +118,12 @@ Core.capture_settings = function(target_mod_name)
 	local settings = {}
 
 	for _, setting_id in ipairs(Core.get_setting_ids(mod_name)) do
-		local value = target_mod:get(setting_id)
+		if not is_import_state_setting(mod_name, setting_id) then
+			local value = target_mod:get(setting_id)
 
-		if value ~= nil then
-			settings[setting_id] = value
+			if value ~= nil then
+				settings[setting_id] = value
+			end
 		end
 	end
 
@@ -415,10 +434,12 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label)
 	end
 
 	for _, setting_id in ipairs(Core.get_setting_ids(mod_name)) do
-		local value = settings[setting_id]
+		if not is_import_state_setting(mod_name, setting_id) then
+			local value = settings[setting_id]
 
-		if value ~= nil then
-			target_mod:set(setting_id, value, true)
+			if value ~= nil then
+				target_mod:set(setting_id, value, true)
+			end
 		end
 	end
 
@@ -442,10 +463,12 @@ Core.apply_global_settings = function(view, mods, target_label)
 
 		if target_mod and type(settings) == "table" then
 			for _, setting_id in ipairs(Core.get_setting_ids(resolved_name)) do
-				local value = settings[setting_id]
+				if not is_import_state_setting(resolved_name, setting_id) then
+					local value = settings[setting_id]
 
-				if value ~= nil then
-					target_mod:set(setting_id, value, true)
+					if value ~= nil then
+						target_mod:set(setting_id, value, true)
+					end
 				end
 			end
 		end

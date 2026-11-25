@@ -49,7 +49,7 @@ local function add_global_cog_definitions(definitions)
 		horizontal_alignment = "left",
 		vertical_alignment = "bottom",
 		size = size,
-		position = { 340, -35, 2 },
+		position = { 340, Constants.GLOBAL_COG_Y, 2 },
 	}
 
 	definitions.widget_definitions[Constants.GLOBAL_COG_ID] = UIWidget.create_definition(
@@ -182,7 +182,7 @@ local function position_mod_cog(self)
 		local pin_y = pin_position and pin_position[2] or (Constants.COG_Y - (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5)
 
 		cog_x = pin_x + Constants.PIN_SIZE + Constants.COG_GAP
-		cog_y = pin_y + (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5
+		cog_y = pin_y + (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5 + Constants.PIN_COG_Y_OFFSET
 	end
 
 	if self._alfs_cog_x == cog_x and self._alfs_cog_y == cog_y then

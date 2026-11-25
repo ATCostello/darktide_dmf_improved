@@ -21,6 +21,18 @@ Utils.trim = function(value)
 	return tostring(value or ""):match("^%s*(.-)%s*$") or ""
 end
 
+Utils.notify = function(text, notification_type)
+	local event_manager = Managers and Managers.event
+
+	if not event_manager or type(event_manager.trigger) ~= "function" then
+		return false
+	end
+
+	event_manager:trigger("event_add_notification_message", notification_type or "default", tostring(text or ""), nil, nil)
+
+	return true
+end
+
 Utils.get_dmf = function()
 	return mod.dmf or get_mod("DMF")
 end

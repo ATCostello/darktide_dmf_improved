@@ -3,6 +3,8 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local ButtonPassTemplates = require("scripts/ui/pass_templates/button_pass_templates")
 local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
 
+local Core = mod._preset_core
+
 local STATE_SETTING = "settings_profile_importer_state"
 
 local pending_profiles = {}
@@ -201,11 +203,14 @@ local function import_profile(profile_mod)
 	local mods = mod.decode_global_profile_settings and mod.decode_global_profile_settings(profile_mod.global_profile_settings) or nil
 
 	if not mods or not mod.apply_global_profile_settings or not mod.apply_global_profile_settings(mods) then
-		mod._show_preset_message(
-			nil,
-			mod:localize("settings_profile_import_failed_title"),
-			mod:localize("settings_profile_import_failed_description", profile_name(profile_mod))
-		)
+		if not Core or not Core.silent then
+			mod._show_preset_message(
+				nil,
+				mod:localize("settings_profile_import_failed_title"),
+				mod:localize("settings_profile_import_failed_description", profile_name(profile_mod))
+			)
+		end
+
 		return false
 	end
 
@@ -224,11 +229,13 @@ local function import_profile(profile_mod)
 	}
 	save_state(state)
 
-	mod._show_preset_message(
-		nil,
-		mod:localize("settings_profile_imported_title"),
-		mod:localize("settings_profile_imported_description", profile_name(profile_mod))
-	)
+	if not Core or not Core.silent then
+		mod._show_preset_message(
+			nil,
+			mod:localize("settings_profile_imported_title"),
+			mod:localize("settings_profile_imported_description", profile_name(profile_mod))
+		)
+	end
 
 	return true
 end

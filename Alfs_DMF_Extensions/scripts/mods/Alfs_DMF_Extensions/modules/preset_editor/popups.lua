@@ -813,7 +813,10 @@ mod.apply_global_profile_settings = function(mods)
 		return false
 	end
 
-	Core.backup_global_settings()
+	if not Core.silent then
+		Core.backup_global_settings()
+	end
+
 	Core.apply_global_settings(nil, mods, nil)
 	Core.flush_settings()
 

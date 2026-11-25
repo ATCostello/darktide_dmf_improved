@@ -614,6 +614,12 @@ mod.localisation = {
 		["zh-cn"] = "切换“%s”的自动预设分配。",
 		["zh-tw"] = "切換「%s」的自動預設分配。",
 	},
+	preset_editor_auto_apply_start = {
+		en = "Applying saved presets for %s...",
+		ru = "Применение сохранённых пресетов для %s...",
+		["zh-cn"] = "正在为 %s 应用已保存的预设...",
+		["zh-tw"] = "正在為 %s 套用已儲存的預設...",
+	},
 	preset_editor_copied_title = {
 		en = "Copied to Clipboard",
 		ru = "Скопировано в буфер обмена",
