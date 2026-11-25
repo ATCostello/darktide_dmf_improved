@@ -519,13 +519,23 @@ mod.localisation = {
 		["zh-tw"] = "發現設定設定檔",
 	},
 	settings_profile_new_description = {
-		en = "A settings profile from '%s' (version %s) was found. Apply its global settings now?",
+		en = "A settings profile from {#color("
+			.. colours.title
+			.. ")}'%s'{#reset()} (version {#color("
+			.. colours.title
+			.. ")}%s{#reset()}) was found. \nApply its settings now?",
 		ru = "Найден профиль настроек '%s' версии %s. Применить его глобальные настройки сейчас?",
 		["zh-cn"] = "发现来自“%s”的设置配置（版本 %s）。是否立即应用其全局设置？",
 		["zh-tw"] = "發現來自「%s」的設定設定檔（版本 %s）。是否立即套用其全域設定？",
 	},
 	settings_profile_updated_description = {
-		en = "The settings profile '%s' was updated from version %s to version %s. Reapply its global settings?",
+		en = "The settings profile {#color("
+			.. colours.title
+			.. ")}'%s'{#reset()} was updated from version {#color("
+			.. colours.title
+			.. ")}%s{#reset()} to version {#color("
+			.. colours.title
+			.. ")}%s{#reset()}. \nReapply its settings?",
 		ru = "Профиль настроек '%s' обновлён с версии %s до версии %s. Повторно применить его глобальные настройки?",
 		["zh-cn"] = "设置配置“%s”已从版本 %s 更新到版本 %s。是否重新应用其全局设置？",
 		["zh-tw"] = "設定設定檔「%s」已從版本 %s 更新到版本 %s。是否重新套用其全域設定？",
@@ -547,6 +557,24 @@ mod.localisation = {
 		ru = "Игнорировать",
 		["zh-cn"] = "忽略",
 		["zh-tw"] = "忽略",
+	},
+	settings_profile_accept_tooltip = {
+		en = "Apply this settings profile. Settings changed by the profile will be overwritten.",
+		ru = "Применить этот профиль настроек сейчас. Настройки, изменённые профилем, будут перезаписаны.",
+		["zh-cn"] = "立即应用此设置配置。配置中更改的设置将被覆盖。",
+		["zh-tw"] = "立即套用此設定設定檔。設定檔中變更的設定將被覆蓋。",
+	},
+	settings_profile_later_tooltip = {
+		en = "Skip for now. You will be asked again the next time the game loads.",
+		ru = "Пропустить этот профиль сейчас. Вы увидите запрос снова при следующей загрузке игры.",
+		["zh-cn"] = "暂时跳过此配置。下次加载游戏时会再次询问。",
+		["zh-tw"] = "暫時略過此設定檔。下次載入遊戲時會再次詢問。",
+	},
+	settings_profile_ignore_tooltip = {
+		en = "Never show this profile version again. If a newer profile version is installed, you will be asked again.",
+		ru = "Больше не показывать эту версию профиля. Новая версия профиля всё равно запросит подтверждение.",
+		["zh-cn"] = "不再显示此配置版本。更新版本仍会再次询问。",
+		["zh-tw"] = "不再顯示此設定檔版本。更新版本仍會再次詢問。",
 	},
 	settings_profile_imported_title = {
 		en = "Settings Profile Imported",
@@ -603,10 +631,10 @@ mod.localisation = {
 		["zh-tw"] = "{#color(" .. colours.title .. ")}快捷鍵設定{#reset()}",
 	},
 	keybind_reset_tab = {
-		en = "Reset tab keybind"
+		en = "Reset tab keybind",
 	},
 	keybind_reset_tab_tooltip = {
-		en = "Choose a hotkey to use as the 'reset tab to default settings' keybind."
+		en = "Choose a hotkey to use as the 'reset tab to default settings' keybind.",
 	},
 }
 
