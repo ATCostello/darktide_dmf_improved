@@ -2,8 +2,10 @@ local mod = get_mod("Alfs_DMF_Extensions")
 
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
+local Archetypes = require("scripts/settings/archetype/archetypes")
 
 local PRESET_SETTING = "preset_editor_presets"
+local PRESETS_SETTING = "enable_presets"
 local PRESET_FORMAT = "alfs_dmf_extensions_preset_v1"
 local GLOBAL_PRESET_SETTING = "preset_editor_global_presets"
 local GLOBAL_PRESET_FORMAT = "alfs_dmf_extensions_global_preset_v1"
@@ -63,40 +65,61 @@ local function get_dmf()
 	return mod.dmf or get_mod("DMF")
 end
 
-local function get_target_mod_name(category)
-	if not category then
+local function resolve_mod_name(value)
+	if not value then
 		return nil
 	end
 
-	if mod._category_mod_map and mod._category_mod_map[category] then
-		return mod._category_mod_map[category]
+	if get_mod(value) then
+		return value
 	end
 
-	return category
-end
+	if mod._category_mod_map and mod._category_mod_map[value] then
+		return mod._category_mod_map[value]
+	end
 
-local function get_display_mod_name(target_mod_name)
 	local dmf = get_dmf()
 
 	if dmf then
 		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
 			local header = mod_widgets[1]
 
-			if header and header.mod_name == target_mod_name then
-				return header.readable_mod_name or header.mod_name or target_mod_name
+			if header and (header.mod_name == value or header.readable_mod_name == value) then
+				return header.mod_name or value
 			end
 		end
 	end
 
-	if target_mod_name then
-		local target_mod = get_mod(target_mod_name)
+	return value
+end
 
-		if target_mod and type(target_mod.get_readable_name) == "function" then
-			return target_mod:get_readable_name() or target_mod_name
+local function get_target_mod_name(category)
+	return resolve_mod_name(category)
+end
+
+local function get_display_mod_name(target_mod_name)
+	local mod_name = resolve_mod_name(target_mod_name)
+	local dmf = get_dmf()
+
+	if dmf then
+		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
+			local header = mod_widgets[1]
+
+			if header and header.mod_name == mod_name then
+				return header.readable_mod_name or header.mod_name or mod_name
+			end
 		end
 	end
 
-	return target_mod_name or ""
+	if mod_name then
+		local target_mod = get_mod(mod_name)
+
+		if target_mod and type(target_mod.get_readable_name) == "function" then
+			return target_mod:get_readable_name() or mod_name
+		end
+	end
+
+	return mod_name or ""
 end
 
 local function get_preset_store()
@@ -176,7 +199,8 @@ local function get_setting_ids(target_mod_name)
 end
 
 local function capture_settings(target_mod_name)
-	local target_mod = get_mod(target_mod_name)
+	local mod_name = resolve_mod_name(target_mod_name)
+	local target_mod = mod_name and get_mod(mod_name) or nil
 
 	if not target_mod then
 		return nil
@@ -184,7 +208,7 @@ local function capture_settings(target_mod_name)
 
 	local settings = {}
 
-	for _, setting_id in ipairs(get_setting_ids(target_mod_name)) do
+	for _, setting_id in ipairs(get_setting_ids(mod_name)) do
 		local value = target_mod:get(setting_id)
 
 		if value ~= nil then
@@ -299,8 +323,10 @@ local function normalize_global_mods(mods)
 	local normalized = {}
 
 	for mod_name, settings in pairs(mods) do
-		if type(mod_name) == "string" and type(settings) == "table" and get_mod(mod_name) then
-			normalized[mod_name] = settings
+		local resolved_name = resolve_mod_name(mod_name)
+
+		if type(resolved_name) == "string" and type(settings) == "table" and get_mod(resolved_name) then
+			normalized[resolved_name] = settings
 		end
 	end
 
@@ -371,14 +397,15 @@ local function refresh_options_view(view, target_mod_name)
 end
 
 local function apply_settings(view, target_mod_name, settings, target_label)
-	local target_mod = get_mod(target_mod_name)
+	local mod_name = resolve_mod_name(target_mod_name)
+	local target_mod = mod_name and get_mod(mod_name) or nil
 
 	if not target_mod or type(settings) ~= "table" then
 		mod._show_preset_message(view, "Preset Error", "The target mod could not be found.")
 		return
 	end
 
-	for _, setting_id in ipairs(get_setting_ids(target_mod_name)) do
+	for _, setting_id in ipairs(get_setting_ids(mod_name)) do
 		local value = settings[setting_id]
 
 		if value ~= nil then
@@ -392,7 +419,7 @@ local function apply_settings(view, target_mod_name, settings, target_label)
 		dmf.save_unsaved_settings_to_file()
 	end
 
-	refresh_options_view(view, target_mod_name)
+	refresh_options_view(view, mod_name)
 
 	if target_label then
 		mod._show_preset_message(view, "Preset Applied", string.format("Applied '%s'.", tostring(target_label)))
@@ -406,10 +433,11 @@ local function apply_global_settings(view, mods, target_label)
 	end
 
 	for mod_name, settings in pairs(mods) do
-		local target_mod = get_mod(mod_name)
+		local resolved_name = resolve_mod_name(mod_name)
+		local target_mod = resolved_name and get_mod(resolved_name) or nil
 
 		if target_mod and type(settings) == "table" then
-			for _, setting_id in ipairs(get_setting_ids(mod_name)) do
+			for _, setting_id in ipairs(get_setting_ids(resolved_name)) do
 				local value = settings[setting_id]
 
 				if value ~= nil then
@@ -448,14 +476,28 @@ local function flush_settings()
 	end
 end
 
-local function get_current_character_id()
+local function get_local_player()
 	local player_manager = Managers and Managers.player
 
-	if not player_manager then
+	if not player_manager or type(player_manager.local_player) ~= "function" then
 		return nil
 	end
 
-	local local_player = type(player_manager.local_player) == "function" and player_manager:local_player(1) or nil
+	return player_manager:local_player(1)
+end
+
+local function get_local_player_profile()
+	local local_player = get_local_player()
+
+	if local_player and type(local_player.profile) == "function" then
+		return local_player:profile()
+	end
+
+	return nil
+end
+
+local function get_current_character_id()
+	local local_player = get_local_player()
 
 	if local_player and type(local_player.character_id) == "function" then
 		local character_id = local_player:character_id()
@@ -465,7 +507,9 @@ local function get_current_character_id()
 		end
 	end
 
-	if type(player_manager.local_player_backend_profile) == "function" then
+	local player_manager = Managers and Managers.player
+
+	if player_manager and type(player_manager.local_player_backend_profile) == "function" then
 		local profile = player_manager:local_player_backend_profile()
 
 		if type(profile) == "table" then
@@ -638,6 +682,28 @@ mod._show_preset_message = function(view, title, text)
 	})
 end
 
+local function copy_json_to_clipboard(view, json)
+	local clipboard = rawget(_G, "Clipboard") or rawget(_G, "clipboard")
+
+	if not clipboard or type(clipboard.put) ~= "function" then
+		mod._show_preset_message(
+			view,
+			mod:localize("preset_editor_copy_failed_title"),
+			mod:localize("preset_editor_copy_failed_description")
+		)
+		return false
+	end
+
+	clipboard.put(json)
+	mod._show_preset_message(
+		view,
+		mod:localize("preset_editor_copied_title"),
+		mod:localize("preset_editor_copied_description")
+	)
+
+	return true
+end
+
 local function show_confirmation(view, title, description, on_confirm)
 	show_popup(view, {
 		title_text_unlocalized = tostring(title or "Confirm"),
@@ -716,6 +782,18 @@ local function build_payload(name, settings, target_mod_name)
 	}
 end
 
+local function copy_per_mod_current_json(view, settings, target_mod_name)
+	return copy_json_to_clipboard(view, encode_json(build_payload("Current Settings", settings, target_mod_name)))
+end
+
+local function copy_global_current_json(view, mods)
+	return copy_json_to_clipboard(view, encode_json({
+		format = GLOBAL_PRESET_FORMAT,
+		name = "Current Settings",
+		mods = mods,
+	}))
+end
+
 local function show_export(view, name, settings, target_mod_name)
 	local payload = build_payload(name, settings, target_mod_name)
 	local json = encode_json(payload)
@@ -762,6 +840,13 @@ local function show_export(view, name, settings, target_mod_name)
 end
 
 local function show_import(view, category, target_mod_name)
+	target_mod_name = resolve_mod_name(target_mod_name)
+
+	if not target_mod_name then
+		mod._show_preset_message(view, "Import Failed", "The target mod could not be found.")
+		return
+	end
+
 	local options = {
 		{
 			template_type = "terminal_input_field",
@@ -785,7 +870,7 @@ local function show_import(view, category, target_mod_name)
 					return
 				end
 
-				if decoded.mod_name ~= target_mod_name then
+				if resolve_mod_name(decoded.mod_name) ~= resolve_mod_name(target_mod_name) then
 					mod._show_preset_message(
 						view,
 						"Import Failed",
@@ -855,6 +940,13 @@ local function show_import(view, category, target_mod_name)
 end
 
 local function show_save(view, category, target_mod_name)
+	target_mod_name = resolve_mod_name(target_mod_name)
+
+	if not target_mod_name then
+		mod._show_preset_message(view, "Save Failed", "The target mod could not be found.")
+		return
+	end
+
 	local options = {
 		{
 			template_type = "terminal_input_field",
@@ -1020,7 +1112,80 @@ local function refresh_preset_panel(view)
 	end
 end
 
+local function presets_enabled()
+	return mod:get(PRESETS_SETTING) ~= false
+end
+
+local function clear_stale_preset_panel_view(handler)
+	local active_views_data = handler and handler._active_views_data
+	local active_views_array = handler and handler._active_views_array
+	local view_data = active_views_data and active_views_data[PRESET_PANEL_VIEW]
+
+	if not view_data or view_data.instance then
+		return
+	end
+
+	if active_views_array then
+		for index = #active_views_array, 1, -1 do
+			if active_views_array[index] == PRESET_PANEL_VIEW then
+				table.remove(active_views_array, index)
+			end
+		end
+
+		handler._num_active_views = #active_views_array
+	end
+
+	active_views_data[PRESET_PANEL_VIEW] = nil
+end
+
+local function install_stale_preset_panel_hook()
+	if mod._preset_panel_stale_view_hook_installed or type(mod.hook) ~= "function" then
+		return
+	end
+
+	local class_registry = rawget(_G, "CLASS")
+	local handler_class = type(class_registry) == "table" and class_registry.UIViewHandler or nil
+
+	if type(handler_class) ~= "table" then
+		local classes = rawget(_G, "CLASSES")
+
+		handler_class = type(classes) == "table" and classes.UIViewHandler or nil
+	end
+
+	if not handler_class or type(handler_class._update_transition_progress) ~= "function" then
+		return
+	end
+
+	mod._preset_panel_stale_view_hook_installed = true
+
+	mod:hook(handler_class, "_update_transition_progress", function(func, self, dt, transition_progress)
+		clear_stale_preset_panel_view(self)
+
+		return func(self, dt, transition_progress)
+	end)
+end
+
+mod._close_preset_panel_if_open = function()
+	local ui = Managers and Managers.ui
+
+	if not ui then
+		return
+	end
+
+	clear_stale_preset_panel_view(ui._view_handler)
+
+	if type(ui.view_active) == "function" and ui:view_active(PRESET_PANEL_VIEW) and type(ui.close_view) == "function" then
+		ui:close_view(PRESET_PANEL_VIEW)
+	end
+end
+
 local function open_preset_panel(scope)
+	if not presets_enabled() then
+		return false
+	end
+
+	install_stale_preset_panel_hook()
+
 	if not mod._preset_panel_registered then
 		return false
 	end
@@ -1028,6 +1193,12 @@ local function open_preset_panel(scope)
 	local ui = Managers and Managers.ui
 
 	if not ui or type(ui.open_view) ~= "function" then
+		return false
+	end
+
+	clear_stale_preset_panel_view(ui._view_handler)
+
+	if type(ui.view_active) == "function" and ui:view_active(PRESET_PANEL_VIEW) then
 		return false
 	end
 
@@ -1043,6 +1214,42 @@ local function profile_display_name(profile)
 	end
 
 	return profile.name or profile.character_name or profile.character_id
+end
+
+local function get_archetype(profile)
+	local archetype = type(profile) == "table" and profile.archetype or nil
+
+	if type(archetype) == "string" then
+		return type(Archetypes) == "table" and Archetypes[archetype] or nil
+	end
+
+	return type(archetype) == "table" and archetype or nil
+end
+
+local function archetype_display_name(archetype)
+	if not archetype then
+		return ""
+	end
+
+	local name = archetype.archetype_name or archetype.name
+
+	if not name then
+		return ""
+	end
+
+	if type(Localize) == "function" then
+		return Localize(name) or tostring(name)
+	end
+
+	return tostring(name)
+end
+
+local function archetype_icon(archetype)
+	if not archetype then
+		return nil
+	end
+
+	return archetype.archetype_badge or archetype.archetype_icon_large or archetype.archetype_icon_selection_large
 end
 
 mod._preset_panel_get_scope = function()
@@ -1106,17 +1313,33 @@ end
 mod._preset_panel_show_save = function(view, scope)
 	if scope and scope.kind == "global" then
 		show_global_save(view)
-	else
-		show_save(view, scope and scope.category, scope and scope.mod_name)
+		return
 	end
+
+	local mod_name = scope and resolve_mod_name(scope.mod_name) or nil
+
+	if not mod_name then
+		mod._show_preset_message(view, "Save Failed", "The target mod could not be found.")
+		return
+	end
+
+	show_save(view, scope and scope.category, mod_name)
 end
 
 mod._preset_panel_show_import = function(view, scope)
 	if scope and scope.kind == "global" then
 		show_global_import(view)
-	else
-		show_import(view, scope and scope.category, scope and scope.mod_name)
+		return
 	end
+
+	local mod_name = scope and resolve_mod_name(scope.mod_name) or nil
+
+	if not mod_name then
+		mod._show_preset_message(view, "Import Failed", "The target mod could not be found.")
+		return
+	end
+
+	show_import(view, scope and scope.category, mod_name)
 end
 
 mod._preset_panel_show_export = function(view, scope, name)
@@ -1144,10 +1367,18 @@ mod._preset_panel_show_current_export = function(view, scope)
 	end
 
 	if scope and scope.kind == "global" then
-		show_global_export(view, "Current Settings", settings)
-	else
-		show_export(view, "Current Settings", settings, scope and scope.mod_name)
+		copy_global_current_json(view, settings)
+		return
 	end
+
+	local mod_name = scope and resolve_mod_name(scope.mod_name) or nil
+
+	if not mod_name then
+		mod._show_preset_message(view, "Export Failed", "The target mod could not be found.")
+		return
+	end
+
+	copy_per_mod_current_json(view, settings, mod_name)
 end
 
 mod._preset_panel_get_characters = function(callback)
@@ -1177,19 +1408,28 @@ mod._preset_panel_get_characters = function(callback)
 				local id = type(profile) == "table" and profile.character_id or nil
 
 				if id and not seen[id] then
+					local archetype = get_archetype(profile)
+
 					seen[id] = true
 					result[#result + 1] = {
 						id = id,
 						name = profile_display_name(profile) or id,
+						archetype_name = archetype_display_name(archetype),
+						archetype_icon = archetype_icon(archetype),
 					}
 				end
 			end
 		end
 
 		if current_id and not seen[current_id] then
+			local profile = get_local_player_profile()
+			local archetype = get_archetype(profile)
+
 			result[#result + 1] = {
 				id = current_id,
-				name = current_id,
+				name = profile_display_name(profile) or current_id,
+				archetype_name = archetype_display_name(archetype),
+				archetype_icon = archetype_icon(archetype),
 			}
 		end
 
@@ -1224,6 +1464,99 @@ mod._preset_panel_get_characters = function(callback)
 	finish(build({}))
 end
 
+mod._preset_panel_get_scope_options = function()
+	local mod_options = {}
+	local dmf = get_dmf()
+	local seen = {}
+
+	if dmf then
+		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
+			local header = mod_widgets[1]
+			local mod_name = header and resolve_mod_name(header.mod_name)
+
+			if
+				mod_name
+				and not seen[mod_name]
+				and get_mod(mod_name)
+				and type(mod_widgets) == "table"
+				and #mod_widgets > 1
+			then
+				seen[mod_name] = true
+				mod_options[#mod_options + 1] = {
+					display_name = get_display_mod_name(mod_name),
+					scope = make_mod_scope(mod_name),
+				}
+			end
+		end
+	end
+
+	table.sort(mod_options, function(a, b)
+		return tostring(a.display_name) < tostring(b.display_name)
+	end)
+
+	local options = {
+		{
+			display_name = mod:localize("preset_editor_all_mods"),
+			scope = make_global_scope(),
+		},
+	}
+
+	for _, entry in ipairs(mod_options) do
+		options[#options + 1] = entry
+	end
+
+	return options
+end
+
+mod._preset_panel_set_scope = function(view, scope)
+	if type(scope) ~= "table" then
+		return
+	end
+
+	mod._preset_panel_context = scope
+
+	if view and type(view._set_scope) == "function" then
+		view:_set_scope(scope)
+	elseif view then
+		refresh_preset_panel(view)
+	end
+end
+
+mod._preset_panel_show_scope_dropdown = function(view)
+	local scope_options = mod._preset_panel_get_scope_options()
+	local options = {}
+
+	for _, entry in ipairs(scope_options) do
+		options[#options + 1] = {
+			text = entry.display_name,
+			no_localization = true,
+			close_on_pressed = true,
+			callback = function()
+				mod._preset_panel_set_scope(view, entry.scope)
+			end,
+		}
+	end
+
+	options[#options + 1] = {
+		text = "loc_popup_button_close",
+		template_type = "terminal_button_small",
+		close_on_pressed = true,
+		hotkey = "back",
+		callback = function()
+			if view then
+				view._popup_id = nil
+			end
+		end,
+	}
+
+	show_popup(view, {
+		title_text_unlocalized = mod:localize("preset_editor_select_scope_title"),
+		description_text_unlocalized = mod:localize("preset_editor_select_scope_description"),
+		type = "default",
+		options = options,
+	})
+end
+
 mod._preset_panel_is_character_assigned = function(scope, name, character_id)
 	local preset = get_scope_preset(scope, name)
 	local characters = preset and preset.characters
@@ -1246,15 +1579,21 @@ mod._preset_panel_toggle_character = function(scope, name, character_id, charact
 	preset.characters = type(preset.characters) == "table" and preset.characters or {}
 	preset.character_names = type(preset.character_names) == "table" and preset.character_names or {}
 
+	local assigned
+
 	if preset.characters[character_id] then
 		preset.characters[character_id] = nil
 		preset.character_names[character_id] = nil
+		assigned = false
 	else
 		preset.characters[character_id] = true
 		preset.character_names[character_id] = character_name or character_id
+		assigned = true
 	end
 
 	save_scope_presets(scope, presets)
+
+	return assigned
 end
 
 if not mod._preset_panel_registered and type(mod.add_require_path) == "function" and type(mod.register_view) == "function" then
@@ -1282,7 +1621,13 @@ if not mod._preset_panel_registered and type(mod.add_require_path) == "function"
 	mod._preset_panel_registered = true
 end
 
+install_stale_preset_panel_hook()
+
 mod.open_preset_editor = function(view, category)
+	if not presets_enabled() then
+		return
+	end
+
 	local target_mod_name = get_target_mod_name(category)
 
 	if not target_mod_name or not get_mod(target_mod_name) then
@@ -1342,7 +1687,7 @@ mod.open_preset_editor = function(view, category)
 				return
 			end
 
-			show_export(view, "Current Settings", settings, target_mod_name)
+			copy_per_mod_current_json(view, settings, target_mod_name)
 		end,
 	}
 
@@ -1646,6 +1991,10 @@ local function show_global_preset_options(view, name)
 end
 
 mod.open_global_preset_editor = function(view)
+	if not presets_enabled() then
+		return
+	end
+
 	if open_preset_panel(make_global_scope()) then
 		return
 	end
@@ -1695,7 +2044,7 @@ mod.open_global_preset_editor = function(view)
 				return
 			end
 
-			show_global_export(view, "Current Settings", mods)
+			copy_global_current_json(view, mods)
 		end,
 	}
 
@@ -1854,7 +2203,8 @@ local function sync_mod_cog(self)
 
 	local category_entry = self._category_entry
 	local mod_name = category_entry and category_entry.mod_name
-	local visible = mod_name ~= nil
+	local visible = presets_enabled()
+		and mod_name ~= nil
 		and not category_entry.is_toggle_mods_category
 		and get_mod(mod_name) ~= nil
 
@@ -1876,7 +2226,17 @@ local function handle_global_preset_cog(view)
 	end
 
 	local widget = view._widgets_by_name and view._widgets_by_name[GLOBAL_COG_ID]
-	local hotspot = widget and widget.content and widget.content.hotspot
+	local content = widget and widget.content
+
+	if content then
+		content.visible = presets_enabled()
+	end
+
+	if not content or not content.visible then
+		return
+	end
+
+	local hotspot = content.hotspot
 
 	if hotspot and hotspot.on_pressed then
 		hotspot.on_pressed = nil
@@ -1896,6 +2256,30 @@ mod._prepare_global_preset_cog = function(definitions, settings)
 	then
 		add_global_cog_definitions(definitions)
 	end
+end
+
+local function position_mod_cog(self)
+	local content = mod_cog_content(self)
+
+	if not content or not content.visible then
+		return
+	end
+
+	local title_width = self:_scenegraph_size("title") or 0
+	local cog_x = title_width + COG_GAP
+
+	if self._alfs_cog_x == cog_x then
+		return
+	end
+
+	self._alfs_cog_x = cog_x
+	self:_set_scenegraph_position(MOD_COG_ID, cog_x, COG_Y)
+
+	if self._has_pin then
+		self:_set_scenegraph_position("pin", cog_x + COG_SIZE + COG_GAP, nil)
+	end
+
+	self:_force_update_scenegraph()
 end
 
 local function position_cog_tooltip(self)
@@ -1952,9 +2336,11 @@ mod._install_preset_cog_hooks = function()
 		local content, category_entry = sync_mod_cog(self)
 		local hotspot = content and content.hotspot
 
+		position_mod_cog(self)
+
 		if hotspot and content.visible and hotspot.on_pressed and self._parent then
 			hotspot.on_pressed = nil
-			mod.open_preset_editor(self._parent, category_entry and category_entry.display_name)
+			mod.open_preset_editor(self._parent, category_entry and category_entry.mod_name)
 		end
 
 		return result
@@ -1980,23 +2366,7 @@ mod._install_preset_cog_hooks = function()
 	if type(header_class._update_text_layout) == "function" then
 		mod:hook(header_class, "_update_text_layout", function(func, self, ui_renderer)
 			func(self, ui_renderer)
-
-			local content = mod_cog_content(self)
-
-			if not content or not content.visible then
-				return
-			end
-
-			local title_width = self:_scenegraph_size("title") or 0
-			local cog_x = title_width + COG_GAP
-
-			self:_set_scenegraph_position(MOD_COG_ID, cog_x, COG_Y)
-
-			if self._has_pin then
-				self:_set_scenegraph_position("pin", cog_x + COG_SIZE + COG_GAP, nil)
-			end
-
-			self:_force_update_scenegraph()
+			position_mod_cog(self)
 		end)
 	end
 
@@ -2007,6 +2377,13 @@ mod._install_preset_cog_hooks = function()
 			local content = mod_cog_content(self)
 
 			if not content or not content.visible then
+				local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
+
+				if tooltip and self._hovered_tooltip_widget == self._widgets_by_name[MOD_COG_ID] then
+					tooltip.content.visible = false
+					self._hovered_tooltip_widget = nil
+				end
+
 				return
 			end
 
