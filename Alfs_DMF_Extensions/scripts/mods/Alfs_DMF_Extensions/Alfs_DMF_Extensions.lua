@@ -286,6 +286,10 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	end
 
 	if self.view_name == "dmf_options_view" then
+		if mod._close_preset_panel_if_open then
+			mod._close_preset_panel_if_open()
+		end
+
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
 		mod._preset_editor_widgets = {}

@@ -177,7 +177,7 @@ end
 PresetEditorPanelView.init = function(self, settings, context)
 	PresetEditorPanelView.super.init(self, Definitions, settings, context)
 
-	self._pass_draw = false
+	self._pass_draw = true
 	self._pass_input = false
 	self._allow_close_hotkey = true
 	self._scope = type(context) == "table" and (context.kind == "global" or context.mod_name ~= nil) and context or nil
@@ -263,7 +263,7 @@ end
 PresetEditorPanelView.on_enter = function(self)
 	PresetEditorPanelView.super.on_enter(self)
 
-	self._input_legend_element = self:_add_element(ViewElementInputLegend, "input_legend", 100)
+	self._input_legend_element = self:_add_element(ViewElementInputLegend, "input_legend", 200)
 
 	for _, legend_input in ipairs(Definitions.legend_inputs) do
 		local on_pressed_callback = legend_input.on_pressed_callback and callback(self, legend_input.on_pressed_callback)
@@ -277,9 +277,9 @@ PresetEditorPanelView.on_enter = function(self)
 		)
 	end
 
-	self._list_grid = self:_add_element(ViewElementGrid, "preset_list", 102, Definitions.list_grid_settings, "preset_list_pivot")
-	self._actions_grid = self:_add_element(ViewElementGrid, "preset_actions", 103, Definitions.actions_grid_settings, "actions_pivot")
-	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 105)
+	self._list_grid = self:_add_element(ViewElementGrid, "preset_list", 202, Definitions.list_grid_settings, "preset_list_pivot")
+	self._actions_grid = self:_add_element(ViewElementGrid, "preset_actions", 204, Definitions.actions_grid_settings, "actions_pivot")
+	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 206)
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
 

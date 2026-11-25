@@ -115,7 +115,7 @@ View.open_panel = function(scope)
 		false,
 		nil,
 		scope,
-		{ use_transition_ui = false, game_world_blur = true }
+		{ use_transition_ui = false, game_world_blur = 1.1 }
 	)
 
 	return true
@@ -370,9 +370,10 @@ if not mod._preset_panel_registered and type(mod.add_require_path) == "function"
 			class = "PresetEditorPanelView",
 			path = Constants.PRESET_PANEL_PATH,
 			disable_game_world = false,
-			game_world_blur = true,
+			game_world_blur = 1.1,
 			close_on_hotkey_pressed = true,
-			state_bound = true,
+			state_bound = false,
+			parent_transition_view = "dmf_options_view",
 			use_transition_ui = false,
 		},
 		view_transitions = {},

@@ -303,7 +303,7 @@ local popup_background_style = {
 	scale_to_material = true,
 	offset = { 0, 0, 0 },
 	size = { POPUP_BORDER_WIDTH, POPUP_BORDER_HEIGHT },
-	color = Color.terminal_grid_background(160, true),
+	color = Color.terminal_grid_background(255, true),
 }
 
 local function divider_pass(material, vertical_alignment)
