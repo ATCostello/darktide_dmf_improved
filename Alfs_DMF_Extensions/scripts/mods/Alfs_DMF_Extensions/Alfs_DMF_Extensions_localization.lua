@@ -1,5 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "2.0.8"
+mod.version = "2.0.9"
 mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
 
 local next = next

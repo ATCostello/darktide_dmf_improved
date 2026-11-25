@@ -14,6 +14,42 @@ local _content_blueprints =
 mod.selected_tabs = mod.selected_tabs or {}
 mod.tab_scroll_index = mod.tab_scroll_index or {}
 mod._tab_inject_state = mod._tab_inject_state or {}
+mod._tab_visibility_state = mod._tab_visibility_state or {}
+
+local function setting_is_hidden(setting)
+	return setting and setting.hidden == true
+end
+
+local function invalidate_tab_visibility_states()
+	mod._tab_visibility_state = {}
+	mod._tab_visibility_templates = nil
+end
+
+local function get_tab_visibility_state(self, category)
+	if mod._tab_visibility_templates ~= self._options_templates then
+		invalidate_tab_visibility_states()
+		mod._tab_visibility_templates = self._options_templates
+	end
+
+	local state = mod._tab_visibility_state[category]
+
+	if state ~= nil then
+		return state
+	end
+
+	local parts = {}
+
+	for _, setting in ipairs(self._options_templates and self._options_templates.settings or {}) do
+		if setting.category == category then
+			parts[#parts + 1] = setting_is_hidden(setting) and "1" or "0"
+		end
+	end
+
+	state = table.concat(parts)
+	mod._tab_visibility_state[category] = state
+
+	return state
+end
 
 local function clean_tab_title(text)
 	if not text then
@@ -135,7 +171,11 @@ local function could_have_tabs(self, category)
 	for i = 1, #templates do
 		local tpl = templates[i]
 		if tpl.category == category then
-			if tpl.widget_type == "group_header" then
+			if setting_is_hidden(tpl) then
+				if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+					current_tab_name = nil
+				end
+			elseif tpl.widget_type == "group_header" then
 				if tpl.indentation_level and tpl.indentation_level == 0 then
 					current_tab_name = tpl.display_name
 				end
@@ -233,7 +273,11 @@ mod.inject_tabs_into_widgets = function(self, category)
 
 	for _, tpl in ipairs(templates) do
 		if tpl.category == category then
-			if tpl.widget_type == "group_header" then
+			if setting_is_hidden(tpl) then
+				if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+					current_group_tab = nil
+				end
+			elseif tpl.widget_type == "group_header" then
 				local resolved = tpl.tab or resolve_widget_tab_from_dmf_data(category, tpl.setting_id, tpl.display_name)
 
 				if resolved then
@@ -270,7 +314,15 @@ end
 local function get_tab_inject_state(self, category)
 	local gen_tabs_on = mod:get("enable_generalised_mod_tabs")
 	local per_mod_on = mod.is_gen_tabs_enabled_for_mod(category)
-	return string.format("%s_%s_%s", tostring(category), tostring(gen_tabs_on), tostring(per_mod_on))
+	local visibility_state = get_tab_visibility_state(self, category)
+
+	return string.format(
+		"%s_%s_%s_%s",
+		tostring(category),
+		tostring(gen_tabs_on),
+		tostring(per_mod_on),
+		visibility_state
+	)
 end
 
 mod.inject_generalised_tabs = function(self, category)
@@ -336,7 +388,11 @@ mod.inject_generalised_tabs = function(self, category)
 
 	for _, tpl in ipairs(templates) do
 		if tpl.category == category then
-			if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+			if setting_is_hidden(tpl) then
+				if tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
+					current_tab = nil
+				end
+			elseif tpl.widget_type == "group_header" and tpl.indentation_level and tpl.indentation_level == 0 then
 				current_tab = tpl.display_name or current_tab
 			end
 
@@ -379,7 +435,15 @@ mod.get_tabs = function(self, category)
 			if setting.category == category then
 				local setting_type = setting.widget_type
 
-				if setting_type == "group_header" then
+				if setting_is_hidden(setting) then
+					if
+						setting_type == "group_header"
+						and setting.indentation_level
+						and setting.indentation_level == 0
+					then
+						current_tab = nil
+					end
+				elseif setting_type == "group_header" then
 					if setting.indentation_level and setting.indentation_level == 0 then
 						current_tab = setting.display_name
 					end
@@ -406,7 +470,15 @@ mod.get_tabs = function(self, category)
 			if setting.category == category then
 				local setting_type = setting.widget_type
 
-				if setting_type == "group_header" then
+				if setting_is_hidden(setting) then
+					if
+						setting_type == "group_header"
+						and setting.indentation_level
+						and setting.indentation_level == 0
+					then
+						current_group_tab = nil
+					end
+				elseif setting_type == "group_header" then
 					local resolved = setting.tab
 						or resolve_widget_tab_from_dmf_data(category, setting.setting_id, setting.display_name)
 
@@ -564,7 +636,19 @@ mod.create_tab_bar = function(self, category)
 	end
 
 	local mod_storage_key = get_mod_storage_key(self, category)
-	mod.selected_tabs[mod_storage_key] = mod.selected_tabs[mod_storage_key] or tabs[1]
+	local selected_tab = mod.selected_tabs[mod_storage_key]
+	local selected_is_valid = false
+
+	for i = 1, #tabs do
+		if tabs[i] == selected_tab then
+			selected_is_valid = true
+			break
+		end
+	end
+
+	if not selected_is_valid then
+		mod.selected_tabs[mod_storage_key] = tabs[1]
+	end
 
 	mod.tab_scroll_index[mod_storage_key] = mod.tab_scroll_index[mod_storage_key] or 1
 
@@ -688,6 +772,23 @@ mod.filter_settings = function(self, category, scroll_to_top)
 	local mod_storage_key = get_mod_storage_key(self, category)
 
 	local selected_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
+
+	if self._mod_tab_grid then
+		local tabs = mod.get_tabs(self, category)
+		local selected_is_valid = false
+
+		for i = 1, #tabs do
+			if tabs[i] == selected_tab then
+				selected_is_valid = true
+				break
+			end
+		end
+
+		if not selected_is_valid then
+			selected_tab = tabs[1] or mod.default_tab
+			mod.selected_tabs[mod_storage_key] = selected_tab
+		end
+	end
 
 	local category_widgets = self._settings_category_widgets and self._settings_category_widgets[category]
 
@@ -1110,6 +1211,12 @@ end
 mod._addModTabs = function(self, dt, t, input_service)
 	local category = mod.current_category
 	local mod_tabs_enabled = mod:get("enable_mod_tabs")
+	local grid_rebuilt = self._settings_content_grid ~= mod._grid_ref
+
+	if grid_rebuilt then
+		invalidate_tab_visibility_states()
+		mod._tab_inject_state = {}
+	end
 
 	if category then
 		local header_height = self._settings_header_height or view_settings.settings_header_height
@@ -1128,7 +1235,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 	end
 
 	if category then
-		if category ~= mod.last_category or mod_tabs_enabled ~= mod._prev_mod_tabs_enabled then
+		if category ~= mod.last_category or mod_tabs_enabled ~= mod._prev_mod_tabs_enabled or grid_rebuilt then
 			mod.last_category = category
 
 			if mod_tabs_enabled then
@@ -1136,7 +1243,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 				mod.inject_generalised_tabs(self, category)
 			end
 
-			mod.filter_settings(self, category)
+			mod.filter_settings(self, category, grid_rebuilt)
 		else
 			if mod_tabs_enabled then
 				local state_key = "gen_" .. tostring(category)
