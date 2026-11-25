@@ -117,7 +117,7 @@ PresetEditorPanelView.draw = function(self, dt, t, input_service, layer)
 
 	local previous_layer = render_settings.start_layer or 0
 
-	render_settings.start_layer = previous_layer + 104
+	render_settings.start_layer = previous_layer + 210
 	UIRenderer.begin_pass(ui_renderer, self._ui_scenegraph, input_service, dt, render_settings)
 	UIWidget.draw(widget, ui_renderer)
 	UIRenderer.end_pass(ui_renderer)
@@ -301,6 +301,10 @@ PresetEditorPanelView.on_exit = function(self)
 	self._list_grid = nil
 	self._actions_grid = nil
 	self._tooltip_element = nil
+
+	if mod._preset_panel_restore_settings_state_bound then
+		mod._preset_panel_restore_settings_state_bound()
+	end
 end
 
 PresetEditorPanelView.trigger_on_exit_animation = function(self)

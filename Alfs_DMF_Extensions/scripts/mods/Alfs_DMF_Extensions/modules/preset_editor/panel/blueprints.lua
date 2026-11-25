@@ -125,7 +125,7 @@ local character_toggle_template = {
 		pass_type = "text",
 		value_id = "assignment_text",
 		style_id = "assignment_text",
-		style = Styles.make_text_style(22, { 610, 0, 3 }, Styles.COLORS.normal, "center", { 30, 40 }),
+		style = Styles.make_text_style(22, { 600, 0, 3 }, Styles.COLORS.normal, "right", { 30, 40 }),
 	},
 	{
 		pass_type = "text",

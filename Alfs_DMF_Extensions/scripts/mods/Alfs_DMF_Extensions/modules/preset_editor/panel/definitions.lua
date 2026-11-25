@@ -15,9 +15,9 @@ local POPUP_WIDTH = 1180
 local POPUP_HEIGHT = 780
 local POPUP_BORDER_WIDTH = POPUP_WIDTH + 10
 local POPUP_BORDER_HEIGHT = POPUP_HEIGHT + 30
-local SCOPE_DROPDOWN_WIDTH = 760
-local SCOPE_ROW_HEIGHT = 40
-local SCOPE_MAX_VISIBLE_OPTIONS = 3
+local SCOPE_DROPDOWN_WIDTH = 504
+local SCOPE_ROW_HEIGHT = 30
+local SCOPE_MAX_VISIBLE_OPTIONS = 6
 
 Definitions.POPUP_WIDTH = POPUP_WIDTH
 Definitions.POPUP_HEIGHT = POPUP_HEIGHT
@@ -67,14 +67,14 @@ local scenegraph_definition = {
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
 		size = { 240, 18 },
-		position = { 40, 34, 2 },
+		position = { 40, 70, 2 },
 	},
 	title_text = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
 		size = { 700, 42 },
-		position = { 40, 50, 2 },
+		position = { 40, 28, 2 },
 	},
 	description_text = {
 		parent = "popup",
@@ -94,7 +94,7 @@ local scenegraph_definition = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
-		size = { 320, 40 },
+		size = { 260, 40 },
 		position = { -40, 150, 2 },
 	},
 	list_frame = {
@@ -115,15 +115,15 @@ local scenegraph_definition = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 420, 460 },
-		position = { 40, 210, 2 },
+		size = { 404, 428 },
+		position = { 48, 226, 2 },
 	},
 	actions_pivot = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
-		size = { 660, 460 },
-		position = { -40, 210, 2 },
+		size = { 644, 428 },
+		position = { -48, 226, 2 },
 	},
 	bottom_actions = {
 		parent = "popup",
@@ -225,7 +225,7 @@ local tooltip_definitions = {
 			horizontal_alignment = "left",
 			vertical_alignment = "top",
 			size = { 1160, 44 },
-			position = { 380, 1010, 105 },
+			position = { 380, 966, 105 },
 		},
 	},
 	widget_definitions = {
@@ -287,7 +287,7 @@ title_text_style.text_vertical_alignment = "center"
 title_text_style.text_color = Styles.copy_color(Styles.COLORS.normal)
 title_text_style.offset = { 0, 0, 2 }
 
-local selected_text_style = text_style(18, { 0, 0, 2 }, Styles.COLORS.normal, "right", { 320, 40 })
+local selected_text_style = text_style(18, { 0, 0, 2 }, Styles.COLORS.normal, "right", { 260, 40 })
 
 local dropdown_passes = Styles.customize_dropdown(DropdownPassTemplates.settings_dropdown(
 	SCOPE_DROPDOWN_WIDTH,
@@ -395,6 +395,9 @@ for _, button in ipairs(bottom_buttons) do
 end
 
 local function grid_settings(width, height)
+	local inner_width = math.max(1, width - 16)
+	local inner_height = math.max(1, height - 32)
+
 	return {
 		scrollbar_width = 6,
 		no_resource_rendering = true,
@@ -403,12 +406,13 @@ local function grid_settings(width, height)
 		hide_dividers = true,
 		ignore_divider_height = true,
 		title_height = 0,
-		top_padding = 16,
-		bottom_chin = 16,
+		top_padding = 0,
+		bottom_chin = 0,
+		widget_visual_margin = -8,
 		grid_spacing = { 6, 6 },
-		grid_size = { width, height },
-		mask_size = { width, height - 26 },
-		edge_padding = 14,
+		grid_size = { inner_width, inner_height },
+		mask_size = { inner_width, inner_height },
+		edge_padding = 0,
 	}
 end
 

@@ -21,6 +21,10 @@ local function clear_stale_preset_panel_view(handler)
 
 	if not instance then
 		active_views_data[Constants.PRESET_PANEL_VIEW] = nil
+
+		if mod._preset_panel_restore_settings_state_bound then
+			mod._preset_panel_restore_settings_state_bound()
+		end
 	end
 
 	local keep = instance and 1 or 0
@@ -63,6 +67,103 @@ local function install_stale_preset_panel_hook()
 	end)
 end
 
+local function install_settings_close_guard()
+	if mod._preset_panel_close_guard_installed or type(mod.hook) ~= "function" then
+		return
+	end
+
+	local class_registry = rawget(_G, "CLASS") or rawget(_G, "CLASSES")
+	local ui_manager = type(class_registry) == "table" and (class_registry.UIManager or class_registry.ui_manager) or nil
+
+	if type(ui_manager) ~= "table" or type(ui_manager.close_view) ~= "function" then
+		return
+	end
+
+	mod._preset_panel_close_guard_installed = true
+
+	local function should_block_settings_close(self, view_name, force_close)
+		if view_name ~= "dmf_options_view" or force_close then
+			return false
+		end
+
+		local handler = self
+		local ui = Managers and Managers.ui
+		local ui_handler = ui and ui._view_handler or nil
+
+		if ui_handler and handler ~= ui_handler then
+			handler = ui_handler
+		end
+
+		return type(handler) == "table"
+			and type(handler.view_active) == "function"
+			and handler:view_active(Constants.PRESET_PANEL_VIEW)
+			and not handler:is_view_closing(Constants.PRESET_PANEL_VIEW)
+	end
+
+	mod:hook(ui_manager, "close_view", function(func, self, view_name, force_close, ...)
+		if should_block_settings_close(self, view_name, force_close) then
+			return
+		end
+
+		return func(self, view_name, force_close, ...)
+	end)
+
+	local handler_class = type(class_registry) == "table" and class_registry.UIViewHandler or nil
+
+	if type(handler_class) == "table" and type(handler_class.close_view) == "function" then
+		mod:hook(handler_class, "close_view", function(func, self, view_name, force_close, ...)
+			if should_block_settings_close(self, view_name, force_close) then
+				return
+			end
+
+			return func(self, view_name, force_close, ...)
+		end)
+	end
+end
+
+local function settings_view_settings()
+	local ok, views = pcall(require, "scripts/ui/views/views")
+
+	if not ok or type(views) ~= "table" then
+		return nil
+	end
+
+	local settings = views["dmf_options_view"]
+
+	return type(settings) == "table" and settings or nil
+end
+
+mod._preset_panel_suspend_settings_state_bound = function()
+	if mod._preset_panel_saved_settings_state_bound ~= nil then
+		return
+	end
+
+	local settings = settings_view_settings()
+
+	if not settings then
+		return
+	end
+
+	mod._preset_panel_saved_settings_state_bound = settings.state_bound
+	settings.state_bound = false
+end
+
+mod._preset_panel_restore_settings_state_bound = function()
+	if mod._preset_panel_saved_settings_state_bound == nil then
+		return
+	end
+
+	local saved_state_bound = mod._preset_panel_saved_settings_state_bound
+
+	mod._preset_panel_saved_settings_state_bound = nil
+
+	local settings = settings_view_settings()
+
+	if settings then
+		settings.state_bound = saved_state_bound
+	end
+end
+
 mod._close_preset_panel_if_open = function()
 	local ui = Managers and Managers.ui
 
@@ -83,6 +184,7 @@ View.open_panel = function(scope)
 	end
 
 	install_stale_preset_panel_hook()
+	install_settings_close_guard()
 
 	if not mod._preset_panel_registered then
 		return false
@@ -108,7 +210,9 @@ View.open_panel = function(scope)
 		return true
 	end
 
-	ui:open_view(
+	mod._preset_panel_suspend_settings_state_bound()
+
+	local opened = ui:open_view(
 		Constants.PRESET_PANEL_VIEW,
 		nil,
 		false,
@@ -117,6 +221,10 @@ View.open_panel = function(scope)
 		scope,
 		{ use_transition_ui = false, game_world_blur = 1.1 }
 	)
+
+	if opened == false then
+		mod._preset_panel_restore_settings_state_bound()
+	end
 
 	return true
 end
@@ -386,6 +494,7 @@ if not mod._preset_panel_registered and type(mod.add_require_path) == "function"
 end
 
 install_stale_preset_panel_hook()
+install_settings_close_guard()
 
 mod.open_preset_editor = function(view, category)
 	if not Core.presets_enabled() then
