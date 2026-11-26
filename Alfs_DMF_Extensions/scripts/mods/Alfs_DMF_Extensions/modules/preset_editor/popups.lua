@@ -311,6 +311,17 @@ Popups.show_global_export = function(view, name, mods)
 	})
 end
 
+Popups.copy_per_mod_selected_json = function(view, name, settings, target_mod_name)
+	return Popups.copy_json_to_clipboard(
+		view,
+		Utils.encode_json(Core.build_payload(name, settings, target_mod_name))
+	)
+end
+
+Popups.copy_global_selected_json = function(view, name, mods)
+	return Popups.copy_json_to_clipboard(view, Utils.encode_json(Core.build_global_payload(name, mods)))
+end
+
 Popups.copy_per_mod_current_json = function(view, settings, target_mod_name)
 	return Popups.copy_json_to_clipboard(
 		view,

@@ -349,10 +349,18 @@ mod._preset_panel_show_export = function(view, scope, name)
 	end
 
 	if Core.is_global_scope(scope) then
-		Popups.show_global_export(view, name, preset_settings)
-	else
-		Popups.show_export(view, name, preset_settings, scope.mod_name)
+		Popups.copy_global_selected_json(view, name, preset_settings)
+		return
 	end
+
+	local target_mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
+
+	if not target_mod_name then
+		Popups.show_message(view, "Export Failed", "The target mod could not be found.")
+		return
+	end
+
+	Popups.copy_per_mod_selected_json(view, name, preset_settings, target_mod_name)
 end
 
 mod._preset_panel_show_current_export = function(view, scope)

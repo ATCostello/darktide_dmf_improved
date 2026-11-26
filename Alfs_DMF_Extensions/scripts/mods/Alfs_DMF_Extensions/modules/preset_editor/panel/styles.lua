@@ -261,12 +261,21 @@ Styles.customize_dropdown = function(passes)
 			if style_id == "background" then
 				style.color = Styles.copy_color(Styles.COLORS.frame)
 			elseif style_id == "fill" then
-				style.color = Styles.copy_color(Styles.COLORS.normal)
+				style.color = Color.terminal_background(255, true)
+				style.size = { 24, 12 }
 			elseif style_id == "line" then
-				style.color = Styles.copy_color(Styles.COLORS.frame_selected)
+				style.default_color = Color.terminal_icon(255, true)
+				style.hover_color = Color.terminal_icon_selected(255, true)
+				style.disabled_color = Color.terminal_text_body_dark(255, true)
+				style.color = Styles.copy_color(style.default_color)
+				style.size = { 24, 12 }
 			elseif style_id == "dropdown_background" then
-				style.color = Color.black(255, true)
+				style.color = Color.terminal_grid_background(255, true)
 			elseif style_id == "text" then
+				style.font_size = 16
+				style.default_color = Styles.copy_color(Styles.COLORS.normal)
+				style.hover_color = Styles.copy_color(Styles.COLORS.text_hover)
+				style.disabled_color = Styles.copy_color(Styles.COLORS.muted)
 				style.text_color = Styles.copy_color(Styles.COLORS.normal)
 			elseif style_id == "icon" then
 				style.visible = false

@@ -20,7 +20,7 @@ local POPUP_BACKING_HEIGHT = POPUP_BORDER_HEIGHT
 local SCOPE_DROPDOWN_WIDTH = 504
 local SCOPE_ROW_HEIGHT = 30
 local SCOPE_MAX_VISIBLE_OPTIONS = 6
-local ACTIONS_LIST_HEIGHT = 424
+local ACTIONS_LIST_HEIGHT = 499
 
 Definitions.POPUP_WIDTH = POPUP_WIDTH
 Definitions.POPUP_HEIGHT = POPUP_HEIGHT
@@ -86,54 +86,47 @@ local scenegraph_definition = {
 		size = { 700, 42 },
 		position = { 40, 28, 2 },
 	},
-	description_text = {
-		parent = "popup",
-		vertical_alignment = "top",
-		horizontal_alignment = "left",
-		size = { 760, 44 },
-		position = { 40, 96, 2 },
-	},
 	scope_dropdown = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
 		size = { SCOPE_DROPDOWN_WIDTH, SCOPE_ROW_HEIGHT },
-		position = { 40, 150, 4 },
+		position = { 40, 96, 4 },
 	},
 	selected_preset_text = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
 		size = { 260, 40 },
-		position = { -40, 150, 2 },
+		position = { -40, 96, 2 },
 	},
 	list_frame = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 420, 460 },
-		position = { 40, 210, 2 },
+		size = { 420, 531 },
+		position = { 40, 150, 2 },
 	},
 	actions_frame = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
-		size = { 660, 460 },
-		position = { -40, 210, 2 },
+		size = { 660, 531 },
+		position = { -40, 150, 2 },
 	},
 	preset_list_pivot = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 404, 428 },
-		position = { 48, 226, 2 },
+		size = { 404, 499 },
+		position = { 48, 166, 2 },
 	},
 	actions_pivot = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
 		size = { 644, ACTIONS_LIST_HEIGHT },
-		position = { -48, 226, 2 },
+		position = { -48, 166, 2 },
 	},
 	bottom_actions = {
 		parent = "popup",
@@ -211,7 +204,6 @@ local widget_draw_order = {
 	"actions_frame",
 	"title_divider",
 	"title_text",
-	"description_text",
 	"scope_dropdown",
 	"selected_preset_text",
 	"bottom_save",
@@ -223,6 +215,20 @@ local widget_draw_order = {
 local tooltip_background_color = Styles.copy_color(Styles.COLORS.tooltip_background)
 local tooltip_frame_color = Styles.copy_color(Styles.COLORS.frame)
 local tooltip_text_color = Styles.copy_color(Styles.COLORS.text)
+local tooltip_accent_color = Styles.copy_color(Styles.COLORS.normal)
+local tooltip_cog_color = Styles.copy_color(Styles.COLORS.normal)
+
+tooltip_cog_color[1] = 45
+
+local function tooltip_color_change(color, visible_alpha)
+	return function(content, style)
+		Styles.set_color(style.color, color)
+		style.color[1] = content.visible and (visible_alpha or color[1]) or 0
+	end
+end
+
+local tooltip_text_style = text_style(16, { 18, 0, 4 }, tooltip_text_color, "left", { 300, 30 })
+tooltip_text_style.font_type = "machine_medium"
 
 local tooltip_definitions = {
 	scenegraph_definition = {
@@ -231,12 +237,19 @@ local tooltip_definitions = {
 			size = { 1920, 1080 },
 			position = { 0, 0, 100 },
 		},
-		tooltip = {
+		popup = {
 			parent = "screen",
-			horizontal_alignment = "left",
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			size = { POPUP_WIDTH, POPUP_HEIGHT },
+			position = { 0, -8, 101 },
+		},
+		tooltip = {
+			parent = "popup",
+			horizontal_alignment = "right",
 			vertical_alignment = "top",
-			size = { 1160, 44 },
-			position = { 380, 966, 105 },
+			size = { 380, 44 },
+			position = { -40, 28, 5 },
 		},
 	},
 	widget_definitions = {
@@ -247,10 +260,35 @@ local tooltip_definitions = {
 				style = {
 					color = Styles.copy_color(tooltip_background_color),
 				},
-				change_function = function(content, style)
-					Styles.set_color(style.color, tooltip_background_color)
-					style.color[1] = content.visible and 230 or 0
-				end,
+				change_function = tooltip_color_change(tooltip_background_color, 230),
+			},
+			{
+				pass_type = "texture",
+				style_id = "top_line",
+				value = "content/ui/materials/dividers/horizontal_dynamic_upper",
+				style = {
+					color = Styles.copy_color(tooltip_frame_color),
+					horizontal_alignment = "center",
+					vertical_alignment = "top",
+					scale_to_material = true,
+					size = { 380, 6 },
+					offset = { 0, 0, 1 },
+				},
+				change_function = tooltip_color_change(tooltip_frame_color, 150),
+			},
+			{
+				pass_type = "texture",
+				style_id = "bottom_line",
+				value = "content/ui/materials/dividers/horizontal_dynamic_lower",
+				style = {
+					color = Styles.copy_color(tooltip_frame_color),
+					horizontal_alignment = "center",
+					vertical_alignment = "bottom",
+					scale_to_material = true,
+					size = { 380, 6 },
+					offset = { 0, 0, 1 },
+				},
+				change_function = tooltip_color_change(tooltip_frame_color, 150),
 			},
 			{
 				pass_type = "texture",
@@ -259,11 +297,9 @@ local tooltip_definitions = {
 				style = {
 					color = Styles.copy_color(tooltip_frame_color),
 					scale_to_material = true,
+					offset = { 0, 0, 2 },
 				},
-				change_function = function(content, style)
-					Styles.set_color(style.color, tooltip_frame_color)
-					style.color[1] = content.visible and 255 or 0
-				end,
+				change_function = tooltip_color_change(tooltip_frame_color, 255),
 			},
 			{
 				pass_type = "texture",
@@ -272,17 +308,52 @@ local tooltip_definitions = {
 				style = {
 					color = Styles.copy_color(tooltip_frame_color),
 					scale_to_material = true,
+					offset = { 0, 0, 2 },
 				},
-				change_function = function(content, style)
-					Styles.set_color(style.color, tooltip_frame_color)
-					style.color[1] = content.visible and 255 or 0
-				end,
+				change_function = tooltip_color_change(tooltip_frame_color, 255),
+			},
+			{
+				pass_type = "rect",
+				style_id = "accent_left",
+				style = {
+					color = Styles.copy_color(tooltip_accent_color),
+					horizontal_alignment = "left",
+					vertical_alignment = "center",
+					size = { 4, 24 },
+					offset = { 6, 0, 3 },
+				},
+				change_function = tooltip_color_change(tooltip_accent_color, 180),
+			},
+			{
+				pass_type = "rect",
+				style_id = "accent_right",
+				style = {
+					color = Styles.copy_color(tooltip_accent_color),
+					horizontal_alignment = "right",
+					vertical_alignment = "center",
+					size = { 4, 24 },
+					offset = { -6, 0, 3 },
+				},
+				change_function = tooltip_color_change(tooltip_accent_color, 180),
+			},
+			{
+				pass_type = "slug_icon",
+				style_id = "cog",
+				value = "content/ui/vector_textures/symbols/cog_skull_01",
+				style = {
+					color = Styles.copy_color(tooltip_cog_color),
+					horizontal_alignment = "right",
+					vertical_alignment = "center",
+					size = { 28, 28 },
+					offset = { -8, 0, 4 },
+				},
+				change_function = tooltip_color_change(tooltip_cog_color, 45),
 			},
 			{
 				pass_type = "text",
 				value_id = "tooltip_text",
 				style_id = "tooltip_text",
-				style = text_style(18, { 12, 0, 2 }, tooltip_text_color, "left", { 1136, 30 }),
+				style = tooltip_text_style,
 				change_function = function(content, style)
 					Styles.set_color(style.text_color, tooltip_text_color)
 					style.text_color[1] = content.visible and 255 or 0
@@ -431,21 +502,6 @@ local widget_definitions = {
 			style = title_text_style,
 		},
 	}, "title_text"),
-	description_text = UIWidget.create_definition(
-		{
-			{
-				pass_type = "text",
-				value_id = "text",
-				style_id = "text",
-				style = text_style(18, { 10, 0, 3 }, Styles.COLORS.text, "left", { 740, 44 }),
-			},
-		},
-		"description_text",
-		{
-			text = "",
-		},
-		{ 760, 44 }
-	),
 	scope_dropdown = UIWidget.create_definition(dropdown_passes, "scope_dropdown", {
 		options = {},
 		options_by_value = {},
@@ -505,7 +561,7 @@ Definitions.widget_draw_order = widget_draw_order
 Definitions.tooltip_definitions = tooltip_definitions
 Definitions.blueprints = Blueprints
 Definitions.bottom_buttons = bottom_buttons
-Definitions.list_grid_settings = grid_settings(420, 460)
+Definitions.list_grid_settings = grid_settings(420, 531)
 Definitions.actions_grid_settings = grid_settings(660, ACTIONS_LIST_HEIGHT + 32, -64)
 Definitions.legend_inputs = {
 	{

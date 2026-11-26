@@ -2,6 +2,7 @@ local mod = get_mod("Alfs_DMF_Extensions")
 
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIRenderer = require("scripts/managers/ui/ui_renderer")
+local UIResolution = require("scripts/managers/ui/ui_resolution")
 local ViewElementGrid = require("scripts/ui/view_elements/view_element_grid/view_element_grid")
 local ViewElementInputLegend = require("scripts/ui/view_elements/view_element_input_legend/view_element_input_legend")
 
@@ -104,7 +105,41 @@ PresetEditorPanelView._draw_widgets = function(self, dt, t, input_service, ui_re
 	end
 end
 
+PresetEditorPanelView._draw_background_dim = function(self, dt, t, input_service, layer)
+	local ui_renderer = self._ui_renderer
+	local render_settings = self._render_settings
+
+	if not ui_renderer or not render_settings then
+		return
+	end
+
+	local previous_start_layer = render_settings.start_layer
+	local previous_scale = render_settings.scale
+	local previous_inverse_scale = render_settings.inverse_scale
+	local render_scale = self._render_scale
+	local screen_size = self._ui_scenegraph.screen and self._ui_scenegraph.screen.size or { 1920, 1080 }
+
+	render_settings.start_layer = math.max(1, (layer or 1) - 10)
+	render_settings.scale = render_scale
+	render_settings.inverse_scale = render_scale and 1 / render_scale or nil
+
+	UIRenderer.begin_pass(ui_renderer, self._ui_scenegraph, input_service, dt, render_settings)
+	UIRenderer.draw_rect(
+		ui_renderer,
+		Vector3(0, 0, 0),
+		Vector3(screen_size[1], screen_size[2], 0),
+		Color(90, 0, 0, 0)
+	)
+	UIRenderer.end_pass(ui_renderer)
+
+	render_settings.start_layer = previous_start_layer
+	render_settings.scale = previous_scale
+	render_settings.inverse_scale = previous_inverse_scale
+end
+
 PresetEditorPanelView.draw = function(self, dt, t, input_service, layer)
+	self:_draw_background_dim(dt, t, input_service, layer)
+
 	PresetEditorPanelView.super.draw(self, dt, t, input_service, layer)
 
 	local widget = self._widgets_by_name and self._widgets_by_name.scope_dropdown
@@ -203,6 +238,87 @@ PresetEditorPanelView.init = function(self, settings, context)
 	Dropdown.init(self)
 end
 
+local function dropdown_blocks_outside_close(view, input_service)
+	local widget = view._widgets_by_name and view._widgets_by_name.scope_dropdown
+	local content = widget and widget.content
+
+	if not content or content.exclusive_focus ~= true then
+		return false
+	end
+
+	local holding_left = input_service:get("left_hold") == true
+	local scrollbar_hotspot = content.scrollbar_hotspot
+
+	if holding_left and (content.drag_active or (scrollbar_hotspot and (scrollbar_hotspot.is_hover or scrollbar_hotspot.on_pressed))) then
+		return true
+	end
+
+	for index = 1, Definitions.SCOPE_MAX_VISIBLE_OPTIONS do
+		local hotspot = content["option_hotspot_" .. index]
+
+		if hotspot and (hotspot.is_hover or hotspot.on_pressed) then
+			return true
+		end
+	end
+
+	return false
+end
+
+PresetEditorPanelView._maybe_close_on_outside_click = function(self, input_service)
+	if not self._using_cursor_navigation or self._close_anim_id then
+		return
+	end
+
+	if not input_service or type(input_service.is_null_service) == "function" and input_service:is_null_service() then
+		return
+	end
+
+	if type(input_service.get) ~= "function" or not input_service:get("left_pressed") then
+		return
+	end
+
+	if dropdown_blocks_outside_close(self, input_service) then
+		return
+	end
+
+	if Dropdown.is_open(self) then
+		Dropdown.close(self)
+		return
+	end
+
+	local cursor = input_service:get("cursor")
+
+	if not cursor then
+		return
+	end
+
+	local inverse_scale = 1 / math.max(self:render_scale() or 1, 0.001)
+	local cursor_position = UIResolution.inverse_scale_vector(cursor, inverse_scale)
+	local popup_position = self:_scenegraph_world_position("popup_background")
+	local x, y = popup_position[1], popup_position[2]
+	local width, height = self:_scenegraph_size("popup_background")
+
+	if math.point_is_inside_2d_box(cursor_position, { x - 2, y - 2 }, { width + 4, height + 4 }) then
+		return
+	end
+
+	local ui = Managers and Managers.ui
+
+	if not ui or type(ui.close_view) ~= "function" then
+		return
+	end
+
+	if type(ui.view_active) == "function" and not ui:view_active(self.view_name) then
+		return
+	end
+
+	if type(ui.is_view_closing) == "function" and ui:is_view_closing(self.view_name) then
+		return
+	end
+
+	ui:close_view(self.view_name)
+end
+
 PresetEditorPanelView.update = function(self, dt, t, input_service)
 	local pass_input, pass_draw = PresetEditorPanelView.super.update(self, dt, t, input_service)
 
@@ -210,6 +326,15 @@ PresetEditorPanelView.update = function(self, dt, t, input_service)
 
 	if Dropdown.is_open(self) then
 		self._pass_input = false
+	end
+
+	if input_service and (type(input_service.is_null_service) ~= "function" or not input_service:is_null_service()) then
+		if self._outside_click_ignore_frames and self._outside_click_ignore_frames > 0 then
+			self._outside_click_ignore_frames = self._outside_click_ignore_frames - 1
+		else
+			self._outside_click_ignore_frames = nil
+			self:_maybe_close_on_outside_click(input_service)
+		end
 	end
 
 	if self._pending_full_rebuild then
@@ -282,6 +407,7 @@ PresetEditorPanelView.on_enter = function(self)
 	self._list_grid = self:_add_element(ViewElementGrid, "preset_list", 202, Definitions.list_grid_settings, "preset_list_pivot")
 	self._actions_grid = self:_add_element(ViewElementGrid, "preset_actions", 204, Definitions.actions_grid_settings, "actions_pivot")
 	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 206)
+	self._outside_click_ignore_frames = 2
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
 
@@ -378,13 +504,6 @@ PresetEditorPanelView._rebuild = function(self)
 
 	if widgets_by_name.title_text then
 		widgets_by_name.title_text.content.title_text = mod:localize("preset_editor_title")
-	end
-
-	if widgets_by_name.description_text then
-		local scope_name = mod._preset_panel_get_scope_name and mod._preset_panel_get_scope_name()
-			or mod:localize("preset_editor_all_mods")
-
-		widgets_by_name.description_text.content.text = mod:localize("preset_editor_description", scope_name)
 	end
 
 	Dropdown.sync(self)

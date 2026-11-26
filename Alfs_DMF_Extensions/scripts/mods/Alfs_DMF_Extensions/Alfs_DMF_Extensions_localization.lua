@@ -465,7 +465,7 @@ mod.localisation = {
 		["zh-tw"] = "已選預設：%s",
 	},
 	preset_editor_select_preset_hint = {
-		en = "Select a preset from the list to see its options.",
+		en = "Select a preset from the list.",
 		ru = "Выберите пресет в списке, чтобы увидеть его настройки.",
 		["zh-cn"] = "从列表中选择预设以查看其选项。",
 		["zh-tw"] = "從清單中選擇預設以查看其選項。",
@@ -483,7 +483,7 @@ mod.localisation = {
 		["zh-tw"] = "儲存目前設定",
 	},
 	preset_editor_import = {
-		en = "Import preset JSON",
+		en = "Import preset",
 		ru = "Импорт JSON пресета",
 		["zh-cn"] = "导入预设 JSON",
 		["zh-tw"] = "匯入預設 JSON",
@@ -537,13 +537,13 @@ mod.localisation = {
 		["zh-tw"] = "選擇「%s」以檢視其選項。",
 	},
 	preset_editor_apply_tooltip = {
-		en = "Apply the selected preset to this scope.",
+		en = "Apply the selected preset.",
 		ru = "Применить выбранный пресет к этой области.",
 		["zh-cn"] = "将所选预设应用到此范围。",
 		["zh-tw"] = "將所選預設套用至此範圍。",
 	},
 	preset_editor_export_tooltip = {
-		en = "Copy the selected preset's JSON to the clipboard.",
+		en = "Copy the selected preset's JSON string to the clipboard.",
 		ru = "Скопировать JSON выбранного пресета в буфер обмена.",
 		["zh-cn"] = "将所选预设的 JSON 复制到剪贴板。",
 		["zh-tw"] = "將所選預設的 JSON 複製到剪貼簿。",
@@ -561,19 +561,19 @@ mod.localisation = {
 		["zh-tw"] = "永久刪除所選預設。",
 	},
 	preset_editor_save_tooltip = {
-		en = "Save all current settings as a new preset.",
+		en = "Save current settings as a new preset.",
 		ru = "Сохранить все текущие настройки как новый пресет.",
 		["zh-cn"] = "将所有当前设置保存为新预设。",
 		["zh-tw"] = "將所有目前設定儲存為新預設。",
 	},
 	preset_editor_import_tooltip = {
-		en = "Paste preset JSON to import it.",
+		en = "Paste a preset JSON string to import it.",
 		ru = "Вставьте JSON пресета для импорта.",
 		["zh-cn"] = "粘贴预设 JSON 以导入。",
 		["zh-tw"] = "貼上預設 JSON 以匯入。",
 	},
 	preset_editor_export_current_tooltip = {
-		en = "Copy all current settings JSON to the clipboard.",
+		en = "Copy the current settings JSON string to the clipboard.",
 		ru = "Скопировать JSON всех текущих настроек в буфер обмена.",
 		["zh-cn"] = "将所有当前设置的 JSON 复制到剪贴板。",
 		["zh-tw"] = "將所有目前設定的 JSON 複製到剪貼簿。",
@@ -591,7 +591,7 @@ mod.localisation = {
 		["zh-tw"] = "返回預設操作。",
 	},
 	preset_editor_select_scope_title = {
-		en = "Select Preset Scope",
+		en = "Select Preset",
 		ru = "Выберите область пресетов",
 		["zh-cn"] = "选择预设范围",
 		["zh-tw"] = "選擇預設範圍",
@@ -603,7 +603,7 @@ mod.localisation = {
 		["zh-tw"] = "選擇要編輯哪個模組的預設。",
 	},
 	preset_editor_scope_tooltip = {
-		en = "Click to choose a different mod, or all mod options.",
+		en = "Click to choose a different mod, or select all mod options.",
 		ru = "Нажмите, чтобы выбрать другой мод или все настройки модов.",
 		["zh-cn"] = "点击选择其他模组或所有模组设置。",
 		["zh-tw"] = "點擊選擇其他模組或所有模組設定。",
@@ -627,7 +627,7 @@ mod.localisation = {
 		["zh-tw"] = "已複製到剪貼簿",
 	},
 	preset_editor_copied_description = {
-		en = "The settings JSON has been copied to your clipboard.",
+		en = "The settings JSON string has been copied to your clipboard.",
 		ru = "JSON настроек скопирован в буфер обмена.",
 		["zh-cn"] = "设置 JSON 已复制到剪贴板。",
 		["zh-tw"] = "設定 JSON 已複製到剪貼簿。",
