@@ -3,8 +3,17 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local UIWidget = require("scripts/managers/ui/ui_widget")
 local UIFontSettings = require("scripts/managers/ui/ui_font_settings")
 
+local storage_keys = {}
+
 local function get_storage_key(category)
-	return "gen_tabs_per_mod_" .. tostring(category or "unknown")
+	local key = storage_keys[category]
+
+	if not key then
+		key = "gen_tabs_per_mod_" .. tostring(category or "unknown")
+		storage_keys[category] = key
+	end
+
+	return key
 end
 
 mod.is_gen_tabs_enabled_for_mod = function(category)
@@ -12,7 +21,14 @@ mod.is_gen_tabs_enabled_for_mod = function(category)
 		return true
 	end
 
-	local stored = mod:get(get_storage_key(category))
+	local key = get_storage_key(category)
+	local stored
+
+	if mod.cached_option then
+		stored = mod.cached_option(key)
+	else
+		stored = mod:get(key)
+	end
 
 	return stored ~= false
 end
@@ -24,7 +40,13 @@ mod.toggle_gen_tabs_for_mod = function(category)
 
 	local new_state = not mod.is_gen_tabs_enabled_for_mod(category)
 
-	mod:set(get_storage_key(category), new_state)
+	local key = get_storage_key(category)
+
+	mod:set(key, new_state)
+
+	if mod.on_setting_changed then
+		mod.on_setting_changed(key)
+	end
 
 	return new_state
 end
@@ -46,6 +68,10 @@ mod.reset_all_per_mod_toggles = function()
 
 			if stored ~= nil then
 				mod:set(key, nil)
+
+				if mod.on_setting_changed then
+					mod.on_setting_changed(key)
+				end
 			end
 		end
 	end

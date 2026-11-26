@@ -129,14 +129,16 @@ PresetEditorPanelView._draw_background_dim = function(self, dt, t, input_service
 	local previous_scale = render_settings.scale
 	local previous_inverse_scale = render_settings.inverse_scale
 	local render_scale = self._render_scale
-	local screen_size = self._ui_scenegraph.screen and self._ui_scenegraph.screen.size or { 1920, 1080 }
+	local screen_size = self._ui_scenegraph.screen and self._ui_scenegraph.screen.size or nil
+	local screen_width = screen_size and screen_size[1] or 1920
+	local screen_height = screen_size and screen_size[2] or 1080
 
 	render_settings.start_layer = math.max(1, (layer or 1) - 10)
 	render_settings.scale = render_scale
 	render_settings.inverse_scale = render_scale and 1 / render_scale or nil
 
 	UIRenderer.begin_pass(ui_renderer, self._ui_scenegraph, input_service, dt, render_settings)
-	UIRenderer.draw_rect(ui_renderer, Vector3(0, 0, 0), Vector3(screen_size[1], screen_size[2], 0), Color(90, 0, 0, 0))
+	UIRenderer.draw_rect(ui_renderer, Vector3(0, 0, 0), Vector3(screen_width, screen_height, 0), Color(90, 0, 0, 0))
 	UIRenderer.end_pass(ui_renderer)
 
 	render_settings.start_layer = previous_start_layer
@@ -312,8 +314,17 @@ PresetEditorPanelView._maybe_close_on_outside_click = function(self, input_servi
 	local popup_position = self:_scenegraph_world_position("popup_background")
 	local x, y = popup_position[1], popup_position[2]
 	local width, height = self:_scenegraph_size("popup_background")
+	local scratch_min = self._alfs_outside_min or { 0, 0 }
+	local scratch_max = self._alfs_outside_max or { 0, 0 }
 
-	if math.point_is_inside_2d_box(cursor_position, { x - 2, y - 2 }, { width + 4, height + 4 }) then
+	self._alfs_outside_min = scratch_min
+	self._alfs_outside_max = scratch_max
+	scratch_min[1] = x - 2
+	scratch_min[2] = y - 2
+	scratch_max[1] = width + 4
+	scratch_max[2] = height + 4
+
+	if math.point_is_inside_2d_box(cursor_position, scratch_min, scratch_max) then
 		return
 	end
 

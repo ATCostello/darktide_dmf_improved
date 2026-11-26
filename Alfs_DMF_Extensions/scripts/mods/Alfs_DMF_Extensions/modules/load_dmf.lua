@@ -391,12 +391,15 @@ mod.on_all_mods_loaded = function()
 end
 
 local function patch_group_header_blueprint()
-	local ok, blueprints = pcall(function()
-		return mod.dmf:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_content_blueprints")
-	end)
+	local dmf_mod = mod.dmf or dmf
 
-	if not ok or not blueprints or not blueprints.group_header then
-		mod:error("dmf options view conten blueprints not loaded")
+	if not dmf_mod or type(dmf_mod.io_dofile) ~= "function" then
+		return
+	end
+
+	local blueprints = dmf_mod:io_dofile("dmf/scripts/mods/dmf/modules/ui/options/dmf_options_view_content_blueprints")
+
+	if type(blueprints) ~= "table" or type(blueprints.group_header) ~= "table" then
 		return
 	end
 

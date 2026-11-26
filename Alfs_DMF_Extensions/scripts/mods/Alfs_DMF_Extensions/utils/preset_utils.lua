@@ -21,6 +21,18 @@ Utils.trim = function(value)
 	return tostring(value or ""):match("^%s*(.-)%s*$") or ""
 end
 
+Utils.unit_is_alive = function(unit)
+	if unit == nil then
+		return true
+	end
+
+	if type(Unit) ~= "table" or type(Unit.alive) ~= "function" then
+		return false
+	end
+
+	return Unit.alive(unit) or false
+end
+
 Utils.notify = function(text, notification_type)
 	local event_manager = Managers and Managers.event
 

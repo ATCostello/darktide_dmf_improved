@@ -16,6 +16,44 @@ mod.tab_scroll_index = mod.tab_scroll_index or {}
 mod._tab_inject_state = mod._tab_inject_state or {}
 mod._tab_visibility_state = mod._tab_visibility_state or {}
 
+local EMPTY_TABLE = {}
+local tab_state_keys = {}
+local tab_inject_values = {}
+local EXPLICIT_TABS_ON = {}
+local EXPLICIT_TABS_OFF = {}
+local tab_arrow_left_text
+local tab_arrow_right_text
+
+local function get_tab_state_key(category)
+	local key = tab_state_keys[category]
+
+	if not key then
+		key = "gen_" .. tostring(category)
+		tab_state_keys[category] = key
+	end
+
+	return key
+end
+
+local function cached_setting(setting_id)
+	local cached_option = mod.cached_option
+
+	if cached_option then
+		return cached_option(setting_id)
+	end
+
+	return mod:get(setting_id)
+end
+
+local function get_tab_arrow_texts()
+	if not tab_arrow_left_text then
+		tab_arrow_left_text = mod:localize("tab_arrow_left")
+		tab_arrow_right_text = mod:localize("tab_arrow_right")
+	end
+
+	return tab_arrow_left_text, tab_arrow_right_text
+end
+
 local function setting_is_hidden(setting)
 	return setting and setting.hidden == true
 end
@@ -23,6 +61,10 @@ end
 local function invalidate_tab_visibility_states()
 	mod._tab_visibility_state = {}
 	mod._tab_visibility_templates = nil
+
+	for key in pairs(tab_inject_values) do
+		tab_inject_values[key] = nil
+	end
 end
 
 local function get_tab_visibility_state(self, category)
@@ -129,14 +171,23 @@ local function get_current_mod_name(self, category)
 	return self._selected_category
 end
 
-local function get_mod_storage_key(self, category)
-	local mod_name = get_current_mod_name(self, category)
+local tab_storage_keys = {}
 
-	return string.format("%s_%s", tostring(mod_name), tostring(category or "unknown_category"))
+local function get_mod_storage_key(self, category)
+	local key = tab_storage_keys[category]
+
+	if not key then
+		local mod_name = get_current_mod_name(self, category)
+
+		key = string.format("%s_%s", tostring(mod_name), tostring(category or "unknown_category"))
+		tab_storage_keys[category] = key
+	end
+
+	return key
 end
 
 local function category_has_explicit_tabs(self, category)
-	if not mod:get("enable_generalised_mod_tabs") then
+	if not cached_setting("enable_generalised_mod_tabs") then
 		local is_genuine = mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category]
 		return is_genuine or false
 	end
@@ -177,6 +228,7 @@ local function could_have_tabs(self, category)
 	end
 
 	local seen_tabs = {}
+	local seen_tab_count = 0
 	local current_tab_name = nil
 	local fallback_tab = mod.default_tab
 
@@ -198,17 +250,16 @@ local function could_have_tabs(self, category)
 				and tpl.widget_type ~= "spacing_vertical"
 			then
 				local tab = current_tab_name or fallback_tab
-				seen_tabs[tab] = true
+
+				if not seen_tabs[tab] then
+					seen_tabs[tab] = true
+					seen_tab_count = seen_tab_count + 1
+				end
 			end
 		end
 	end
 
-	local count = 0
-	for _ in pairs(seen_tabs) do
-		count = count + 1
-	end
-
-	return count > 1
+	return seen_tab_count > 1
 end
 
 local TOOLTIP_WIDTH = 400
@@ -276,7 +327,6 @@ mod.inject_tabs_into_widgets = function(self, category)
 		return
 	end
 
-	local gen_tabs_enabled = mod:get("enable_generalised_mod_tabs")
 	local current_group_tab = nil
 	local fallback_tab = mod.default_tab
 	local templates = self._options_templates.settings or {}
@@ -324,17 +374,29 @@ mod.inject_tabs_into_widgets = function(self, category)
 end
 
 local function get_tab_inject_state(self, category)
-	local gen_tabs_on = mod:get("enable_generalised_mod_tabs")
+	local gen_tabs_on = cached_setting("enable_generalised_mod_tabs")
 	local per_mod_on = mod.is_gen_tabs_enabled_for_mod(category)
 	local visibility_state = get_tab_visibility_state(self, category)
+	local cached = tab_inject_values[category]
 
-	return string.format(
-		"%s_%s_%s_%s",
-		tostring(category),
-		tostring(gen_tabs_on),
-		tostring(per_mod_on),
-		visibility_state
-	)
+	if
+		cached
+		and cached.gen_tabs_on == gen_tabs_on
+		and cached.per_mod_on == per_mod_on
+		and cached.visibility_state == visibility_state
+	then
+		return cached
+	end
+
+	local value = {
+		gen_tabs_on = gen_tabs_on,
+		per_mod_on = per_mod_on,
+		visibility_state = visibility_state,
+	}
+
+	tab_inject_values[category] = value
+
+	return value
 end
 
 mod.inject_generalised_tabs = function(self, category)
@@ -344,7 +406,7 @@ mod.inject_generalised_tabs = function(self, category)
 		return
 	end
 
-	local state_key = "gen_" .. tostring(category)
+	local state_key = get_tab_state_key(category)
 
 	if not mod.is_gen_tabs_enabled_for_mod(category) then
 		local new_state = get_tab_inject_state(self, category)
@@ -361,7 +423,9 @@ mod.inject_generalised_tabs = function(self, category)
 	end
 
 	if category_has_explicit_tabs(self, category) then
-		local explicit_state_key = "explicit_" .. tostring(mod:get("enable_generalised_mod_tabs"))
+		local gen_tabs_on = cached_setting("enable_generalised_mod_tabs")
+		local explicit_state_key = gen_tabs_on and EXPLICIT_TABS_ON or EXPLICIT_TABS_OFF
+
 		if mod._tab_inject_state[state_key] == explicit_state_key then
 			return
 		end
@@ -370,7 +434,7 @@ mod.inject_generalised_tabs = function(self, category)
 		return
 	end
 
-	if not mod:get("enable_generalised_mod_tabs") then
+	if not cached_setting("enable_generalised_mod_tabs") then
 		local new_state = get_tab_inject_state(self, category)
 		if mod._tab_inject_state[state_key] == new_state then
 			return
@@ -436,7 +500,7 @@ mod.get_tabs = function(self, category)
 
 	local fallback_tab = mod.default_tab
 
-	local gen_tabs_enabled = mod:get("enable_generalised_mod_tabs")
+	local gen_tabs_enabled = cached_setting("enable_generalised_mod_tabs")
 	local has_explicit = category_has_explicit_tabs(self, category)
 	local per_mod_enabled = mod.is_gen_tabs_enabled_for_mod(category)
 
@@ -526,17 +590,7 @@ mod.get_tabs = function(self, category)
 	end
 
 	if (tab_counts[fallback_tab] or 0) > 0 then
-		local already_present = false
-		for _, t in ipairs(filtered_tabs) do
-			if t == fallback_tab then
-				already_present = true
-				break
-			end
-		end
-
-		if not already_present then
-			table.insert(filtered_tabs, #filtered_tabs + 1, fallback_tab)
-		end
+		table.insert(filtered_tabs, #filtered_tabs + 1, fallback_tab)
 	end
 
 	return filtered_tabs
@@ -620,7 +674,11 @@ local function create_arrow_button(self, category, text, callback)
 		widget.content.size = { width, height }
 
 		if entry.is_arrow then
-			for _, pass in ipairs(widget.passes) do
+			local passes = widget.passes
+
+			for pass_index = 1, #passes do
+				local pass = passes[pass_index]
+
 				if pass.pass_type == "text" and pass.value_id == "text" then
 					widget.style[pass.style_id] = table.clone(UIFontSettings.header_1)
 					widget.style[pass.style_id].text_horizontal_alignment = "center"
@@ -702,8 +760,8 @@ mod.create_tab_bar = function(self, category)
 	for i = start_index, end_index do
 		local tab_name = tabs[i]
 
-		local overrides =
-			table.clone(mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name] or {})
+		local source_overrides = mod.tab_overrides_lookup and mod.tab_overrides_lookup[category .. "|" .. tab_name]
+		local overrides = source_overrides and table.clone(source_overrides) or {}
 
 		local display_name = truncate_tab_title(tab_name, overrides.truncate_num)
 		local font_size = calculate_font_size(self, display_name, 140, overrides.font_size or 22)
@@ -814,7 +872,7 @@ mod.filter_settings = function(self, category, scroll_to_top)
 	local spacing = view_settings.settings_grid_spacing or { 15, 0 }
 
 	local has_toggle = category
-		and mod:get("enable_generalised_mod_tabs")
+		and cached_setting("enable_generalised_mod_tabs")
 		and not (mod._genuine_explicit_tab_mods and mod._genuine_explicit_tab_mods[category])
 		and could_have_tabs(self, category)
 
@@ -1002,10 +1060,17 @@ mod.filter_settings = function(self, category, scroll_to_top)
 end
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
-	if self.view_name == "dmf_options_view" then
+	if self.view_name ~= "dmf_options_view" then
+		func(self, dt, t, input_service, layer)
+		return
+	end
+
+	do
 		local grid = self._mod_tab_grid
 
 		if grid then
+			local tab_widgets = self._mod_tab_widgets or EMPTY_TABLE
+			local tab_widget_count = #tab_widgets
 			local using_gamepad = not self:using_cursor_navigation()
 
 			if not using_gamepad then
@@ -1015,28 +1080,34 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 				if interaction_widget then
 					local hotspot = interaction_widget.content.hotspot
-					local mod_storage_key = get_mod_storage_key(self, mod.current_category)
+					local category = mod.current_category
+
+					if self._alfs_draw_storage_category ~= category then
+						self._alfs_draw_storage_category = category
+						self._alfs_draw_storage_key = get_mod_storage_key(self, category)
+					end
+
+					local mod_storage_key = self._alfs_draw_storage_key
+					local arrow_left, arrow_right = get_tab_arrow_texts()
 
 					if hotspot then
 						local old_hover = hotspot.is_hover
 
 						hotspot.is_hover = true
 
-						for _, widget in ipairs(self._mod_tab_widgets) do
+						for i = 1, tab_widget_count do
+							local widget = tab_widgets[i]
 							local w_hotspot = widget.content.hotspot
 
 							if w_hotspot and w_hotspot.on_pressed then
 								local tab_key = widget.content._tab_key or widget.content.text
 
-								if
-									tab_key == mod:localize("tab_arrow_left")
-									or tab_key == mod:localize("tab_arrow_right")
-								then
+								if tab_key == arrow_left or tab_key == arrow_right then
 									w_hotspot.on_pressed = false
 								else
 									mod.selected_tabs[mod_storage_key] = tab_key
 
-									mod.filter_settings(self, mod.current_category, true)
+									mod.filter_settings(self, category, true)
 
 									w_hotspot.on_pressed = false
 								end
@@ -1049,8 +1120,8 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 						UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
 
-						for j = 1, #self._mod_tab_widgets do
-							local widget = self._mod_tab_widgets[j]
+						for j = 1, tab_widget_count do
+							local widget = tab_widgets[j]
 
 							if grid:is_widget_visible(widget) then
 								UIWidget.draw(widget, ui_renderer)
@@ -1069,8 +1140,8 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 				UIRenderer.begin_pass(ui_renderer, ui_scenegraph, input_service, dt, render_settings)
 
-				for j = 1, #self._mod_tab_widgets do
-					local widget = self._mod_tab_widgets[j]
+				for j = 1, tab_widget_count do
+					local widget = tab_widgets[j]
 
 					if grid:is_widget_visible(widget) then
 						UIWidget.draw(widget, ui_renderer)
@@ -1085,10 +1156,21 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 	local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
 	if tooltip then
 		local found = false
+		local text_size_scratch = self._alfs_tab_tooltip_text_size or { TOOLTIP_WIDTH, 0 }
+		local tooltip_size = self._alfs_tab_tooltip_size or { TOOLTIP_WIDTH, 0 }
+		local tooltip_data = self._alfs_tab_tooltip_data or { widget = nil, text = nil }
 
-		for _, w in ipairs(self._mod_tab_widgets or {}) do
+		self._alfs_tab_tooltip_text_size = text_size_scratch
+		self._alfs_tab_tooltip_size = tooltip_size
+		self._alfs_tab_tooltip_data = tooltip_data
+
+		local tab_widgets = self._mod_tab_widgets or EMPTY_TABLE
+		local tab_widget_count = #tab_widgets
+
+		for i = 1, tab_widget_count do
+			local w = tab_widgets[i]
 			local wh = w.content.hotspot
-			local overrides = w.content.tab_overrides or {}
+			local overrides = w.content.tab_overrides or EMPTY_TABLE
 			if wh and wh.is_hover and overrides.tooltip then
 				tooltip.content.visible = true
 				tooltip.content.text = overrides.tooltip
@@ -1096,10 +1178,16 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 				local text_style = tooltip.style.text
 				local pivot_pos = self:_scenegraph_world_position("mod_tab_content")
 				local tooltip_width = TOOLTIP_WIDTH
-				local _, text_height = self:_text_size(overrides.tooltip, text_style, { tooltip_width, 0 })
+
+				text_size_scratch[1] = tooltip_width
+				text_size_scratch[2] = 0
+
+				local _, text_height = self:_text_size(overrides.tooltip, text_style, text_size_scratch)
 				local height = text_height
 
-				tooltip.content.size = { tooltip_width, height }
+				tooltip_size[1] = tooltip_width
+				tooltip_size[2] = height
+				tooltip.content.size = tooltip_size
 
 				local left_edge_x = pivot_pos and pivot_pos[1] + (w.offset and w.offset[1] or 0) or 0
 				tooltip.offset[1] = left_edge_x - tooltip_width - 10
@@ -1108,10 +1196,9 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 					+ (w.content.size and w.content.size[2] or 48)
 					+ 10
 
-				self._tooltip_data = {
-					widget = w,
-					text = overrides.tooltip,
-				}
+				tooltip_data.widget = w
+				tooltip_data.text = overrides.tooltip
+				self._tooltip_data = tooltip_data
 
 				found = true
 				break
@@ -1131,10 +1218,16 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 						local text_style = tooltip.style.text
 						local pivot_pos = self:_scenegraph_world_position("settings_grid_content_pivot")
 						local tooltip_width = TOOLTIP_WIDTH
-						local _, text_height = self:_text_size(tooltip_text, text_style, { tooltip_width, 0 })
+
+						text_size_scratch[1] = tooltip_width
+						text_size_scratch[2] = 0
+
+						local _, text_height = self:_text_size(tooltip_text, text_style, text_size_scratch)
 						local height = text_height
 
-						tooltip.content.size = { tooltip_width, height }
+						tooltip_size[1] = tooltip_width
+						tooltip_size[2] = height
+						tooltip.content.size = tooltip_size
 
 						local left_edge_x = pivot_pos
 								and pivot_pos[1] + (toggle_widget.offset and toggle_widget.offset[1] or 0)
@@ -1149,10 +1242,9 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 							+ (toggle_widget.content.size and toggle_widget.content.size[2] or 22)
 							+ 10
 
-						self._tooltip_data = {
-							widget = toggle_widget,
-							text = tooltip_text,
-						}
+						tooltip_data.widget = toggle_widget
+						tooltip_data.text = tooltip_text
+						self._tooltip_data = tooltip_data
 
 						found = true
 					end
@@ -1165,9 +1257,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 end)
 
 mod._handle_gamepad_tab_navigation = function(self, view, input_service)
-	local using_gamepad = not view:using_cursor_navigation()
-
-	if not using_gamepad then
+	if not view or not input_service or type(input_service.get) ~= "function" then
 		return
 	end
 
@@ -1178,24 +1268,30 @@ mod._handle_gamepad_tab_navigation = function(self, view, input_service)
 		return
 	end
 
+	if type(view.using_cursor_navigation) ~= "function" or view:using_cursor_navigation() then
+		return
+	end
+
 	local tabs = mod.get_tabs(view, mod.current_category)
 
-	if #tabs <= 1 then
+	if not tabs or #tabs <= 1 then
 		return
 	end
 
 	local mod_storage_key = get_mod_storage_key(view, mod.current_category)
 	local current_tab = mod.selected_tabs[mod_storage_key] or mod.default_tab
 	local current_idx = 1
+	local tab_count = #tabs
 
-	for i, tab in ipairs(tabs) do
+	for i = 1, tab_count do
+		local tab = tabs[i]
 		if tab == current_tab then
 			current_idx = i
 			break
 		end
 	end
 
-	if navigate_right and current_idx < #tabs then
+	if navigate_right and current_idx < tab_count then
 		current_idx = current_idx + 1
 	elseif navigate_left and current_idx > 1 then
 		current_idx = current_idx - 1
@@ -1223,7 +1319,7 @@ end
 
 mod._addModTabs = function(self, dt, t, input_service)
 	local category = mod.current_category
-	local mod_tabs_enabled = mod:get("enable_mod_tabs")
+	local mod_tabs_enabled = cached_setting("enable_mod_tabs")
 	local grid_rebuilt = self._settings_content_grid ~= mod._grid_ref
 
 	if grid_rebuilt then
@@ -1278,7 +1374,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 			mod.filter_settings(self, category, grid_rebuilt)
 		else
 			if mod_tabs_enabled then
-				local state_key = "gen_" .. tostring(category)
+				local state_key = get_tab_state_key(category)
 				local old_inject_state = mod._tab_inject_state[state_key]
 
 				mod.inject_generalised_tabs(self, category)
@@ -1313,16 +1409,13 @@ mod._addModTabs = function(self, dt, t, input_service)
 		self._mod_tab_grid:update(dt, t, input_service)
 	end
 
-	if mod:get("enable_mod_tabs") and input_service then
-		-- disable new DMF options tab indicator if my tabs are enabled.
+	if mod_tabs_enabled and input_service then
 		if self and self._options_tab_indicator then
 			self._options_tab_indicator._visible = false
 		end
 
-		local ok, err = pcall(mod._handle_gamepad_tab_navigation, mod, self, input_service)
-
-		if not ok then
-			mod:error("mod_tabs input error: %s", tostring(err))
+		if type(mod._handle_gamepad_tab_navigation) == "function" then
+			mod._handle_gamepad_tab_navigation(mod, self, input_service)
 		end
 	end
 end

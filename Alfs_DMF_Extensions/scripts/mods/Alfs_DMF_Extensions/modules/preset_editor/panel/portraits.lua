@@ -3,6 +3,7 @@ local mod = get_mod("Alfs_DMF_Extensions")
 local UISettings = require("scripts/settings/ui/ui_settings")
 
 local Styles = mod._preset_panel_styles
+local Utils = mod._preset_utils
 
 local Portraits = mod._preset_panel_portraits or {}
 mod._preset_panel_portraits = Portraits
@@ -88,12 +89,11 @@ local function profile_is_valid(profile)
 
 	local unit = profile.unit
 
-	if
-		type(unit) == "userdata"
-		and type(Unit) == "table"
-		and type(Unit.alive) == "function"
-		and not Unit.alive(unit)
-	then
+	if Utils and Utils.unit_is_alive then
+		return Utils.unit_is_alive(unit)
+	end
+
+	if unit ~= nil and (type(Unit) ~= "table" or type(Unit.alive) ~= "function" or not Unit.alive(unit)) then
 		return false
 	end
 
@@ -168,7 +168,7 @@ Portraits.load = function(parent, widget, element)
 	content.icon_load_id = ui:load_profile_portrait(
 		profile,
 		function(grid_index, rows, columns, render_target)
-			if content.profile == profile then
+			if content.profile == profile and profile_is_valid(profile) then
 				Portraits.set(widget, grid_index, rows, columns, render_target, profile)
 			end
 		end,

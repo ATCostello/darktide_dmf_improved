@@ -73,8 +73,17 @@ end
 mod.last_category = nil
 mod.current_category = nil
 
+local storage_keys = {}
+
 local function get_mod_storage_key(category)
-	return string.format("%s_%s", tostring(category), tostring(category or "unknown_category"))
+	local key = storage_keys[category]
+
+	if not key then
+		key = string.format("%s_%s", tostring(category), tostring(category or "unknown_category"))
+		storage_keys[category] = key
+	end
+
+	return key
 end
 
 mod.get_mod_storage_key_for_tab = get_mod_storage_key
@@ -108,6 +117,8 @@ local function cached_option(setting_id)
 
 	return option_values[setting_id]
 end
+
+mod.cached_option = cached_option
 
 local cached_group_widgets
 local cached_group_widgets_for
@@ -164,12 +175,18 @@ local function hovered_group_tooltip(self)
 		if hotspot and hotspot.is_hover and entry and not entry.tooltip_text then
 			local tooltip = nil
 
+			if entry._alfs_tooltip_for ~= category_mod then
+				entry._alfs_tooltip_for = category_mod
+				entry._alfs_tooltip_display_key = entry.display_name and (category_mod .. "|" .. entry.display_name) or nil
+				entry._alfs_tooltip_setting_key = entry.setting_id and (category_mod .. "|" .. entry.setting_id) or nil
+			end
+
 			if entry.display_name then
-				tooltip = lookup and lookup[category_mod .. "|" .. entry.display_name]
+				tooltip = lookup and lookup[entry._alfs_tooltip_display_key]
 			end
 
 			if not tooltip and entry.setting_id then
-				tooltip = lookup and lookup[category_mod .. "|" .. entry.setting_id]
+				tooltip = lookup and lookup[entry._alfs_tooltip_setting_key]
 			end
 
 			if tooltip then
@@ -237,9 +254,7 @@ local orig_settings_grid_mask = nil
 local orig_settings_grid_interaction = nil
 local orig_settings_header = nil
 
-mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, context, dynamic_package_name)
-	func(self, definitions, settings, context, dynamic_package_name)
-
+mod:hook_safe(CLASS.BaseView, "init", function(self, definitions, settings, context, dynamic_package_name)
 	mod._install_character_hooks()
 
 	if self.view_name ~= "dmf_options_view" then
@@ -384,10 +399,10 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 				display_name = "loc_alf_dmf_ext_reset_tab",
 				on_pressed_callback = "cb_reset_tab_to_default",
 				visibility_function = function(parent)
-					if not mod:get("enable_tab_reset") then
+					if not mod.cached_option("enable_tab_reset") then
 						return false
 					end
-					if not mod:get("enable_mod_tabs") then
+					if not mod.cached_option("enable_mod_tabs") then
 						return false
 					end
 					if self.is_text_input_focused then

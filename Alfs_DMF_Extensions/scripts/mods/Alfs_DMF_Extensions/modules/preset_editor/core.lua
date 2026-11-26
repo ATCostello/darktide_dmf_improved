@@ -66,15 +66,15 @@ local function values_equal(a, b, depth)
 	return true
 end
 
-local function current_setting_value(target_mod, setting_id)
+local function current_setting_value(target_mod, setting_id, dmf, mod_name)
 	if not target_mod then
 		return nil
 	end
 
-	local dmf = Utils.get_dmf()
+	dmf = dmf or Utils.get_dmf()
 
-	if dmf and type(dmf._get_setting_value) == "function" and type(target_mod.get_name) == "function" then
-		local mod_name = target_mod:get_name()
+	if dmf and type(dmf._get_setting_value) == "function" then
+		mod_name = mod_name or (type(target_mod.get_name) == "function" and target_mod:get_name() or nil)
 
 		if mod_name then
 			return dmf._get_setting_value(mod_name, setting_id)
@@ -84,8 +84,8 @@ local function current_setting_value(target_mod, setting_id)
 	return target_mod:get(setting_id)
 end
 
-local function setting_needs_update(target_mod, setting_id, value)
-	return not values_equal(current_setting_value(target_mod, setting_id), value, 0)
+local function setting_needs_update(target_mod, setting_id, value, dmf, mod_name)
+	return not values_equal(current_setting_value(target_mod, setting_id, dmf, mod_name), value, 0)
 end
 
 local BULK_GUARD_MOD = "Enhanced_descriptions"
@@ -775,6 +775,7 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 
 	local bulk_mod = begin_bulk_apply()
 	local bulk_needs_reload = false
+	local dmf = Utils.get_dmf()
 
 	if bulk_mod and mod_name == BULK_GUARD_MOD then
 		apply_bulk_color_preset(bulk_mod, settings.color_preset)
@@ -784,7 +785,7 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 		if
 			not is_excluded_setting(mod_name, setting_id)
 			and value ~= nil
-			and setting_needs_update(target_mod, setting_id, value)
+			and setting_needs_update(target_mod, setting_id, value, dmf, mod_name)
 		then
 			target_mod:set(setting_id, value, true)
 			Core.apply_change_count = Core.apply_change_count + 1
@@ -819,6 +820,7 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 
 	local bulk_mod = begin_bulk_apply()
 	local bulk_needs_reload = false
+	local dmf = Utils.get_dmf()
 
 	if bulk_mod then
 		for mod_name, settings in pairs(mods) do
@@ -837,7 +839,7 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 				if
 					not is_excluded_setting(resolved_name, setting_id)
 					and value ~= nil
-					and setting_needs_update(target_mod, setting_id, value)
+					and setting_needs_update(target_mod, setting_id, value, dmf, resolved_name)
 				then
 					target_mod:set(setting_id, value, true)
 					Core.apply_change_count = Core.apply_change_count + 1

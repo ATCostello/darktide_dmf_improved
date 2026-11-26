@@ -46,6 +46,19 @@ local CONTENT_STYLE_MAP = {
 	{ content_key = "value_text", style_key = "text" },
 }
 
+local option_keys = {}
+
+local function get_option_key(index)
+	local key = option_keys[index]
+
+	if not key then
+		key = "option_text_" .. index
+		option_keys[index] = key
+	end
+
+	return key
+end
+
 mod._addFontSupport = function(self, dt, t, input_service)
 	local category = mod.current_category
 	if not category then
@@ -59,42 +72,63 @@ mod._addFontSupport = function(self, dt, t, input_service)
 
 	for i = 1, #widgets do
 		local row = widgets[i]
-		local widget = row.widget
-		if not widget then
-			return
-		end
+		local widget = row and row.widget
 
-		local content = widget.content
-		local style = widget.style
-		local widget_type = widget.type
+		if widget then
+			local content = widget.content
+			local style = widget.style
 
-		for _, mapping in ipairs(CONTENT_STYLE_MAP) do
-			local text = content[mapping.content_key]
-			if text and type(text) == "string" then
-				local font_name = extractFontName(text)
-				if font_name then
-					local text_style = style[mapping.style_key]
-					if text_style then
-						applyFontToStyle(text_style, font_name)
-						content[mapping.content_key] = stripFontTag(text)
+			if content and style then
+				local text_cache = content._alfs_font_text_cache or {}
+				local content_style_count = #CONTENT_STYLE_MAP
+
+				content._alfs_font_text_cache = text_cache
+
+				for mapping_index = 1, content_style_count do
+					local mapping = CONTENT_STYLE_MAP[mapping_index]
+					local text = content[mapping.content_key]
+
+					if type(text) == "string" and text_cache[mapping_index] ~= text then
+						local font_name = extractFontName(text)
+
+						if font_name then
+							local text_style = style[mapping.style_key]
+
+							if text_style then
+								applyFontToStyle(text_style, font_name)
+								text = stripFontTag(text)
+								content[mapping.content_key] = text
+							end
+						end
+
+						text_cache[mapping_index] = text
 					end
 				end
-			end
-		end
 
-		if widget_type == "dropdown" then
-			local num_visible = content.num_visible_options or 1
-			for idx = 1, num_visible do
-				local content_key = "option_text_" .. idx
-				local style_key = "option_text_" .. idx
-				local text = content[content_key]
-				if text and type(text) == "string" then
-					local font_name = extractFontName(text)
-					if font_name then
-						local text_style = style[style_key]
-						if text_style then
-							applyFontToStyle(text_style, font_name)
-							content[content_key] = stripFontTag(text)
+				if widget.type == "dropdown" then
+					local num_visible = content.num_visible_options or 1
+					local dropdown_cache = content._alfs_font_dropdown_cache or {}
+
+					content._alfs_font_dropdown_cache = dropdown_cache
+
+					for idx = 1, num_visible do
+						local key = get_option_key(idx)
+						local text = content[key]
+
+						if type(text) == "string" and dropdown_cache[idx] ~= text then
+							local font_name = extractFontName(text)
+
+							if font_name then
+								local text_style = style[key]
+
+								if text_style then
+									applyFontToStyle(text_style, font_name)
+									text = stripFontTag(text)
+									content[key] = text
+								end
+							end
+
+							dropdown_cache[idx] = text
 						end
 					end
 				end

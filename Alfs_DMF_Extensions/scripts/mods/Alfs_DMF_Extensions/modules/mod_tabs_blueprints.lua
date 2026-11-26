@@ -13,6 +13,9 @@ local grid_width = grid_size[1]
 local settings_grid_width = 1000
 local settings_value_height = 48
 
+local FRAME_DISABLED = { 255, 100, 100, 100 }
+local FRAME_DISABLED_HIDDEN = { 0, 100, 100, 100 }
+
 local COLORS = {
 	normal = Color.terminal_text_header(nil, true),
 	disabled = { 255, 150, 150, 150 },
@@ -112,10 +115,13 @@ local blueprints = {
 				change_function = function(content, style)
 					local hotspot = content.hotspot
 
-					if hotspot.disabled then
-						style.color = table.clone(COLORS.frame_disabled)
-						style.color[1] = 0
+					if not hotspot or hotspot.disabled then
+						style.color = FRAME_DISABLED_HIDDEN
 						return
+					end
+
+					if style.color == FRAME_DISABLED_HIDDEN then
+						style.color = table.clone(COLORS.frame)
 					end
 
 					local progress = math.max(hotspot.anim_hover_progress or 0, hotspot.anim_select_progress or 0)
@@ -265,8 +271,8 @@ local blueprints = {
 					local selected = mod_reference
 						and mod_reference.selected_tabs[content.selected_tab_key] == content.tab_name
 
-					if hotspot.disabled then
-						style.color = table.clone(COLORS.frame_disabled)
+					if not hotspot or hotspot.disabled then
+						style.color = FRAME_DISABLED
 						return
 					end
 

@@ -402,7 +402,16 @@ mod._updateRGBSliders = function(self, input_service, dt, t)
 end
 
 mod.current_rgb_mode = function()
-	return mod:get("enable_RGB_widget") or "disabled"
+	local cached_option = mod.cached_option
+	local mode
+
+	if cached_option then
+		mode = cached_option("enable_RGB_widget")
+	else
+		mode = mod:get("enable_RGB_widget")
+	end
+
+	return mode or "disabled"
 end
 
 mod.sync_rgb_mode = function(self)

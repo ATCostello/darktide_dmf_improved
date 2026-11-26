@@ -38,25 +38,34 @@ local tostring = tostring
 local type = type
 
 local function safe_input_get(input_service, action_name, default)
-	if not input_service then
+	if not input_service or type(input_service.get) ~= "function" then
 		return default
 	end
-	local has_method = input_service.has
-	if has_method and not has_method(input_service, action_name) then
+
+	if type(input_service.has) == "function" and not input_service:has(action_name) then
 		return default
 	end
-	local ok, result = pcall(input_service.get, input_service, action_name)
 
-	if not ok then
-		mod:error("input service error: " .. action_name)
+	local result = input_service:get(action_name)
+
+	if result == nil then
+		return default
 	end
 
-	return ok and result or default
+	return result
 end
+
+local format_string_cache = {}
 
 local function format_value(value, decimals)
 	if decimals and decimals > 0 then
-		local fmt = "%." .. tostring(decimals) .. "f"
+		local fmt = format_string_cache[decimals]
+
+		if not fmt then
+			fmt = "%." .. tostring(decimals) .. "f"
+			format_string_cache[decimals] = fmt
+		end
+
 		local formatted = string.format(fmt, value)
 		formatted = formatted:gsub("0+$", ""):gsub("%.$", "")
 		return formatted
@@ -76,6 +85,21 @@ local function entry_range(entry)
 	local lo = entry_min(entry)
 	local hi = entry_max(entry)
 	return hi - lo
+end
+
+local function snap_to_step(raw_val, entry, decimals)
+	local step = entry and entry.step_size
+
+	if step then
+		return math_round(raw_val / step) * step
+	end
+
+	if decimals and decimals > 0 then
+		local multiplier = 10 ^ decimals
+		return math_round(raw_val * multiplier) / multiplier
+	end
+
+	return math_floor(raw_val + 0.5)
 end
 
 local sliders_cached = {
@@ -117,6 +141,22 @@ local sliders_cached = {
 	},
 }
 
+for name, slider in pairs(sliders_cached) do
+	slider.min = name .. "_min"
+	slider.max = name .. "_max"
+	slider.decimals = name .. "_decimals"
+	slider.editing = name .. "_editing"
+	slider.buffer = name .. "_edit_buffer"
+	slider.prev_value_text = name .. "_prev_value_text"
+	slider.entry = name .. "_entry"
+	slider.value_hotspot = name .. "_value_hotspot"
+	slider.label_hotspot = name .. "_label_hotspot"
+	slider.bar_hotspot = name .. "_bar_hotspot"
+	slider.bg = name .. "_bg"
+	slider.fill = name .. "_fill"
+	slider.fill_widget = "_" .. name .. "_fill"
+end
+
 local function get_value(entry)
 	if not entry or not entry.get_function then
 		return entry_max(entry)
@@ -148,24 +188,27 @@ end
 local function update_slider_visuals(widget, name, value, bar_width)
 	local content = widget.content
 	local slider = sliders_cached[name]
-	local lo = content[name .. "_min"] or 0
-	local hi = content[name .. "_max"] or 255
+	local lo = content[slider.min] or 0
+	local hi = content[slider.max] or 255
 	local range = hi - lo
-	local decimals = content[name .. "_decimals"] or 0
+	local decimals = content[slider.decimals] or 0
 
 	if content[slider.value] ~= value then
 		content[slider.value] = value
-		if not content[name .. "_editing"] then
+
+		if not content[slider.editing] then
 			content[slider.value_text] = format_value(value, decimals)
 		end
 	end
 
 	local fraction = range > 0 and ((value - lo) / range) or 0
-	widget["_" .. name .. "_fill"].size[1] = math_clamp(fraction, 0, 1) * bar_width
+	widget[slider.fill_widget].size[1] = math_clamp(fraction, 0, 1) * bar_width
 end
 
+local cursor_scratch = { 0, 0 }
+
 local function cursor_to_ui_space(input_service, parent)
-	if not input_service then
+	if not input_service or type(input_service.get) ~= "function" then
 		return nil
 	end
 
@@ -176,7 +219,9 @@ local function cursor_to_ui_space(input_service, parent)
 	end
 
 	if IS_XBS or IS_PLAYSTATION then
-		return { cursor[1], cursor[2] }
+		cursor_scratch[1] = cursor[1]
+		cursor_scratch[2] = cursor[2]
+		return cursor_scratch
 	end
 
 	local render_scale = parent and parent._render_scale or 1
@@ -184,14 +229,18 @@ local function cursor_to_ui_space(input_service, parent)
 	return UIResolution.inverse_scale_vector(cursor, 1 / render_scale)
 end
 
-local function get_bar_ui_x(parent, widget, slider_name)
+local function get_bar_ui_x(parent, widget, slider)
 	local pivot_pos = parent and parent:_scenegraph_world_position("settings_grid_content_pivot")
 
 	if not pivot_pos then
 		return nil
 	end
 
-	local bg_style = widget.style[slider_name .. "_bg"]
+	local bg_style = widget.style[slider.bg]
+
+	if not bg_style then
+		return nil
+	end
 
 	return pivot_pos[1] + (widget.offset and widget.offset[1] or 0) + bg_style.offset[1]
 end
@@ -209,14 +258,14 @@ local function slider_input(
 )
 	local slider = sliders_cached[slider_name]
 
-	if content[slider_name .. "_editing"] then
+	if content[slider.editing] then
 		return
 	end
 
 	local hotspot = content[slider.hotspot]
-	local value_hotspot = content[slider_name .. "_value_hotspot"]
-	local label_hotspot = content[slider_name .. "_label_hotspot"]
-	local bar_hotspot = content[slider_name .. "_bar_hotspot"]
+	local value_hotspot = content[slider.value_hotspot]
+	local label_hotspot = content[slider.label_hotspot]
+	local bar_hotspot = content[slider.bar_hotspot]
 
 	if not hotspot or not cursor_ui then
 		return
@@ -233,22 +282,10 @@ local function slider_input(
 	end
 
 	local dragging = content[slider.dragging]
-	local lo = content[slider_name .. "_min"] or 0
-	local hi = content[slider_name .. "_max"] or 255
+	local lo = content[slider.min] or 0
+	local hi = content[slider.max] or 255
 	local range = hi - lo
-	local decimals = content[slider_name .. "_decimals"] or 0
-
-	local function snap_to_step(raw_val)
-		local step = entry and entry.step_size
-		if step then
-			return math_round(raw_val / step) * step
-		end
-		if decimals and decimals > 0 then
-			local multiplier = 10 ^ decimals
-			return math_round(raw_val * multiplier) / multiplier
-		end
-		return math_floor(raw_val + 0.5)
-	end
+	local decimals = content[slider.decimals] or 0
 
 	if inside and not dragging then
 		local fresh_press = not content._prev_left_hold and left_hold
@@ -257,7 +294,7 @@ local function slider_input(
 			content[slider.dragging] = true
 			dragging = true
 
-			local bar_ui_x = get_bar_ui_x(parent, widget, slider_name)
+			local bar_ui_x = get_bar_ui_x(parent, widget, slider)
 
 			content[slider.start_x] = cursor_ui[1]
 			content[slider.start_value] = get_value(entry)
@@ -265,7 +302,7 @@ local function slider_input(
 			if bar_ui_x then
 				local bar_cursor_x = cursor_ui[1] - bar_ui_x
 				local raw = lo + (bar_cursor_x / bar_width) * range
-				local click_value = math_clamp(snap_to_step(raw), lo, hi)
+				local click_value = math_clamp(snap_to_step(raw, entry, decimals), lo, hi)
 
 				content[slider.start_value] = click_value
 				set_value(entry, click_value)
@@ -291,19 +328,19 @@ local function slider_input(
 
 		local bar_cursor_x = cursor_ui[1] - content[slider.start_x]
 		local raw = content[slider.start_value] + (bar_cursor_x / bar_width) * range
-		local value = math_clamp(snap_to_step(raw), lo, hi)
+		local value = math_clamp(snap_to_step(raw, entry, decimals), lo, hi)
 
 		if content[slider.value] ~= value then
 			content[slider.value] = value
 			set_value(entry, value)
 
-			if not content[slider_name .. "_editing"] then
+			if not content[slider.editing] then
 				content[slider.value_text] = format_value(value, decimals)
 			end
 		end
 
 		local fraction = range > 0 and ((value - lo) / range) or 0
-		widget["_" .. slider_name .. "_fill"].size[1] = math_clamp(fraction, 0, 1) * bar_width
+		widget[slider.fill_widget].size[1] = math_clamp(fraction, 0, 1) * bar_width
 	end
 end
 
@@ -317,17 +354,18 @@ local function stop_editing(content, slider_name)
 		return
 	end
 
-	local entry = content[slider_name .. "_entry"]
-	local decimals = content[slider_name .. "_decimals"] or 0
+	local slider = sliders_cached[slider_name]
+	local entry = content[slider.entry]
+	local decimals = content[slider.decimals] or 0
 
-	content[slider_name .. "_editing"] = false
+	content[slider.editing] = false
 
 	local new_value = entry and format_value(get_value(entry), decimals)
 	if not new_value or new_value == "" then
-		new_value = content[slider_name .. "_prev_value_text"]
+		new_value = content[slider.prev_value_text]
 	end
 
-	content[slider_name .. "_value_text"] = new_value
+	content[slider.value_text] = new_value
 	content._last_input_time = nil
 	_editing_context = nil
 end
@@ -335,33 +373,36 @@ end
 local function start_editing(content, slider_name)
 	if _editing_context and _editing_context.content ~= content then
 		local prev = _editing_context
-		local prev_entry = prev.content[prev.slider_name .. "_entry"]
+		local prev_slider = sliders_cached[prev.slider_name]
 
-		prev.content[prev.slider_name .. "_editing"] = false
-		prev.content[prev.slider_name .. "_value_text"] = "" --prev_entry and tostring(get_value(prev_entry)) or "0"
+		prev.content[prev_slider.editing] = false
+		prev.content[prev_slider.value_text] = "" --prev_entry and tostring(get_value(prev_entry)) or "0"
 	end
 
-	content[slider_name .. "_editing"] = true
+	local slider = sliders_cached[slider_name]
 
-	local entry = content[slider_name .. "_entry"]
+	content[slider.editing] = true
+
+	local entry = content[slider.entry]
 	local current = "" --entry and tostring(get_value(entry)) or "0"
 
-	content[slider_name .. "_edit_buffer"] = current
-	content[slider_name .. "_value_text"] = current
-	local decimals = content[slider_name .. "_decimals"] or 0
-	content[slider_name .. "_prev_value_text"] = entry and format_value(get_value(entry), decimals) or "0"
+	content[slider.buffer] = current
+	content[slider.value_text] = current
+	local decimals = content[slider.decimals] or 0
+	content[slider.prev_value_text] = entry and format_value(get_value(entry), decimals) or "0"
 
 	_editing_context = { content = content, slider_name = slider_name }
 end
 
 local function confirm_value(content, slider_name, buffer)
-	local entry = content[slider_name .. "_entry"]
+	local slider = sliders_cached[slider_name]
+	local entry = content[slider.entry]
 	local value = tonumber(buffer)
 
 	if value then
-		local lo = content[slider_name .. "_min"] or 0
-		local hi = content[slider_name .. "_max"] or 255
-		local decimals = content[slider_name .. "_decimals"] or 0
+		local lo = content[slider.min] or 0
+		local hi = content[slider.max] or 255
+		local decimals = content[slider.decimals] or 0
 		if decimals and decimals > 0 then
 			local multiplier = 10 ^ decimals
 			value = math_clamp(math_round(value * multiplier) / multiplier, lo, hi)
@@ -375,10 +416,11 @@ local function confirm_value(content, slider_name, buffer)
 end
 
 local function value_text_input(parent, widget, content, input_service, slider_name, entry, bar_width, keystrokes, t)
-	local editing_key = slider_name .. "_editing"
-	local buffer_key = slider_name .. "_edit_buffer"
-	local text_key = slider_name .. "_value_text"
-	local hotspot = content[slider_name .. "_value_hotspot"]
+	local slider = sliders_cached[slider_name]
+	local editing_key = slider.editing
+	local buffer_key = slider.buffer
+	local text_key = slider.value_text
+	local hotspot = content[slider.value_hotspot]
 
 	if not hotspot then
 		return
@@ -395,8 +437,7 @@ local function value_text_input(parent, widget, content, input_service, slider_n
 	local buffer = content[buffer_key] or ""
 	local changed = false
 
-	local abs_max =
-		math.max(math.abs(content[slider_name .. "_min"] or 0), math.abs(content[slider_name .. "_max"] or 255))
+	local abs_max = math.max(math.abs(content[slider.min] or 0), math.abs(content[slider.max] or 255))
 	local int_digits = #tostring(math.floor(abs_max))
 	local max_digits = int_digits + 3
 	local allow_decimal = true
@@ -456,7 +497,9 @@ local function slider_gamepad_input(
 	slider_index,
 	num_sliders
 )
-	if content[slider_name .. "_editing"] then
+	local slider = sliders_cached[slider_name]
+
+	if content[slider.editing] then
 		return
 	end
 
@@ -473,31 +516,31 @@ local function slider_gamepad_input(
 	local left = safe_input_get(input_service, "navigate_left_continuous_fast")
 	local right = safe_input_get(input_service, "navigate_right_continuous_fast")
 	local current = get_value(entry)
-	local lo = content[slider_name .. "_min"] or 0
-	local hi = content[slider_name .. "_max"] or 255
+	local lo = content[slider.min] or 0
+	local hi = content[slider.max] or 255
 	local range = hi - lo
 
-	local decimals = content[slider_name .. "_decimals"] or 0
+	local decimals = content[slider.decimals] or 0
 
 	if left then
 		local new_value = math_clamp(current - 1, lo, hi)
 
 		if new_value ~= current then
 			set_value(entry, new_value)
-			content[sliders_cached[slider_name].value] = new_value
-			content[sliders_cached[slider_name].value_text] = format_value(new_value, decimals)
+			content[slider.value] = new_value
+			content[slider.value_text] = format_value(new_value, decimals)
 			local fraction = range > 0 and ((new_value - lo) / range) or 0
-			widget["_" .. slider_name .. "_fill"].size[1] = math_clamp(fraction, 0, 1) * bar_width
+			widget[slider.fill_widget].size[1] = math_clamp(fraction, 0, 1) * bar_width
 		end
 	elseif right then
 		local new_value = math_clamp(current + 1, lo, hi)
 
 		if new_value ~= current then
 			set_value(entry, new_value)
-			content[sliders_cached[slider_name].value] = new_value
-			content[sliders_cached[slider_name].value_text] = format_value(new_value, decimals)
+			content[slider.value] = new_value
+			content[slider.value_text] = format_value(new_value, decimals)
 			local fraction = range > 0 and ((new_value - lo) / range) or 0
-			widget["_" .. slider_name .. "_fill"].size[1] = math_clamp(fraction, 0, 1) * bar_width
+			widget[slider.fill_widget].size[1] = math_clamp(fraction, 0, 1) * bar_width
 		end
 	end
 end
@@ -736,14 +779,16 @@ local function build_blueprint(has_alpha)
 	}
 
 	local function cache_fills(widget, style)
-		for _, config in ipairs(slider_configs) do
-			widget["_" .. config.name .. "_fill"] = style[config.name .. "_fill"]
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			widget[sliders_cached[config.name].fill_widget] = style[sliders_cached[config.name].fill]
 		end
 		widget._preview_color = style.preview_style.color
 	end
 
 	local function handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
-		for _, config in ipairs(slider_configs) do
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
 			slider_input(
 				parent,
 				widget,
@@ -752,21 +797,22 @@ local function build_blueprint(has_alpha)
 				left_hold,
 				confirm_pressed,
 				config.name,
-				content[config.name .. "_entry"],
+				content[sliders_cached[config.name].entry],
 				bar_width
 			)
 		end
 	end
 
 	local function handle_text_inputs(parent, widget, content, input_service, dt, t)
-		for _, config in ipairs(slider_configs) do
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
 			value_text_input(
 				parent,
 				widget,
 				content,
 				input_service,
 				config.name,
-				content[config.name .. "_entry"],
+				content[sliders_cached[config.name].entry],
 				bar_width,
 				nil,
 				t
@@ -775,8 +821,9 @@ local function build_blueprint(has_alpha)
 
 		local any_editing = false
 
-		for _, config in ipairs(slider_configs) do
-			if content[config.name .. "_editing"] then
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			if content[sliders_cached[config.name].editing] then
 				any_editing = true
 				break
 			end
@@ -785,15 +832,16 @@ local function build_blueprint(has_alpha)
 		if any_editing then
 			local keystrokes = Keyboard.keystrokes()
 
-			for _, config in ipairs(slider_configs) do
-				if content[config.name .. "_editing"] then
+			for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+				if content[sliders_cached[config.name].editing] then
 					value_text_input(
 						parent,
 						widget,
 						content,
 						input_service,
 						config.name,
-						content[config.name .. "_entry"],
+						content[sliders_cached[config.name].entry],
 						bar_width,
 						keystrokes,
 						t
@@ -813,7 +861,7 @@ local function build_blueprint(has_alpha)
 				content,
 				input_service,
 				config.name,
-				content[config.name .. "_entry"],
+				content[sliders_cached[config.name].entry],
 				bar_width,
 				i - 1,
 				num_sliders
@@ -828,15 +876,16 @@ local function build_blueprint(has_alpha)
 		cache_fills(widget, style)
 		content.hotspot = {}
 
-		for _, config in ipairs(slider_configs) do
-			local ch_entry = content[config.name .. "_entry"]
-			content[config.name .. "_min"] = entry_min(ch_entry)
-			content[config.name .. "_max"] = entry_max(ch_entry)
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			local ch_entry = content[sliders_cached[config.name].entry]
+			content[sliders_cached[config.name].min] = entry_min(ch_entry)
+			content[sliders_cached[config.name].max] = entry_max(ch_entry)
 			local entry_decimals = ch_entry and ch_entry.num_decimals
 			if entry_decimals ~= nil and entry_decimals > 0 then
-				content[config.name .. "_decimals"] = entry_decimals
+				content[sliders_cached[config.name].decimals] = entry_decimals
 			elseif ch_entry and ch_entry.step_size and ch_entry.step_size < 1 then
-				content[config.name .. "_decimals"] = 2
+				content[sliders_cached[config.name].decimals] = 2
 			elseif
 				ch_entry
 				and (
@@ -844,16 +893,17 @@ local function build_blueprint(has_alpha)
 					or ch_entry.max_value ~= math.floor(ch_entry.max_value)
 				)
 			then
-				content[config.name .. "_decimals"] = 2
+				content[sliders_cached[config.name].decimals] = 2
 			else
-				content[config.name .. "_decimals"] = 0
+				content[sliders_cached[config.name].decimals] = 0
 			end
 		end
 
 		local preview_color = widget._preview_color
 
-		for _, config in ipairs(slider_configs) do
-			local ch_entry = content[config.name .. "_entry"]
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			local ch_entry = content[sliders_cached[config.name].entry]
 			local value = get_value(ch_entry)
 			local lo = entry_min(ch_entry)
 			local hi = entry_max(ch_entry)
@@ -878,37 +928,55 @@ local function build_blueprint(has_alpha)
 		end
 	end
 
-	local function is_dropdown_open(parent)
-		if parent and parent._settings_content_widgets then
-			for i = 1, #parent._settings_content_widgets do
-				local w = parent._settings_content_widgets[i]
+	local function is_dropdown_open(parent, t)
+		if not parent then
+			return false
+		end
+
+		if t ~= nil and parent._alfs_dropdown_open_t == t then
+			return parent._alfs_dropdown_open or false
+		end
+
+		local open = false
+		local widgets = parent._settings_content_widgets
+
+		if widgets then
+			for i = 1, #widgets do
+				local w = widgets[i]
+
 				if w and w.type == "dropdown" and w.content then
 					if w.content.exclusive_focus and w.content.selected_index then
-						return true
+						open = true
+						break
 					end
 				end
 			end
 		end
-		return false
+
+		if t ~= nil then
+			parent._alfs_dropdown_open_t = t
+			parent._alfs_dropdown_open = open
+		end
+
+		return open
 	end
 
 	local update_fn = function(parent, widget, input_service, dt, t)
 		local content = widget.content
 
+		local using_gamepad = false
+
+		if parent and type(parent.using_cursor_navigation) == "function" then
+			using_gamepad = not parent:using_cursor_navigation()
+		end
+
 		local cursor_ui = cursor_to_ui_space(input_service, parent)
-		local dropdown_open = is_dropdown_open(parent)
+		local dropdown_open = is_dropdown_open(parent, t)
 
 		local dropdown_just_closed = content._prev_dropdown_open and not dropdown_open
 		content._prev_dropdown_open = dropdown_open
 
 		if not cursor_ui then
-			local ok_gamepad, cursor_result = pcall(parent.using_cursor_navigation, parent)
-			local using_gamepad = ok_gamepad and not cursor_result or false
-
-			if not ok_gamepad then
-				mod:error("input service error")
-			end
-
 			if using_gamepad and not dropdown_open and not dropdown_just_closed then
 				handle_gamepad_inputs(parent, widget, content, input_service)
 			end
@@ -956,12 +1024,14 @@ local function build_blueprint(has_alpha)
 		content._prev_left_hold = left_hold
 
 		if not dropdown_open and not dropdown_just_closed then
-			for _, config in ipairs(slider_configs) do
-				if content[config.name .. "_editing"] then
-					local value_hotspot = content[config.name .. "_value_hotspot"]
+			for config_index = 1, #slider_configs do
+				local config = slider_configs[config_index]
+
+				if content[sliders_cached[config.name].editing] then
+					local value_hotspot = content[sliders_cached[config.name].value_hotspot]
 
 					if left_hold and not prev_left_hold and not (value_hotspot and value_hotspot.is_hover) then
-						local buffer = content[config.name .. "_edit_buffer"]
+						local buffer = content[sliders_cached[config.name].buffer]
 						confirm_value(content, config.name, buffer)
 						stop_editing(content, config.name)
 					end
@@ -971,19 +1041,12 @@ local function build_blueprint(has_alpha)
 					end
 
 					if t - content._last_input_time > 5 then
-						local buffer = content[config.name .. "_edit_buffer"]
+						local buffer = content[sliders_cached[config.name].buffer]
 						confirm_value(content, config.name, buffer)
 						stop_editing(content, config.name)
 					end
 				end
 			end
-		end
-
-		local ok_cursor, cursor_result = pcall(parent.using_cursor_navigation, parent)
-		local using_gamepad = ok_cursor and not cursor_result or false
-
-		if not ok_cursor then
-			mod:error("input service error")
 		end
 
 		if using_gamepad and not dropdown_open and not dropdown_just_closed then
@@ -993,8 +1056,9 @@ local function build_blueprint(has_alpha)
 		local hovered_slider = nil
 		local any_hover = false
 
-		for _, config in ipairs(slider_configs) do
-			local label_hotspot = content[config.name .. "_label_hotspot"]
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			local label_hotspot = content[sliders_cached[config.name].label_hotspot]
 
 			if label_hotspot and label_hotspot.is_hover then
 				hovered_slider = config.name
@@ -1006,7 +1070,8 @@ local function build_blueprint(has_alpha)
 		content.hotspot.is_hover = any_hover
 
 		if any_hover and hovered_slider then
-			local entry = content[hovered_slider .. "_entry"]
+			local hovered_cached = sliders_cached[hovered_slider]
+			local entry = hovered_cached and content[hovered_cached.entry]
 
 			if entry and (entry.tooltip_text or entry.disabled_by) then
 				local tooltip = parent._widgets_by_name and parent._widgets_by_name.tooltip
@@ -1018,10 +1083,21 @@ local function build_blueprint(has_alpha)
 					local text_style = tooltip.style.text
 					local pivot_pos = parent:_scenegraph_world_position("settings_grid_content_pivot")
 					local tooltip_width = (widget.content.size and widget.content.size[1] or settings_grid_width) * 0.5
-					local _, text_height = parent:_text_size(entry.tooltip_text or "", text_style, { tooltip_width, 0 })
+					local text_size_scratch = widget._alfs_rgb_text_size or { 0, 0 }
+					local tooltip_size = widget._alfs_rgb_tooltip_size or { 0, 0 }
+
+					widget._alfs_rgb_text_size = text_size_scratch
+					widget._alfs_rgb_tooltip_size = tooltip_size
+
+					text_size_scratch[1] = tooltip_width
+					text_size_scratch[2] = 0
+
+					local _, text_height = parent:_text_size(entry.tooltip_text or "", text_style, text_size_scratch)
 					local height = text_height
 
-					tooltip.content.size = { tooltip_width, height }
+					tooltip_size[1] = tooltip_width
+					tooltip_size[2] = height
+					tooltip.content.size = tooltip_size
 
 					local left_edge_x = pivot_pos and pivot_pos[1] + (widget.offset and widget.offset[1] or 0) or 0
 					tooltip.offset[1] = left_edge_x - tooltip_width - 10
@@ -1031,13 +1107,20 @@ local function build_blueprint(has_alpha)
 						- 10
 				end
 
-				parent._tooltip_data = {
-					widget = widget,
-					text = entry.tooltip_text or "",
-				}
+				local tooltip_data = widget._alfs_rgb_tooltip_data or { widget = nil, text = nil }
+
+				widget._alfs_rgb_tooltip_data = tooltip_data
+				tooltip_data.widget = widget
+				tooltip_data.text = entry.tooltip_text or ""
+				parent._tooltip_data = tooltip_data
 			end
 		elseif parent._tooltip_data and parent._tooltip_data.widget == widget then
-			parent._tooltip_data = {}
+			local tooltip_data = widget._alfs_rgb_tooltip_data or { widget = nil, text = nil }
+
+			widget._alfs_rgb_tooltip_data = tooltip_data
+			tooltip_data.widget = nil
+			tooltip_data.text = nil
+			parent._tooltip_data = tooltip_data
 
 			local tooltip = parent._widgets_by_name and parent._widgets_by_name.tooltip
 
@@ -1046,27 +1129,25 @@ local function build_blueprint(has_alpha)
 			end
 		end
 
-		for _, config in ipairs(slider_configs) do
+		local preview_color = widget._preview_color
+
+		for config_index = 1, #slider_configs do
+			local config = slider_configs[config_index]
+			local cached_slider = sliders_cached[config.name]
 			local value
 
-			if content[config.name .. "_dragging"] then
-				value = content[sliders_cached[config.name].value]
+			if content[cached_slider.dragging] then
+				value = content[cached_slider.value]
 			else
-				value = get_value(content[config.name .. "_entry"])
+				value = get_value(content[cached_slider.entry])
 			end
 
 			update_slider_visuals(widget, config.name, value, bar_width)
-		end
 
-		local preview_color = widget._preview_color
-
-		-- Normalize each channel to 0-255 for the preview color swatch
-		for _, config in ipairs(slider_configs) do
-			local ch_val = content[sliders_cached[config.name].value]
-			local lo = content[config.name .. "_min"] or 0
-			local hi = content[config.name .. "_max"] or 255
+			local lo = content[cached_slider.min] or 0
+			local hi = content[cached_slider.max] or 255
 			local range = hi - lo
-			local normalized = range > 0 and (((ch_val - lo) / range) * 255) or 0
+			local normalized = range > 0 and (((value - lo) / range) * 255) or 0
 
 			if config.name == "a" then
 				preview_color[1] = normalized

@@ -139,79 +139,69 @@ PACKAGE_REF = "AlfsDMFExtensions"
 local packages_ready = false
 local next_package_index = 1
 local ready_check_frames = 0
+local loaded_packages = {}
 
 local function _package_is_available(package_name)
 	local application = Application
 
-	if not application or not application.can_get_resource then
+	if
+		not application
+		or type(application.can_get_resource) ~= "function"
+		or type(package_name) ~= "string"
+	then
 		return false
 	end
 
-	local ok, exists = pcall(function()
-		return application.can_get_resource("package", package_name)
-	end)
-
-	if not ok then
-		mod:error("package not loaded: " .. package_name)
-	end
-
-	return ok and exists or false
+	return application.can_get_resource("package", package_name) or false
 end
 
 local function _package_is_loaded(package_name)
 	local managers = Managers
 	local package_manager = managers and managers.package
 
-	if not package_manager or not package_manager.has_loaded then
+	if
+		not package_manager
+		or type(package_manager.has_loaded) ~= "function"
+		or type(package_name) ~= "string"
+	then
 		return false
 	end
 
-	local ok, is_loaded = pcall(package_manager.has_loaded, package_manager, package_name)
-
-	if not ok then
-		mod:error("package not loaded: " .. package_name)
-	end
-
-	return ok and is_loaded or false
+	return package_manager:has_loaded(package_name) or false
 end
 
 local function _load_package_list(package_list, limit)
 	local managers = Managers
 	local package_manager = managers and managers.package
 
-	if not package_manager then
+	if not package_manager or type(package_manager.load) ~= "function" then
 		return
 	end
 
+	local package_count = #package_list
 	local processed = 0
-	local max = limit or #package_list
+	local max = limit or package_count
 
-	while next_package_index <= #package_list and processed < max do
+	while next_package_index <= package_count and processed < max do
 		local pkg = package_list[next_package_index]
 		next_package_index = next_package_index + 1
 		processed = processed + 1
 
-		if not mod._required_icon_packages[pkg] and _package_is_available(pkg) then
-			if _package_is_loaded(pkg) then
-				mod._required_icon_packages[pkg] = true
-			else
-				local ok = pcall(function()
-					package_manager:load(pkg, PACKAGE_REF, nil, true)
-				end)
-
-				if ok then
-					mod._required_icon_packages[pkg] = true
-				else
-					mod:error("package not loaded: " .. pkg)
-				end
+		if type(pkg) == "string" and not loaded_packages[pkg] and _package_is_available(pkg) then
+			if not _package_is_loaded(pkg) then
+				package_manager:load(pkg, PACKAGE_REF, nil, true)
 			end
+
+			loaded_packages[pkg] = true
 		end
 	end
 end
 
 local function _all_packages_loaded(package_list)
-	for _, pkg in ipairs(package_list) do
-		if _package_is_available(pkg) and not _package_is_loaded(pkg) then
+	for index = 1, #package_list do
+		local pkg = package_list[index]
+
+		if type(pkg) == "string" and _package_is_available(pkg) and not _package_is_loaded(pkg) then
 			return false
 		end
 	end
