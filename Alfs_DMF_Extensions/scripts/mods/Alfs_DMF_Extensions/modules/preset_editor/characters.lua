@@ -6,6 +6,12 @@ local ProfileUtils = require("scripts/utilities/profile_utils")
 local Utils = mod._preset_utils
 local Core = mod._preset_core
 
+local function connection_is_initialized()
+	local connection_manager = Managers and Managers.connection
+
+	return connection_manager ~= nil and type(connection_manager.is_initialized) == "function" and connection_manager:is_initialized() == true
+end
+
 local Characters = mod._preset_characters or {}
 mod._preset_characters = Characters
 
@@ -24,7 +30,15 @@ local auto_apply_state = {
 Characters.get_local_player = function()
 	local player_manager = Managers and Managers.player
 
-	if not player_manager or type(player_manager.local_player) ~= "function" then
+	if not player_manager then
+		return nil
+	end
+
+	if type(player_manager.local_player_safe) == "function" then
+		return player_manager:local_player_safe(1)
+	end
+
+	if not connection_is_initialized() or type(player_manager.local_player) ~= "function" then
 		return nil
 	end
 
@@ -54,7 +68,7 @@ Characters.get_current_character_id = function()
 
 	local player_manager = Managers and Managers.player
 
-	if player_manager and type(player_manager.local_player_backend_profile) == "function" then
+	if connection_is_initialized() and player_manager and type(player_manager.local_player_backend_profile) == "function" then
 		local profile = player_manager:local_player_backend_profile()
 
 		if type(profile) == "table" then
