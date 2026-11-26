@@ -23,6 +23,21 @@ local function init_hotspot_widget(parent, widget, element, callback_name)
 	content.tooltip_text = element and element.tooltip or ""
 end
 
+local character_glow_pass = Styles.glow_pass("glow", { 12, 12 }, Styles.COLORS.accent_edge)
+
+character_glow_pass.style.rest_color = Styles.copy_color(Styles.COLORS.accent_edge)
+character_glow_pass.style.hover_color = Styles.copy_color(Styles.COLORS.accent_edge)
+character_glow_pass.style.selected_color = Styles.copy_color(Styles.COLORS.accent_edge)
+character_glow_pass.visibility_function = function(content)
+	return Styles.hovered_or_selected(content)
+end
+character_glow_pass.change_function = function(content, style)
+	local selected = Styles.selected(content)
+
+	Styles.set_color(style.color, selected and style.selected_color or style.hover_color)
+	style.color[1] = selected and 110 or 70
+end
+
 local character_toggle_template = {
 	{
 		content_id = "hotspot",
@@ -36,31 +51,7 @@ local character_toggle_template = {
 			on_hover_sound = UISoundEvents.default_mouse_hover,
 		},
 	},
-	{
-		pass_type = "texture",
-		style_id = "glow",
-		value = Styles.materials.frame_glow,
-		style = {
-			horizontal_alignment = "center",
-			vertical_alignment = "center",
-			scale_to_material = true,
-			rest_color = Styles.copy_color(Styles.COLORS.accent_edge),
-			hover_color = Styles.copy_color(Styles.COLORS.accent_edge),
-			selected_color = Styles.copy_color(Styles.COLORS.accent_edge),
-			color = Styles.copy_color(Styles.COLORS.accent_edge),
-			size_addition = { 12, 12 },
-			offset = { 0, 0, 1 },
-		},
-		visibility_function = function(content)
-			return Styles.hovered_or_selected(content)
-		end,
-		change_function = function(content, style)
-			local selected = Styles.selected(content)
-
-			Styles.set_color(style.color, selected and style.selected_color or style.hover_color)
-			style.color[1] = selected and 110 or 70
-		end,
-	},
+	character_glow_pass,
 	{
 		pass_type = "texture",
 		style_id = "background",

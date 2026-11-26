@@ -494,7 +494,7 @@ local function divider_pass(material, vertical_alignment, height, offset_y)
 			horizontal_alignment = "center",
 			vertical_alignment = vertical_alignment,
 			scale_to_material = true,
-			size = { POPUP_BORDER_WIDTH + 75, height + 50 },
+			size = { POPUP_BORDER_WIDTH + 120, height + 70 },
 			size_addition = { 0, 0 },
 			offset = { 0, offset_y, 3 },
 		},
@@ -515,7 +515,7 @@ local widget_definitions = {
 			value = "content/ui/materials/backgrounds/terminal_basic",
 			style = popup_background_style,
 		},
-		divider_pass("content/ui/materials/frames/premium_store/details_upper", "top", 66, -82),
+		divider_pass("content/ui/materials/frames/premium_store/details_upper", "top", 66, -102),
 		divider_pass("content/ui/materials/frames/premium_store/details_lower_basic", "bottom", 82, 48),
 	}, "popup_background"),
 	popup_frame = UIWidget.create_definition(
@@ -577,11 +577,28 @@ local widget_definitions = {
 }
 
 for _, button in ipairs(bottom_buttons) do
-	widget_definitions[button.name] = UIWidget.create_definition(Styles.button_passes("center", 20), button.name, {
+	local passes = Styles.button_passes("center", 20)
+
+	if button.action == "save" then
+		local glow_pass = Styles.glow_pass("save_pulse", { 20, 20 }, Styles.COLORS.accent_edge)
+
+		glow_pass.visibility_function = function(content)
+			return content.pulse_save == true
+		end
+		glow_pass.change_function = function(content, style)
+			Styles.set_color(style.color, Styles.COLORS.accent_edge)
+			style.color[1] = math.floor(52 + (content.save_pulse_progress or 0) * 42)
+		end
+		table.insert(passes, 2, glow_pass)
+	end
+
+	widget_definitions[button.name] = UIWidget.create_definition(passes, button.name, {
 		text = mod:localize(button.text_key),
 		original_text = mod:localize(button.text_key),
 		tooltip_text = mod:localize(button.tooltip_key),
 		hotspot = {},
+		pulse_save = false,
+		save_pulse_progress = 0,
 	}, button.size)
 end
 

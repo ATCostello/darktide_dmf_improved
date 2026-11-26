@@ -221,6 +221,8 @@ PresetEditorPanelView.init = function(self, settings, context)
 	self._pending_scope = nil
 	self._open_anim_id = nil
 	self._close_anim_id = nil
+	self._has_presets = false
+	self._save_button_widget = self._widgets_by_name and self._widgets_by_name.bottom_save or nil
 
 	for _, button in ipairs(Definitions.bottom_buttons) do
 		local widget = self._widgets_by_name[button.name]
@@ -353,6 +355,7 @@ PresetEditorPanelView.update = function(self, dt, t, input_service)
 	end
 
 	self:_update_tooltip()
+	self:_update_save_pulse(t)
 
 	return pass_input, pass_draw
 end
@@ -387,6 +390,26 @@ PresetEditorPanelView._update_tooltip = function(self)
 	tooltip_element:set_tooltip(tooltip_text, 0, 0, tooltip_text ~= nil)
 end
 
+PresetEditorPanelView._update_save_pulse = function(self, t)
+	local widget = self._save_button_widget
+
+	if not widget or not widget.content then
+		return
+	end
+
+	local content = widget.content
+	local active = self._has_presets ~= true and not self._close_anim_id
+
+	content.pulse_save = active
+
+	if not active or type(t) ~= "number" then
+		content.save_pulse_progress = 0
+		return
+	end
+
+	content.save_pulse_progress = 0.5 + 0.5 * math.sin(t * 2)
+end
+
 PresetEditorPanelView.on_enter = function(self)
 	PresetEditorPanelView.super.on_enter(self)
 
@@ -413,6 +436,7 @@ PresetEditorPanelView.on_enter = function(self)
 	self._outside_click_ignore_frames = 2
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
+	self._has_presets = false
 
 	self:_rebuild()
 	self._open_anim_id = self:_start_animation("on_enter", self._widgets_by_name, self)
@@ -432,6 +456,8 @@ PresetEditorPanelView.on_exit = function(self)
 	self._list_grid = nil
 	self._actions_grid = nil
 	self._tooltip_element = nil
+	self._has_presets = false
+	self._save_button_widget = nil
 
 	if mod._preset_panel_restore_settings_state_bound_if_settings_closed then
 		mod._preset_panel_restore_settings_state_bound_if_settings_closed()
@@ -464,6 +490,9 @@ PresetEditorPanelView._rebuild = function(self)
 
 	local current_scope_key = panel_scope_key(self._scope)
 	local names = mod._preset_panel_get_names(self._scope)
+
+	self._has_presets = #names > 0
+
 	local selected_is_valid = false
 
 	if self._rebuilt_scope_key ~= current_scope_key then
@@ -648,7 +677,7 @@ PresetEditorPanelView._rebuild_actions = function(self)
 			text = mod:localize("preset_editor_delete"),
 			tooltip = mod:localize("preset_editor_delete_tooltip"),
 		}
-	else
+	elseif self._has_presets then
 		layout[#layout + 1] = {
 			widget_type = "info",
 			text = mod:localize("preset_editor_select_preset_hint"),

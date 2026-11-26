@@ -278,6 +278,8 @@ Styles.shadow_pass = function(style_id, size_addition, color)
 		value = Styles.materials.dropshadow,
 		style = {
 			color = Styles.copy_color(color or Styles.COLORS.popup_shadow),
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
 			scale_to_material = true,
 			size_addition = size_addition or { 24, 24 },
 			offset = { 0, 0, 0 },
@@ -292,7 +294,25 @@ Styles.inner_shadow_pass = function(style_id, color)
 		value = Styles.materials.inner_shadow,
 		style = {
 			color = Styles.copy_color(color or Styles.COLORS.inner_shadow),
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
 			scale_to_material = true,
+			offset = { 0, 0, 1 },
+		},
+	}
+end
+
+Styles.glow_pass = function(style_id, size_addition, color)
+	return {
+		pass_type = "texture",
+		style_id = style_id or "glow",
+		value = Styles.materials.frame_glow,
+		style = {
+			color = Styles.copy_color(color or Styles.COLORS.accent_edge),
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			scale_to_material = true,
+			size_addition = size_addition or { 12, 12 },
 			offset = { 0, 0, 1 },
 		},
 	}
