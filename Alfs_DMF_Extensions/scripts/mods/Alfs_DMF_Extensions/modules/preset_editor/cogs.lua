@@ -9,6 +9,25 @@ local Styles = mod._preset_panel_styles
 local Cogs = mod._preset_cogs or {}
 mod._preset_cogs = Cogs
 
+local mod_cog_tooltip_text
+local global_cog_tooltip_text
+
+local function get_mod_cog_tooltip()
+	if not mod_cog_tooltip_text then
+		mod_cog_tooltip_text = mod:localize("preset_editor_tooltip")
+	end
+
+	return mod_cog_tooltip_text
+end
+
+local function get_global_cog_tooltip()
+	if not global_cog_tooltip_text then
+		global_cog_tooltip_text = mod:localize("preset_editor_global_tooltip")
+	end
+
+	return global_cog_tooltip_text
+end
+
 local function cog_pass_template(size)
 	return {
 		{
@@ -55,7 +74,7 @@ local function add_global_cog_definitions(definitions)
 	definitions.widget_definitions[Constants.GLOBAL_COG_ID] =
 		UIWidget.create_definition(cog_pass_template(size), Constants.GLOBAL_COG_ID, {
 			visible = true,
-			tooltip_text = mod:localize("preset_editor_global_tooltip"),
+			tooltip_text = get_global_cog_tooltip(),
 		}, size)
 end
 
@@ -77,11 +96,17 @@ local function add_mod_cog_definitions(definitions)
 	definitions.widget_definitions[Constants.MOD_COG_ID] =
 		UIWidget.create_definition(cog_pass_template(size), Constants.MOD_COG_ID, {
 			visible = false,
-			tooltip_text = mod:localize("preset_editor_tooltip"),
+			tooltip_text = get_mod_cog_tooltip(),
 		}, size)
 end
 
 local function is_options_header(self)
+	local cached = self._alfs_is_options_header
+
+	if cached ~= nil then
+		return cached
+	end
+
 	local class_table = getmetatable(self)
 
 	return class_table and class_table.__class_name == "ViewElementOptionsHeader"
@@ -102,13 +127,25 @@ local function sync_mod_cog(self)
 
 	local category_entry = self._category_entry
 	local mod_name = category_entry and category_entry.mod_name
+	local cached_name = self._alfs_cog_mod_name
+
+	if cached_name ~= mod_name then
+		self._alfs_cog_mod_name = mod_name
+		self._alfs_cog_mod_exists = mod_name ~= nil and get_mod(mod_name) ~= nil
+	end
+
 	local visible = Core.presets_enabled()
 		and mod_name ~= nil
 		and not category_entry.is_toggle_mods_category
-		and get_mod(mod_name) ~= nil
+		and self._alfs_cog_mod_exists == true
 
 	content.visible = visible
-	content.tooltip_text = mod:localize("preset_editor_tooltip")
+
+	local tooltip_text = get_mod_cog_tooltip()
+
+	if content.tooltip_text ~= tooltip_text then
+		content.tooltip_text = tooltip_text
+	end
 
 	local hotspot = content.hotspot
 
@@ -140,7 +177,7 @@ local function global_cog_tooltip_proxy(view, content)
 		proxy = {
 			offset = { 0, 0, 0 },
 			content = {
-				entry = { tooltip_text = mod:localize("preset_editor_global_tooltip") },
+				entry = { tooltip_text = get_global_cog_tooltip() },
 				size = { 520, 0 },
 				hotspot = content.hotspot,
 			},
@@ -149,7 +186,7 @@ local function global_cog_tooltip_proxy(view, content)
 	end
 
 	proxy.content.hotspot = content.hotspot
-	proxy.content.entry.tooltip_text = content.tooltip_text or mod:localize("preset_editor_global_tooltip")
+	proxy.content.entry.tooltip_text = content.tooltip_text or get_global_cog_tooltip()
 
 	return proxy
 end
@@ -189,7 +226,11 @@ local function handle_global_preset_cog(view)
 	local proxy = view._alfs_global_cog_tooltip_proxy
 
 	if content then
-		content.visible = Core.presets_enabled()
+		local visible = Core.presets_enabled()
+
+		if content.visible ~= visible then
+			content.visible = visible
+		end
 	end
 
 	if not content or not content.visible then
@@ -297,7 +338,11 @@ mod._install_preset_cog_hooks = function()
 	mod._preset_cog_hooks_installed = true
 
 	mod:hook(view_element_base, "init", function(func, self, parent, draw_layer, start_scale, definitions, ...)
-		if is_options_header(self) and type(definitions) == "table" then
+		local is_header = is_options_header(self)
+
+		self._alfs_is_options_header = is_header
+
+		if is_header and type(definitions) == "table" then
 			add_mod_cog_definitions(definitions)
 		end
 
@@ -365,7 +410,7 @@ mod._install_preset_cog_hooks = function()
 			end
 
 			local tooltip = self._widgets_by_name.tooltip
-			local tooltip_text = content.tooltip_text or mod:localize("preset_editor_tooltip")
+			local tooltip_text = content.tooltip_text or get_mod_cog_tooltip()
 
 			if
 				self._hovered_tooltip_widget ~= self._widgets_by_name[Constants.MOD_COG_ID]

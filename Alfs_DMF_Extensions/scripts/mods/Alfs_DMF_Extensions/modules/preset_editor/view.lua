@@ -122,16 +122,19 @@ local function install_settings_close_guard()
 	end
 end
 
-local function settings_view_settings()
-	local ok, views = pcall(require, "scripts/ui/views/views")
+local cached_settings_view_settings
 
-	if not ok or type(views) ~= "table" then
-		return nil
+local function settings_view_settings()
+	if cached_settings_view_settings ~= nil then
+		return cached_settings_view_settings or nil
 	end
 
-	local settings = views["dmf_options_view"]
+	local views = require("scripts/ui/views/views")
+	local settings = type(views) == "table" and views["dmf_options_view"] or nil
 
-	return type(settings) == "table" and settings or nil
+	cached_settings_view_settings = type(settings) == "table" and settings or false
+
+	return cached_settings_view_settings or nil
 end
 
 mod._preset_panel_suspend_settings_state_bound = function()

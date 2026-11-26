@@ -11,6 +11,18 @@ local Blueprints = mod._preset_panel_blueprints
 local Dropdown = mod._preset_panel_dropdown
 local Styles = mod._preset_panel_styles
 
+local widget_draw_order = Definitions.widget_draw_order or {}
+local widget_draw_order_count = #widget_draw_order
+local bottom_buttons = Definitions.bottom_buttons or {}
+local bottom_button_count = #bottom_buttons
+local option_hotspot_keys = {}
+local option_hotspot_key_count = 0
+
+for index = 1, (Definitions.SCOPE_MAX_VISIBLE_OPTIONS or 0) do
+	option_hotspot_keys[index] = "option_hotspot_" .. index
+	option_hotspot_key_count = index
+end
+
 local function panel_scope_key(scope)
 	if not scope or scope.kind == "global" or scope.mod_name == nil then
 		return "global"
@@ -83,8 +95,8 @@ PresetEditorPanelView._draw_widgets = function(self, dt, t, input_service, ui_re
 
 	table.clear(drawn_widgets)
 
-	for _, name in ipairs(Definitions.widget_draw_order) do
-		local widget = widgets_by_name and widgets_by_name[name]
+	for index = 1, widget_draw_order_count do
+		local widget = widgets_by_name and widgets_by_name[widget_draw_order[index]]
 
 		if widget and widget ~= scope_widget then
 			UIWidget.draw(widget, ui_renderer)
@@ -224,7 +236,8 @@ PresetEditorPanelView.init = function(self, settings, context)
 	self._has_presets = false
 	self._save_button_widget = self._widgets_by_name and self._widgets_by_name.bottom_save or nil
 
-	for _, button in ipairs(Definitions.bottom_buttons) do
+	for index = 1, bottom_button_count do
+		local button = bottom_buttons[index]
 		local widget = self._widgets_by_name[button.name]
 
 		if widget and widget.content.hotspot then
@@ -255,8 +268,8 @@ local function dropdown_blocks_outside_close(view, input_service)
 		return true
 	end
 
-	for index = 1, Definitions.SCOPE_MAX_VISIBLE_OPTIONS do
-		local hotspot = content["option_hotspot_" .. index]
+	for index = 1, option_hotspot_key_count do
+		local hotspot = content[option_hotspot_keys[index]]
 
 		if hotspot and (hotspot.is_hover or hotspot.on_pressed) then
 			return true
@@ -378,8 +391,8 @@ PresetEditorPanelView._update_tooltip = function(self)
 	end
 
 	if not tooltip_text then
-		for _, button in ipairs(Definitions.bottom_buttons) do
-			tooltip_text = tooltip_text_for_widget(self._widgets_by_name[button.name])
+		for index = 1, bottom_button_count do
+			tooltip_text = tooltip_text_for_widget(self._widgets_by_name[bottom_buttons[index].name])
 
 			if tooltip_text then
 				break
@@ -387,7 +400,13 @@ PresetEditorPanelView._update_tooltip = function(self)
 		end
 	end
 
-	tooltip_element:set_tooltip(tooltip_text, 0, 0, tooltip_text ~= nil)
+	local visible = tooltip_text ~= nil
+
+	if self._last_tooltip_text ~= tooltip_text or self._last_tooltip_visible ~= visible then
+		self._last_tooltip_text = tooltip_text
+		self._last_tooltip_visible = visible
+		tooltip_element:set_tooltip(tooltip_text, 0, 0, visible)
+	end
 end
 
 PresetEditorPanelView._update_save_pulse = function(self, t)
@@ -400,10 +419,15 @@ PresetEditorPanelView._update_save_pulse = function(self, t)
 	local content = widget.content
 	local active = self._has_presets ~= true and not self._close_anim_id
 
-	content.pulse_save = active
+	if content.pulse_save ~= active then
+		content.pulse_save = active
+	end
 
 	if not active or type(t) ~= "number" then
-		content.save_pulse_progress = 0
+		if content.save_pulse_progress ~= 0 then
+			content.save_pulse_progress = 0
+		end
+
 		return
 	end
 
@@ -433,6 +457,8 @@ PresetEditorPanelView.on_enter = function(self)
 	self._actions_grid =
 		self:_add_element(ViewElementGrid, "preset_actions", 204, Definitions.actions_grid_settings, "actions_pivot")
 	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 206)
+	self._last_tooltip_text = nil
+	self._last_tooltip_visible = nil
 	self._outside_click_ignore_frames = 2
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
@@ -691,7 +717,8 @@ end
 PresetEditorPanelView._update_bottom_buttons = function(self)
 	local close_widget = self._widgets_by_name.bottom_close
 
-	for _, button in ipairs(Definitions.bottom_buttons) do
+	for index = 1, bottom_button_count do
+		local button = bottom_buttons[index]
 		local widget = self._widgets_by_name[button.name]
 
 		if widget then

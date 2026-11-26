@@ -6,6 +6,31 @@ local Styles = mod._preset_panel_styles
 local Dropdown = mod._preset_panel_dropdown or {}
 mod._preset_panel_dropdown = Dropdown
 
+local visible_keys = {}
+
+for index = 1, (Definitions.SCOPE_MAX_VISIBLE_OPTIONS or 0) do
+	visible_keys[index] = {
+		hotspot = "option_hotspot_" .. index,
+		text = "option_text_" .. index,
+		icon = "option_icon_" .. index,
+		outline = "outline_" .. index,
+	}
+end
+
+local function dropdown_using_gamepad(parent)
+	local using_cursor = parent and parent._using_cursor_navigation
+
+	if using_cursor == nil then
+		local ui_manager = Managers and Managers.ui
+		using_cursor = ui_manager
+			and type(ui_manager.using_cursor_navigation) == "function"
+			and ui_manager:using_cursor_navigation()
+			or false
+	end
+
+	return not using_cursor
+end
+
 local function scope_key(scope)
 	if not scope or scope.kind == "global" or scope.mod_name == nil then
 		return "global"
@@ -215,11 +240,7 @@ local function update_visible_options(parent, widget, input_service, focused)
 	local num_options = #options
 	local num_visible_options = math.max(1, content.num_visible_options or 1)
 	local row_height = Definitions.SCOPE_DROPDOWN_SIZE[2]
-	local ui_manager = Managers and Managers.ui
-	local using_gamepad = ui_manager
-			and type(ui_manager.using_cursor_navigation) == "function"
-			and not ui_manager:using_cursor_navigation()
-		or false
+	local using_gamepad = dropdown_using_gamepad(parent)
 	local selected_index = content.selected_index or 1
 	local new_index = nil
 	local new_value = nil
@@ -261,11 +282,12 @@ local function update_visible_options(parent, widget, input_service, focused)
 	for index = start_index, end_index do
 		local actual_index = index
 		local option = options[actual_index]
-		local hotspot = option and content["option_hotspot_" .. option_index]
-		local hotspot_style = style and style["option_hotspot_" .. option_index]
-		local text_style = style and style["option_text_" .. option_index]
-		local icon_style = style and style["option_icon_" .. option_index]
-		local outline_style = style and style["outline_" .. option_index]
+		local keys = visible_keys[option_index] or {}
+		local hotspot = option and content[keys.hotspot]
+		local hotspot_style = style and style[keys.hotspot]
+		local text_style = style and style[keys.text]
+		local icon_style = style and style[keys.icon]
+		local outline_style = style and style[keys.outline]
 		local offset_y = row_height * option_index
 
 		if hotspot then
@@ -282,8 +304,16 @@ local function update_visible_options(parent, widget, input_service, focused)
 		end
 
 		if content and option then
-			content["option_text_" .. option_index] = option.display_name
-			content["option_icon_" .. option_index] = option.icon or nil
+			local display_name = option.display_name
+			local icon = option.icon or nil
+
+			if content[keys.text] ~= display_name then
+				content[keys.text] = display_name
+			end
+
+			if content[keys.icon] ~= icon then
+				content[keys.icon] = icon
+			end
 		end
 
 		if hotspot_style and hotspot_style.offset then
@@ -332,11 +362,7 @@ Dropdown.update = function(parent, dt, t, input_service)
 	end
 
 	if not focused then
-		local ui_manager = Managers and Managers.ui
-		local using_gamepad = ui_manager
-				and type(ui_manager.using_cursor_navigation) == "function"
-				and not ui_manager:using_cursor_navigation()
-			or false
+		local using_gamepad = dropdown_using_gamepad(parent)
 		local hotspot = content.hotspot or {}
 
 		hotspot.is_selected = using_gamepad

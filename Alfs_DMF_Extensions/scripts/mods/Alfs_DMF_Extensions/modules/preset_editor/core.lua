@@ -8,11 +8,24 @@ mod._preset_core = Core
 
 Core.silent = false
 
+local setting_ids_cache = {}
+local preset_store_cache = nil
+local global_preset_store_cache = nil
+local presets_enabled_cache = nil
+
 local IMPORT_STATE_MOD = "Alfs_Darktide_Improved_profile_settings"
 local IMPORT_STATE_SETTING = "has_been_imported"
 
 local function is_import_state_setting(mod_name, setting_id)
 	return setting_id == IMPORT_STATE_SETTING and Utils.resolve_mod_name(mod_name) == IMPORT_STATE_MOD
+end
+
+local function setting_needs_update(target_mod, setting_id, value)
+	if type(value) == "table" then
+		return true
+	end
+
+	return target_mod:get(setting_id) ~= value
 end
 
 Core.set_silent = function(value)
@@ -32,16 +45,23 @@ local function message(view, title, text)
 end
 
 Core.get_preset_store = function()
+	if preset_store_cache then
+		return preset_store_cache
+	end
+
 	local presets = mod:get(Constants.PRESET_SETTING)
 
 	if type(presets) ~= "table" then
 		presets = {}
 	end
 
+	preset_store_cache = presets
+
 	return presets
 end
 
 Core.save_preset_store = function(presets)
+	preset_store_cache = presets
 	mod:set(Constants.PRESET_SETTING, presets)
 
 	local dmf = Utils.get_dmf()
@@ -52,16 +72,23 @@ Core.save_preset_store = function(presets)
 end
 
 Core.get_global_preset_store = function()
+	if global_preset_store_cache then
+		return global_preset_store_cache
+	end
+
 	local presets = mod:get(Constants.GLOBAL_PRESET_SETTING)
 
 	if type(presets) ~= "table" then
 		presets = {}
 	end
 
+	global_preset_store_cache = presets
+
 	return presets
 end
 
 Core.save_global_preset_store = function(presets)
+	global_preset_store_cache = presets
 	mod:set(Constants.GLOBAL_PRESET_SETTING, presets)
 
 	local dmf = Utils.get_dmf()
@@ -72,39 +99,64 @@ Core.save_global_preset_store = function(presets)
 end
 
 Core.get_setting_ids = function(target_mod_name)
-	local dmf = Utils.get_dmf()
-
-	if not dmf then
-		return {}
+	if not target_mod_name then
+		return {}, 0
 	end
 
-	for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
-		local header = mod_widgets[1]
+	local dmf = Utils.get_dmf()
+	local widgets_data = dmf and dmf.options_widgets_data
+
+	if not widgets_data then
+		return {}, 0
+	end
+
+	local cached = setting_ids_cache[target_mod_name]
+
+	if cached then
+		if widgets_data[cached.index] == cached.widgets then
+			return cached.ids, cached.count
+		end
+
+		setting_ids_cache[target_mod_name] = nil
+	end
+
+	for index = 1, #widgets_data do
+		local mod_widgets = widgets_data[index]
+		local header = mod_widgets and mod_widgets[1]
 
 		if header and header.mod_name == target_mod_name then
 			local ids = {}
 			local seen = {}
+			local count = 0
 
 			for i = 2, #mod_widgets do
 				local widget = mod_widgets[i]
+				local setting_id = widget and widget.setting_id
 
 				if
-					widget
-					and widget.setting_id
+					setting_id
 					and widget.type ~= "group"
 					and widget.type ~= "button"
-					and not seen[widget.setting_id]
+					and not seen[setting_id]
 				then
-					seen[widget.setting_id] = true
-					ids[#ids + 1] = widget.setting_id
+					seen[setting_id] = true
+					count = count + 1
+					ids[count] = setting_id
 				end
 			end
 
-			return ids
+			setting_ids_cache[target_mod_name] = {
+				ids = ids,
+				count = count,
+				index = index,
+				widgets = mod_widgets,
+			}
+
+			return ids, count
 		end
 	end
 
-	return {}
+	return {}, 0
 end
 
 Core.capture_settings = function(target_mod_name)
@@ -116,8 +168,11 @@ Core.capture_settings = function(target_mod_name)
 	end
 
 	local settings = {}
+	local ids, count = Core.get_setting_ids(mod_name)
 
-	for _, setting_id in ipairs(Core.get_setting_ids(mod_name)) do
+	for i = 1, count do
+		local setting_id = ids[i]
+
 		if not is_import_state_setting(mod_name, setting_id) then
 			local value = target_mod:get(setting_id)
 
@@ -138,9 +193,11 @@ Core.capture_all_settings = function()
 	end
 
 	local mods = {}
+	local widgets_data = dmf.options_widgets_data or {}
 
-	for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
-		local header = mod_widgets[1]
+	for index = 1, #widgets_data do
+		local mod_widgets = widgets_data[index]
+		local header = mod_widgets and mod_widgets[1]
 		local mod_name = header and header.mod_name
 
 		if mod_name and #mod_widgets > 1 and get_mod(mod_name) then
@@ -405,6 +462,7 @@ Core.refresh_options_view = function(view, target_mod_name)
 		return
 	end
 
+	table.clear(setting_ids_cache)
 	mod._tab_inject_state = {}
 	mod._gen_tabs_toggle_widgets = {}
 	mod._preset_editor_widgets = {}
@@ -429,7 +487,7 @@ Core.refresh_options_view = function(view, target_mod_name)
 	end
 end
 
-Core.apply_settings = function(view, target_mod_name, settings, target_label)
+Core.apply_settings = function(view, target_mod_name, settings, target_label, defer_flush)
 	local mod_name = Utils.resolve_mod_name(target_mod_name)
 	local target_mod = mod_name and get_mod(mod_name) or nil
 
@@ -438,25 +496,31 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label)
 		return
 	end
 
-	for _, setting_id in ipairs(Core.get_setting_ids(mod_name)) do
+	local ids, count = Core.get_setting_ids(mod_name)
+
+	for i = 1, count do
+		local setting_id = ids[i]
+
 		if not is_import_state_setting(mod_name, setting_id) then
 			local value = settings[setting_id]
 
-			if value ~= nil then
+			if value ~= nil and setting_needs_update(target_mod, setting_id, value) then
 				target_mod:set(setting_id, value, true)
 			end
 		end
 	end
 
-	Core.flush_settings()
-	Core.refresh_options_view(view, mod_name)
+	if not defer_flush then
+		Core.flush_settings()
+		Core.refresh_options_view(view, mod_name)
+	end
 
 	if target_label then
 		message(view, "Preset Applied", string.format("Applied '%s'.", tostring(target_label)))
 	end
 end
 
-Core.apply_global_settings = function(view, mods, target_label)
+Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 	if type(mods) ~= "table" then
 		message(view, "Preset Error", "The global preset could not be read.")
 		return
@@ -467,11 +531,15 @@ Core.apply_global_settings = function(view, mods, target_label)
 		local target_mod = resolved_name and get_mod(resolved_name) or nil
 
 		if target_mod and type(settings) == "table" then
-			for _, setting_id in ipairs(Core.get_setting_ids(resolved_name)) do
+			local ids, count = Core.get_setting_ids(resolved_name)
+
+			for i = 1, count do
+				local setting_id = ids[i]
+
 				if not is_import_state_setting(resolved_name, setting_id) then
 					local value = settings[setting_id]
 
-					if value ~= nil then
+					if value ~= nil and setting_needs_update(target_mod, setting_id, value) then
 						target_mod:set(setting_id, value, true)
 					end
 				end
@@ -479,19 +547,21 @@ Core.apply_global_settings = function(view, mods, target_label)
 		end
 	end
 
-	Core.flush_settings()
-	Core.refresh_options_view(view)
+	if not defer_flush then
+		Core.flush_settings()
+		Core.refresh_options_view(view)
+	end
 
 	if target_label then
 		message(view, "Preset Applied", string.format("Applied global preset '%s'.", tostring(target_label)))
 	end
 end
 
-Core.apply_scope_settings = function(scope, settings, target_label, view, show_message)
+Core.apply_scope_settings = function(scope, settings, target_label, view, show_message, defer_flush)
 	if Core.is_global_scope(scope) then
-		Core.apply_global_settings(view, settings, show_message and target_label or nil)
+		Core.apply_global_settings(view, settings, show_message and target_label or nil, defer_flush)
 	else
-		Core.apply_settings(view, scope.mod_name, settings, show_message and target_label or nil)
+		Core.apply_settings(view, scope.mod_name, settings, show_message and target_label or nil, defer_flush)
 	end
 end
 
@@ -503,6 +573,18 @@ Core.flush_settings = function()
 	end
 end
 
+Core.invalidate_setting = function(setting_id)
+	if setting_id == Constants.PRESETS_SETTING then
+		presets_enabled_cache = nil
+	end
+
+	table.clear(setting_ids_cache)
+end
+
 Core.presets_enabled = function()
-	return mod:get(Constants.PRESETS_SETTING) ~= false
+	if presets_enabled_cache == nil then
+		presets_enabled_cache = mod:get(Constants.PRESETS_SETTING) ~= false
+	end
+
+	return presets_enabled_cache
 end

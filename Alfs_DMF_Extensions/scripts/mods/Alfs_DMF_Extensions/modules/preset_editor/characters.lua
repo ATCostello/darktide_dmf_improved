@@ -269,10 +269,10 @@ Characters.sync_auto_presets = function(character_id)
 				state.snapshot = Core.scope_capture_settings(scope)
 			end
 
-			Core.apply_scope_settings(scope, preset_settings, nil, nil, false)
+			Core.apply_scope_settings(scope, preset_settings, nil, nil, false, true)
 			state.applied_name = name
 		elseif state.snapshot then
-			Core.apply_scope_settings(scope, state.snapshot, nil, nil, false)
+			Core.apply_scope_settings(scope, state.snapshot, nil, nil, false, true)
 			state.snapshot = nil
 			state.applied_name = nil
 		else

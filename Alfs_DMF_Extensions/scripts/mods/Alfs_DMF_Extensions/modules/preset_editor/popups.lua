@@ -841,7 +841,6 @@ mod.apply_global_profile_settings = function(mods)
 	end
 
 	Core.apply_global_settings(nil, mods, nil)
-	Core.flush_settings()
 
 	return true
 end

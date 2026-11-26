@@ -108,25 +108,48 @@ local function tooltip_progress(content)
 end
 
 local function position_tooltip(content, style)
-	local button_width = content.size and content.size[1] or 280
+	local button_width = content._alfs_tooltip_button_width
+
+	if button_width == nil then
+		button_width = content.size and content.size[1] or 280
+		content._alfs_tooltip_button_width = button_width
+	end
 
 	style.offset[1] = button_width * 0.5 + tooltip_gap + tooltip_size[1] * 0.5
 	style.offset[2] = 0
 end
 
 local function tooltip_background_change(content, style)
+	local progress = tooltip_progress(content)
+
+	if progress <= 0 and style.color[1] == 0 then
+		return
+	end
+
 	position_tooltip(content, style)
-	style.color[1] = 230 * tooltip_progress(content)
+	style.color[1] = 230 * progress
 end
 
 local function tooltip_frame_change(content, style)
+	local progress = tooltip_progress(content)
+
+	if progress <= 0 and style.color[1] == 0 then
+		return
+	end
+
 	position_tooltip(content, style)
-	style.color[1] = 255 * tooltip_progress(content)
+	style.color[1] = 255 * progress
 end
 
 local function tooltip_text_change(content, style)
+	local progress = tooltip_progress(content)
+
+	if progress <= 0 and style.text_color[1] == 0 then
+		return
+	end
+
 	position_tooltip(content, style)
-	style.text_color[1] = 255 * tooltip_progress(content)
+	style.text_color[1] = 255 * progress
 end
 
 local function make_settings_profile_button_template(base_template)
@@ -189,7 +212,14 @@ local function make_settings_profile_button_template(base_template)
 	return template
 end
 
+local templates_registered = false
+
 local function register_settings_profile_button_templates()
+	if templates_registered then
+		return
+	end
+
+	templates_registered = true
 	ButtonPassTemplates.alfs_settings_profile_button =
 		make_settings_profile_button_template(ButtonPassTemplates.terminal_button)
 	ButtonPassTemplates.alfs_settings_profile_button_small =

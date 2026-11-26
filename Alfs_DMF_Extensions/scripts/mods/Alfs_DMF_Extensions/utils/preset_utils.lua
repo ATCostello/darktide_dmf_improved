@@ -59,8 +59,11 @@ Utils.resolve_mod_name = function(value)
 	local dmf = Utils.get_dmf()
 
 	if dmf then
-		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
-			local header = mod_widgets[1]
+		local widgets_data = dmf.options_widgets_data or {}
+
+		for index = 1, #widgets_data do
+			local mod_widgets = widgets_data[index]
+			local header = mod_widgets and mod_widgets[1]
 
 			if header and (header.mod_name == value or header.readable_mod_name == value) then
 				return header.mod_name or value
@@ -80,8 +83,11 @@ Utils.get_display_mod_name = function(target_mod_name)
 	local dmf = Utils.get_dmf()
 
 	if dmf then
-		for _, mod_widgets in ipairs(dmf.options_widgets_data or {}) do
-			local header = mod_widgets[1]
+		local widgets_data = dmf.options_widgets_data or {}
+
+		for index = 1, #widgets_data do
+			local mod_widgets = widgets_data[index]
+			local header = mod_widgets and mod_widgets[1]
 
 			if header and header.mod_name == mod_name then
 				return header.readable_mod_name or header.mod_name or mod_name
