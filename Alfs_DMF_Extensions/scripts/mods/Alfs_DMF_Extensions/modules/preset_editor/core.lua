@@ -41,12 +41,80 @@ local function is_excluded_setting(mod_name, setting_id)
 	return string.sub(setting_id, 1, 13) == "options_menu_" or string.sub(setting_id, 1, 14) == "preset_editor_"
 end
 
-local function setting_needs_update(target_mod, setting_id, value)
-	if type(value) == "table" then
+local function values_equal(a, b, depth)
+	if a == b then
 		return true
 	end
 
-	return target_mod:get(setting_id) ~= value
+	if type(a) ~= "table" or type(b) ~= "table" or depth > 8 then
+		return false
+	end
+
+	for key, value in pairs(a) do
+		if not values_equal(value, b[key], depth + 1) then
+			return false
+		end
+	end
+
+	for key in pairs(b) do
+		if a[key] == nil then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function setting_needs_update(target_mod, setting_id, value)
+	return not values_equal(target_mod:get(setting_id), value, 0)
+end
+
+local BULK_GUARD_MOD = "Enhanced_descriptions"
+
+local function is_bulk_reload_setting(setting_id)
+	return string.find(setting_id, "enable_", 1, true) == 1
+		or string.find(setting_id, "_text_colour", 1, true) ~= nil
+		or setting_id == "language_override"
+end
+
+local function has_bulk_conflict(mod_name, settings)
+	if mod_name ~= BULK_GUARD_MOD or type(settings) ~= "table" then
+		return false
+	end
+
+	return settings.color_preset ~= nil
+end
+
+local function begin_bulk_apply(conflict)
+	local bulk_mod = get_mod(BULK_GUARD_MOD)
+
+	if not bulk_mod or bulk_mod._applying_preset or conflict then
+		return nil
+	end
+
+	bulk_mod._applying_preset = true
+
+	return bulk_mod
+end
+
+local function end_bulk_apply(bulk_mod, needs_reload)
+	if not bulk_mod then
+		return
+	end
+
+	bulk_mod._applying_preset = nil
+
+	if not needs_reload then
+		return
+	end
+
+	if type(bulk_mod.clear_color_cache) == "function" then
+		bulk_mod.clear_color_cache()
+	end
+
+	if type(bulk_mod.reload_templates) == "function" then
+		bulk_mod.reload_templates()
+	end
 end
 
 Core.set_silent = function(value)
@@ -610,6 +678,9 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 		return
 	end
 
+	local bulk_mod = begin_bulk_apply(has_bulk_conflict(mod_name, settings))
+	local bulk_needs_reload = false
+
 	for setting_id, value in pairs(settings) do
 		if
 			not is_excluded_setting(mod_name, setting_id)
@@ -617,8 +688,14 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 			and setting_needs_update(target_mod, setting_id, value)
 		then
 			target_mod:set(setting_id, value, true)
+
+			if bulk_mod and mod_name == BULK_GUARD_MOD and is_bulk_reload_setting(setting_id) then
+				bulk_needs_reload = true
+			end
 		end
 	end
+
+	end_bulk_apply(bulk_mod, bulk_needs_reload)
 
 	if not defer_flush then
 		Core.flush_settings()
@@ -640,6 +717,18 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 		return
 	end
 
+	local conflict = false
+
+	for mod_name, settings in pairs(mods) do
+		if has_bulk_conflict(Utils.resolve_mod_name(mod_name) or mod_name, settings) then
+			conflict = true
+			break
+		end
+	end
+
+	local bulk_mod = begin_bulk_apply(conflict)
+	local bulk_needs_reload = false
+
 	for mod_name, settings in pairs(mods) do
 		local resolved_name = Utils.resolve_mod_name(mod_name)
 		local target_mod = resolved_name and get_mod(resolved_name) or nil
@@ -652,10 +741,16 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 					and setting_needs_update(target_mod, setting_id, value)
 				then
 					target_mod:set(setting_id, value, true)
+
+					if bulk_mod and resolved_name == BULK_GUARD_MOD and is_bulk_reload_setting(setting_id) then
+						bulk_needs_reload = true
+					end
 				end
 			end
 		end
 	end
+
+	end_bulk_apply(bulk_mod, bulk_needs_reload)
 
 	if not defer_flush then
 		Core.flush_settings()

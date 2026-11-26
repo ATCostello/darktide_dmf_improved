@@ -300,7 +300,7 @@ mod._preset_panel_apply = function(view, scope, name)
 		),
 		function()
 			Core.apply_scope_settings(scope, preset_settings, name, view, true)
-			Popups.refresh_preset_panel(view)
+			Popups.refresh_preset_panel_selection(view)
 		end
 	)
 end

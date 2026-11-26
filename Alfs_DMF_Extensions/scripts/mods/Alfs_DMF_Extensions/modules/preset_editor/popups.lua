@@ -244,6 +244,29 @@ Popups.refresh_preset_panel = function(view)
 	end
 end
 
+Popups.refresh_preset_panel_selection = function(view)
+	local ui = Managers and Managers.ui
+	local instance = nil
+
+	if ui and type(ui.view_instance) == "function" then
+		instance = ui:view_instance(Constants.PRESET_PANEL_VIEW)
+	end
+
+	instance = instance or (view and type(view._update_preset_selection) == "function" and view or nil)
+
+	if not instance then
+		return
+	end
+
+	if type(instance._update_preset_selection) == "function" then
+		instance:_update_preset_selection()
+	end
+
+	if type(instance._update_selected_text) == "function" then
+		instance:_update_selected_text()
+	end
+end
+
 mod._preset_panel_refresh = function(view)
 	Popups.refresh_preset_panel(view)
 end
