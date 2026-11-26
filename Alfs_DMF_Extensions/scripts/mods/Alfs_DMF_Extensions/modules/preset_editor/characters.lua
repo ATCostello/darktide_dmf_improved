@@ -9,7 +9,9 @@ local Core = mod._preset_core
 local function connection_is_initialized()
 	local connection_manager = Managers and Managers.connection
 
-	return connection_manager ~= nil and type(connection_manager.is_initialized) == "function" and connection_manager:is_initialized() == true
+	return connection_manager ~= nil
+		and type(connection_manager.is_initialized) == "function"
+		and connection_manager:is_initialized() == true
 end
 
 local Characters = mod._preset_characters or {}
@@ -68,7 +70,11 @@ Characters.get_current_character_id = function()
 
 	local player_manager = Managers and Managers.player
 
-	if connection_is_initialized() and player_manager and type(player_manager.local_player_backend_profile) == "function" then
+	if
+		connection_is_initialized()
+		and player_manager
+		and type(player_manager.local_player_backend_profile) == "function"
+	then
 		local profile = player_manager:local_player_backend_profile()
 
 		if type(profile) == "table" then
@@ -130,11 +136,13 @@ Characters.get_assigned_preset = function(scope, character_id)
 		return nil, nil
 	end
 
-	for _, name in ipairs(Core.get_preset_names(scope)) do
-		local preset = Core.get_scope_preset(scope, name)
-		local characters = preset and preset.characters
-
-		if type(characters) == "table" and characters[character_id] then
+	for name, preset in pairs(Core.get_scope_presets(scope)) do
+		if
+			type(preset) == "table"
+			and Core.get_preset_settings(scope, preset)
+			and type(preset.characters) == "table"
+			and preset.characters[character_id]
+		then
 			return name, preset
 		end
 	end
@@ -155,6 +163,31 @@ Characters.get_auto_scopes = function()
 
 	return scopes
 end
+
+Characters.assigned_preset_text = function(character_id)
+	if not character_id then
+		return ""
+	end
+
+	local names = {}
+
+	for _, scope in ipairs(Characters.get_auto_scopes()) do
+		local name = Characters.get_assigned_preset(scope, character_id)
+
+		if name then
+			if Core.is_global_scope(scope) then
+				names[#names + 1] = name
+			else
+				local mod_name = Utils.get_display_mod_name(scope.mod_name) or tostring(scope.mod_name)
+				names[#names + 1] = mod_name .. ": " .. name
+			end
+		end
+	end
+
+	return table.concat(names, "  |  ")
+end
+
+mod._preset_panel_assigned_preset_text = Characters.assigned_preset_text
 
 Characters.display_name_for_character = function(character_id)
 	if not character_id then
@@ -209,12 +242,6 @@ Characters.queue_auto_sync = function(character_id)
 	auto_apply_state.queued_character_id = character_id
 	auto_apply_state.queued_update_count = 0
 	auto_apply_state.queued_at_t = nil
-
-	if Characters.has_auto_work(character_id) then
-		Utils.notify(
-			mod:localize("preset_editor_auto_apply_start", Characters.display_name_for_character(character_id))
-		)
-	end
 end
 
 Characters.update_auto_sync = function(t)
@@ -258,6 +285,10 @@ Characters.sync_auto_presets = function(character_id)
 	auto_apply_state.queued_at_t = nil
 	Core.set_silent(true)
 
+	local applied_names = {}
+	local restored = false
+	local changes_before = Core.apply_change_count or 0
+
 	for _, scope in ipairs(Characters.get_auto_scopes()) do
 		local key = Core.scope_key(scope)
 		local state = auto_apply_state.scopes[key] or {}
@@ -266,15 +297,28 @@ Characters.sync_auto_presets = function(character_id)
 
 		if name and preset_settings then
 			if not state.snapshot then
-				state.snapshot = Core.scope_capture_settings(scope)
+				state.snapshot = Core.scope_capture_settings(scope, preset_settings)
+
+				if state.snapshot and not next(state.snapshot) then
+					state.snapshot = nil
+				end
+			else
+				state.snapshot = Core.extend_snapshot(state.snapshot, scope, preset_settings)
 			end
 
 			Core.apply_scope_settings(scope, preset_settings, nil, nil, false, true)
 			state.applied_name = name
-		elseif state.snapshot then
+
+			if Core.is_global_scope(scope) then
+				applied_names[#applied_names + 1] = name
+			else
+				local mod_name = Utils.get_display_mod_name(scope.mod_name) or tostring(scope.mod_name)
+				applied_names[#applied_names + 1] = mod_name .. ": " .. name
+			end
+		elseif state.snapshot and state.applied_name then
 			Core.apply_scope_settings(scope, state.snapshot, nil, nil, false, true)
-			state.snapshot = nil
 			state.applied_name = nil
+			restored = true
 		else
 			state.applied_name = nil
 		end
@@ -286,10 +330,19 @@ Characters.sync_auto_presets = function(character_id)
 	Core.flush_settings()
 	Core.set_silent(false)
 
-	local view = Characters.get_active_options_view()
+	if #applied_names > 0 or restored then
+		local preset_text = #applied_names > 0 and table.concat(applied_names, "\n")
+			or mod:localize("preset_editor_auto_apply_restore")
 
-	if view then
-		Core.refresh_options_view(view)
+		Utils.notify(mod:localize("preset_editor_auto_apply_start", preset_text, ""))
+	end
+
+	if (Core.apply_change_count or 0) > changes_before then
+		local view = Characters.get_active_options_view()
+
+		if view then
+			Core.refresh_options_view(view)
+		end
 	end
 end
 
@@ -370,14 +423,6 @@ local function profile_level(profile)
 	return level and (mod:localize("preset_editor_level_prefix") .. tostring(level)) or ""
 end
 
-local function profile_title(profile)
-	if type(ProfileUtils) ~= "table" or type(ProfileUtils.character_title_no_color) ~= "function" then
-		return ""
-	end
-
-	return ProfileUtils.character_title_no_color(profile) or ""
-end
-
 Characters.build_profile_list = function(profiles_list)
 	local result = {}
 	local seen = {}
@@ -397,7 +442,7 @@ Characters.build_profile_list = function(profiles_list)
 					archetype_name = Characters.archetype_display_name(archetype),
 					profile = profile,
 					level = profile_level(profile),
-					title = profile_title(profile),
+					title = Characters.assigned_preset_text(id),
 				}
 			end
 		end
@@ -413,7 +458,7 @@ Characters.build_profile_list = function(profiles_list)
 			archetype_name = Characters.archetype_display_name(archetype),
 			profile = profile,
 			level = profile_level(profile),
-			title = profile_title(profile),
+			title = Characters.assigned_preset_text(current_id),
 		}
 	end
 
@@ -498,6 +543,20 @@ mod._preset_panel_toggle_character = function(scope, name, character_id, charact
 		preset.character_names[character_id] = nil
 		assigned = false
 	else
+		for other_name, other_preset in pairs(presets) do
+			if other_name ~= name and type(other_preset) == "table" then
+				local other_characters = other_preset.characters
+
+				if type(other_characters) == "table" and other_characters[character_id] then
+					other_characters[character_id] = nil
+
+					if type(other_preset.character_names) == "table" then
+						other_preset.character_names[character_id] = nil
+					end
+				end
+			end
+		end
+
 		preset.characters[character_id] = true
 		preset.character_names[character_id] = character_name or character_id
 		assigned = true

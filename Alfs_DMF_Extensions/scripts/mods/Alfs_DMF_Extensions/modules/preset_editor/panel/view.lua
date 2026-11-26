@@ -871,7 +871,12 @@ PresetEditorPanelView.cb_on_character_pressed = function(self, widget, element)
 		content.assignment_text = assigned and "\226\156\147" or ""
 		content.character_name = element.name or ""
 		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
-		content.character_title = element.title or ""
+
+		if type(mod._preset_panel_assigned_preset_text) == "function" then
+			content.character_title = mod._preset_panel_assigned_preset_text(element.id)
+		else
+			content.character_title = element.title or ""
+		end
 	end
 end
 

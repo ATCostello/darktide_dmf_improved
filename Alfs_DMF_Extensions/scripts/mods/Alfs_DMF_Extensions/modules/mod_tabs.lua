@@ -84,9 +84,19 @@ local function truncate_tab_title(text, max_words)
 	return result .. mod:localize("tab_title_truncated")
 end
 
+local font_size_cache = {}
+
 local function calculate_font_size(self, text, max_width, base_size)
 	if not self or not text or #text == 0 then
 		return base_size or 22
+	end
+
+	local render_scale = self._render_scale or 1
+	local cache_key = text .. "\0" .. tostring(max_width) .. "\0" .. tostring(base_size) .. "\0" .. tostring(render_scale)
+	local cached_size = font_size_cache[cache_key]
+
+	if cached_size then
+		return cached_size
 	end
 
 	local min_size = 8
@@ -105,6 +115,8 @@ local function calculate_font_size(self, text, max_width, base_size)
 			break
 		end
 	end
+
+	font_size_cache[cache_key] = size
 
 	return size
 end
@@ -986,6 +998,7 @@ mod.filter_settings = function(self, category, scroll_to_top)
 	self._navigation_widget_index = 1
 
 	self:_update_grid_navigation_selection()
+	mod._grid_ref = self._settings_content_grid
 end
 
 mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, layer)
@@ -1220,14 +1233,33 @@ mod._addModTabs = function(self, dt, t, input_service)
 
 	if category and self._ui_scenegraph and self._ui_scenegraph.mod_tab_area then
 		local header_height = self._settings_header_height or view_settings.settings_header_height
-		self:_set_scenegraph_position("mod_tab_area", nil, header_height + view_settings.settings_tab_spacing - 8)
+		local mod_tab_y = header_height + view_settings.settings_tab_spacing - 8
 
-		if mod_tabs_enabled and self._mod_tab_grid then
-			self:_set_options_header_layout(self._settings_header_height, self._settings_header_spacing, true)
-			self._settings_content_grid:on_resolution_modified(self._render_scale)
+		if self._alfs_mod_tab_y ~= mod_tab_y then
+			self._alfs_mod_tab_y = mod_tab_y
+			self:_set_scenegraph_position("mod_tab_area", nil, mod_tab_y)
+			self:_force_update_scenegraph()
 		end
 
-		self:_force_update_scenegraph()
+		if mod_tabs_enabled and self._mod_tab_grid then
+			if
+				grid_rebuilt
+				or not self._alfs_header_layout_active
+				or self._alfs_header_height ~= self._settings_header_height
+				or self._alfs_header_spacing ~= self._settings_header_spacing
+				or self._alfs_render_scale ~= self._render_scale
+			then
+				self:_set_options_header_layout(self._settings_header_height, self._settings_header_spacing, true)
+				self._settings_content_grid:on_resolution_modified(self._render_scale)
+
+				self._alfs_header_layout_active = true
+				self._alfs_header_height = self._settings_header_height
+				self._alfs_header_spacing = self._settings_header_spacing
+				self._alfs_render_scale = self._render_scale
+			end
+		else
+			self._alfs_header_layout_active = nil
+		end
 	end
 
 	if mod._prev_mod_tabs_enabled == nil then

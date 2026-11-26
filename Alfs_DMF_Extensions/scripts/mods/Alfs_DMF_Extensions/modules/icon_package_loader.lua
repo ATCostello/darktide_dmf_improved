@@ -136,6 +136,10 @@ mod._required_icon_packages = {
 
 PACKAGE_REF = "AlfsDMFExtensions"
 
+local packages_ready = false
+local next_package_index = 1
+local ready_check_frames = 0
+
 local function _package_is_available(package_name)
 	local application = Application
 
@@ -171,7 +175,7 @@ local function _package_is_loaded(package_name)
 	return ok and is_loaded or false
 end
 
-local function _load_package_list(package_list)
+local function _load_package_list(package_list, limit)
 	local managers = Managers
 	local package_manager = managers and managers.package
 
@@ -179,8 +183,15 @@ local function _load_package_list(package_list)
 		return
 	end
 
-	for _, pkg in ipairs(package_list) do
-		if _package_is_available(pkg) and not mod._required_icon_packages[pkg] then
+	local processed = 0
+	local max = limit or #package_list
+
+	while next_package_index <= #package_list and processed < max do
+		local pkg = package_list[next_package_index]
+		next_package_index = next_package_index + 1
+		processed = processed + 1
+
+		if not mod._required_icon_packages[pkg] and _package_is_available(pkg) then
 			if _package_is_loaded(pkg) then
 				mod._required_icon_packages[pkg] = true
 			else
@@ -208,7 +219,11 @@ local function _all_packages_loaded(package_list)
 	return true
 end
 
-mod._ensure_icon_packages_loaded = function()
+mod._update_icon_packages = function()
+	if packages_ready then
+		return true
+	end
+
 	local managers = Managers
 	local package_manager = managers and managers.package
 
@@ -216,7 +231,24 @@ mod._ensure_icon_packages_loaded = function()
 		return false
 	end
 
-	_load_package_list(mod._required_icon_packages)
+	_load_package_list(mod._required_icon_packages, 4)
 
-	return _all_packages_loaded(mod._required_icon_packages)
+	if next_package_index > #mod._required_icon_packages then
+		if ready_check_frames <= 0 then
+			packages_ready = _all_packages_loaded(mod._required_icon_packages)
+			ready_check_frames = 30
+		else
+			ready_check_frames = ready_check_frames - 1
+		end
+	end
+
+	return packages_ready
+end
+
+mod._ensure_icon_packages_loaded = function()
+	if packages_ready then
+		return true
+	end
+
+	return mod._update_icon_packages()
 end

@@ -148,21 +148,27 @@ local character_toggle_template = {
 		pass_type = "text",
 		value_id = "character_name",
 		style_id = "character_name",
-		style = Styles.make_text_style(20, { 72, -10, 3 }, Styles.COLORS.text, "left", { 380, 26 }),
+		style = Styles.make_text_style(20, { 72, -10, 3 }, Styles.COLORS.text, "left", { 260, 26 }),
 	},
 	{
 		pass_type = "text",
 		value_id = "character_archetype_title",
 		style_id = "character_archetype_title",
-		style = Styles.make_text_style(16, { 72, 12, 3 }, Styles.COLORS.muted, "left", { 390, 24 }),
+		style = Styles.make_text_style(16, { 72, 12, 3 }, Styles.COLORS.muted, "left", { 260, 24 }),
 	},
 	{
 		pass_type = "text",
 		value_id = "character_title",
 		style_id = "character_title",
-		style = Styles.make_text_style(14, { 470, -10, 3 }, Styles.COLORS.normal, "right", { 130, 24 }),
+		style = Styles.make_text_style(14, { 340, -10, 3 }, Styles.COLORS.normal, "right", { 250, 24 }),
 	},
 }
+
+for _, pass in ipairs(character_toggle_template) do
+	if pass.style_id == "character_title" and pass.style then
+		pass.style.text_fit_with = true
+	end
+end
 
 local preset_entry_size = { 400, 42 }
 local preset_text_offset = { 12, 0, 3 }

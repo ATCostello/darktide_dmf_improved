@@ -615,10 +615,18 @@ mod.localisation = {
 		["zh-tw"] = "Toggle automatic preset assignment for '%s'.",
 	},
 	preset_editor_auto_apply_start = {
-		en = "Applying saved presets for %s...",
-		ru = "Applying saved presets for %s...",
-		["zh-cn"] = "Applying saved presets for %s...",
-		["zh-tw"] = "Applying saved presets for %s...",
+		en = "{#color(239, 193, 82)}++ APPLIED PRESET ++{#reset()}\n"
+			.. "{#color(169, 191, 153)}%s{#reset()}"
+			.. "\n{#color(169, 191, 153)}%s{#reset()}",
+		ru = "{#color(255, 226, 199)}AUTO-APPLY PRESETS{#reset()}\n{#color(185, 195, 210)}Character: %s{#reset()}\n{#color(255, 205, 110)}%s{#reset()}",
+		["zh-cn"] = "{#color(255, 226, 199)}AUTO-APPLY PRESETS{#reset()}\n{#color(185, 195, 210)}Character: %s{#reset()}\n{#color(255, 205, 110)}%s{#reset()}",
+		["zh-tw"] = "{#color(255, 226, 199)}AUTO-APPLY PRESETS{#reset()}\n{#color(185, 195, 210)}Character: %s{#reset()}\n{#color(255, 205, 110)}%s{#reset()}",
+	},
+	preset_editor_auto_apply_restore = {
+		en = "Restoring previous settings",
+		ru = "Restoring previous settings",
+		["zh-cn"] = "Restoring previous settings",
+		["zh-tw"] = "Restoring previous settings",
 	},
 	preset_editor_copied_title = {
 		en = "Copied to Clipboard",

@@ -25,6 +25,14 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scro
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/icon_package_loader")
 
+if mod._install_character_hooks then
+	mod._install_character_hooks()
+end
+
+if mod._sync_auto_presets_with_current_player then
+	mod._sync_auto_presets_with_current_player()
+end
+
 mod.get_time = function()
 	local tm = Managers and Managers.time
 	local fallback = os.clock() or 0
@@ -40,6 +48,20 @@ mod.get_time = function()
 		end
 	end
 	return fallback
+end
+
+local auto_preset_time = 0
+
+mod.update = function(dt)
+	auto_preset_time = auto_preset_time + (dt or 0)
+
+	if mod._update_auto_presets then
+		mod._update_auto_presets(auto_preset_time)
+	end
+
+	if mod._update_icon_packages then
+		mod._update_icon_packages()
+	end
 end
 
 -- debug mode toggle!!! Leave false for normal play.
@@ -67,6 +89,7 @@ local function has_multiple_tabs(self)
 end
 
 local option_values = {}
+local reset_tab_localization_added = false
 
 mod.on_setting_changed = function(setting_id)
 	option_values[setting_id] = nil
@@ -300,13 +323,16 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 	defs.scenegraph_definition.settings_grid_mask.position[2] =
 		defs.scenegraph_definition.settings_grid_interaction.position[2]
 
-	self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition)
+	if self._ui_scenegraph then
+		self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition, self._render_scale)
+	end
 
 	if mod:get("enable_tab_reset") then
 		local reset_tab_title = mod:localize("reset_tab_to_default")
 		local reset_tab_text = mod:localize("reset_tab_to_default_description")
 
-		if Managers.localization then
+		if Managers.localization and not reset_tab_localization_added then
+			reset_tab_localization_added = true
 			Managers.localization:append_backend_localizations({
 				["loc_alf_dmf_ext_reset_tab"] = reset_tab_title,
 				["loc_alf_dmf_ext_reset_tab_desc"] = reset_tab_text,
@@ -350,23 +376,27 @@ mod:hook(CLASS.BaseView, "init", function(func, self, definitions, settings, con
 		end
 
 		defs.legend_inputs = defs.legend_inputs or {}
-		table.insert(defs.legend_inputs, {
-			input_action = mod:get("keybind_reset_tab"),
-			display_name = "loc_alf_dmf_ext_reset_tab",
-			on_pressed_callback = "cb_reset_tab_to_default",
-			visibility_function = function(parent)
-				if not mod:get("enable_tab_reset") then
-					return false
-				end
-				if not mod:get("enable_mod_tabs") then
-					return false
-				end
-				if self.is_text_input_focused then
-					return false
-				end
-				return has_multiple_tabs(parent)
-			end,
-		})
+
+		if not defs._alfs_reset_legend_added then
+			defs._alfs_reset_legend_added = true
+			table.insert(defs.legend_inputs, {
+				input_action = mod:get("keybind_reset_tab"),
+				display_name = "loc_alf_dmf_ext_reset_tab",
+				on_pressed_callback = "cb_reset_tab_to_default",
+				visibility_function = function(parent)
+					if not mod:get("enable_tab_reset") then
+						return false
+					end
+					if not mod:get("enable_mod_tabs") then
+						return false
+					end
+					if self.is_text_input_focused then
+						return false
+					end
+					return has_multiple_tabs(parent)
+				end,
+			})
+		end
 	end
 end)
 
@@ -417,10 +447,6 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
-	if mod._update_auto_presets then
-		mod._update_auto_presets(t)
-	end
-
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end

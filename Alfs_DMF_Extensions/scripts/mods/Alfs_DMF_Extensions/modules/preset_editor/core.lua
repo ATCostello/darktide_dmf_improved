@@ -7,6 +7,7 @@ local Core = mod._preset_core or {}
 mod._preset_core = Core
 
 Core.silent = false
+Core.apply_change_count = 0
 
 local setting_ids_cache = {}
 local preset_store_cache = nil
@@ -65,8 +66,26 @@ local function values_equal(a, b, depth)
 	return true
 end
 
+local function current_setting_value(target_mod, setting_id)
+	if not target_mod then
+		return nil
+	end
+
+	local dmf = Utils.get_dmf()
+
+	if dmf and type(dmf._get_setting_value) == "function" and type(target_mod.get_name) == "function" then
+		local mod_name = target_mod:get_name()
+
+		if mod_name then
+			return dmf._get_setting_value(mod_name, setting_id)
+		end
+	end
+
+	return target_mod:get(setting_id)
+end
+
 local function setting_needs_update(target_mod, setting_id, value)
-	return not values_equal(target_mod:get(setting_id), value, 0)
+	return not values_equal(current_setting_value(target_mod, setting_id), value, 0)
 end
 
 local BULK_GUARD_MOD = "Enhanced_descriptions"
@@ -77,24 +96,25 @@ local function is_bulk_reload_setting(setting_id)
 		or setting_id == "language_override"
 end
 
-local function has_bulk_conflict(mod_name, settings)
-	if mod_name ~= BULK_GUARD_MOD or type(settings) ~= "table" then
-		return false
-	end
-
-	return settings.color_preset ~= nil
-end
-
-local function begin_bulk_apply(conflict)
+local function begin_bulk_apply()
 	local bulk_mod = get_mod(BULK_GUARD_MOD)
 
-	if not bulk_mod or bulk_mod._applying_preset or conflict then
+	if not bulk_mod or bulk_mod._applying_preset then
 		return nil
 	end
 
 	bulk_mod._applying_preset = true
 
 	return bulk_mod
+end
+
+local function apply_bulk_color_preset(bulk_mod, color_preset)
+	if not bulk_mod or color_preset == nil or type(bulk_mod.apply_color_preset) ~= "function" then
+		return
+	end
+
+	bulk_mod.apply_color_preset(color_preset)
+	bulk_mod._applying_preset = true
 end
 
 local function end_bulk_apply(bulk_mod, needs_reload)
@@ -231,69 +251,59 @@ Core.get_setting_ids = function(target_mod_name)
 		return {}, 0
 	end
 
-	local widget_ids, widget_count = {}, 0
 	local dmf = Utils.get_dmf()
 	local widgets_data = dmf and dmf.options_widgets_data
+	local widgets_count = widgets_data and #widgets_data or 0
+	local cached = setting_ids_cache[target_mod_name]
 
-	if widgets_data then
-		local cached = setting_ids_cache[target_mod_name]
-
-		if cached then
-			if widgets_data[cached.index] == cached.widgets then
-				widget_ids, widget_count = cached.ids, cached.count
-			else
-				setting_ids_cache[target_mod_name] = nil
+	if cached then
+		if cached.widgets_data == widgets_data and cached.widgets_count == widgets_count then
+			if not cached.index or (widgets_data and widgets_data[cached.index] == cached.widgets) then
+				return cached.ids, cached.count
 			end
 		end
 
-		if not setting_ids_cache[target_mod_name] then
-			for index = 1, #widgets_data do
-				local mod_widgets = widgets_data[index]
-				local header = mod_widgets and mod_widgets[1]
+		setting_ids_cache[target_mod_name] = nil
+	end
 
-				if header and header.mod_name == target_mod_name then
-					local ids = {}
-					local seen = {}
-					local count = 0
+	local widget_ids, widget_count = {}, 0
+	local cached_index, cached_widgets = nil, nil
 
-					for i = 2, #mod_widgets do
-						local widget = mod_widgets[i]
-						local setting_id = widget and widget.setting_id
+	if widgets_data then
+		for index = 1, #widgets_data do
+			local mod_widgets = widgets_data[index]
+			local header = mod_widgets and mod_widgets[1]
 
-						if
-							setting_id
-							and widget.type ~= "group"
-							and widget.type ~= "button"
-							and not seen[setting_id]
-						then
-							seen[setting_id] = true
-							count = count + 1
-							ids[count] = setting_id
-						end
+			if header and header.mod_name == target_mod_name then
+				local seen = {}
+				local count = 0
+
+				for i = 2, #mod_widgets do
+					local widget = mod_widgets[i]
+					local setting_id = widget and widget.setting_id
+
+					if
+						setting_id
+						and widget.type ~= "group"
+						and widget.type ~= "button"
+						and not seen[setting_id]
+					then
+						seen[setting_id] = true
+						count = count + 1
+						widget_ids[count] = setting_id
 					end
-
-					setting_ids_cache[target_mod_name] = {
-						ids = ids,
-						count = count,
-						index = index,
-						widgets = mod_widgets,
-					}
-					widget_ids, widget_count = ids, count
-					break
 				end
+
+				widget_count = count
+				cached_index = index
+				cached_widgets = mod_widgets
+				break
 			end
 		end
 	end
 
 	local config_ids, config_count = Core.get_config_setting_ids(target_mod_name)
-
-	if config_count == 0 then
-		return widget_ids, widget_count
-	end
-
-	local ids = {}
-	local seen = {}
-	local count = 0
+	local ids, count, seen = {}, 0, {}
 
 	for i = 1, widget_count do
 		local setting_id = widget_ids[i]
@@ -315,10 +325,19 @@ Core.get_setting_ids = function(target_mod_name)
 		end
 	end
 
+	setting_ids_cache[target_mod_name] = {
+		ids = ids,
+		count = count,
+		index = cached_index,
+		widgets = cached_widgets,
+		widgets_data = widgets_data,
+		widgets_count = widgets_count,
+	}
+
 	return ids, count
 end
 
-Core.capture_settings = function(target_mod_name)
+Core.capture_settings = function(target_mod_name, filter)
 	local mod_name = Utils.resolve_mod_name(target_mod_name)
 	local target_mod = mod_name and get_mod(mod_name) or nil
 
@@ -327,6 +346,21 @@ Core.capture_settings = function(target_mod_name)
 	end
 
 	local settings = {}
+
+	if type(filter) == "table" then
+		for setting_id in pairs(filter) do
+			if not is_excluded_setting(mod_name, setting_id) then
+				local value = target_mod:get(setting_id)
+
+				if value ~= nil then
+					settings[setting_id] = value
+				end
+			end
+		end
+
+		return settings
+	end
+
 	local ids, count = Core.get_setting_ids(mod_name)
 
 	for i = 1, count do
@@ -396,6 +430,28 @@ Core.capture_all_settings = function()
 	end
 
 	return mods
+end
+
+local function capture_global_preset_settings(mods)
+	if type(mods) ~= "table" then
+		return nil
+	end
+
+	local captured = {}
+
+	for mod_name, settings in pairs(mods) do
+		local mod_settings = Core.capture_settings(mod_name, settings)
+
+		if mod_settings and next(mod_settings) then
+			captured[Utils.resolve_mod_name(mod_name) or mod_name] = mod_settings
+		end
+	end
+
+	if not next(captured) then
+		return nil
+	end
+
+	return captured
 end
 
 Core.make_backup_name = function()
@@ -598,12 +654,52 @@ Core.get_preset_names = function(scope)
 	return names
 end
 
-Core.scope_capture_settings = function(scope)
+Core.scope_capture_settings = function(scope, preset_settings)
 	if Core.is_global_scope(scope) then
-		return Core.capture_all_settings()
+		return type(preset_settings) == "table" and capture_global_preset_settings(preset_settings)
+			or Core.capture_all_settings()
 	end
 
-	return Core.capture_settings(scope.mod_name)
+	return Core.capture_settings(scope.mod_name, preset_settings)
+end
+
+Core.extend_snapshot = function(snapshot, scope, preset_settings)
+	if type(snapshot) ~= "table" or type(preset_settings) ~= "table" then
+		return snapshot
+	end
+
+	local additions = Core.scope_capture_settings(scope, preset_settings)
+
+	if not additions then
+		return snapshot
+	end
+
+	if Core.is_global_scope(scope) then
+		for mod_name, settings in pairs(additions) do
+			local snapshot_mod = snapshot[mod_name]
+
+			if type(snapshot_mod) ~= "table" then
+				snapshot_mod = {}
+				snapshot[mod_name] = snapshot_mod
+			end
+
+			for setting_id, value in pairs(settings) do
+				if snapshot_mod[setting_id] == nil then
+					snapshot_mod[setting_id] = value
+				end
+			end
+		end
+
+		return snapshot
+	end
+
+	for setting_id, value in pairs(additions) do
+		if snapshot[setting_id] == nil then
+			snapshot[setting_id] = value
+		end
+	end
+
+	return snapshot
 end
 
 Core.build_payload = function(name, settings, target_mod_name)
@@ -644,7 +740,6 @@ Core.refresh_options_view = function(view, target_mod_name)
 		return
 	end
 
-	table.clear(setting_ids_cache)
 	mod._tab_inject_state = {}
 	mod._gen_tabs_toggle_widgets = {}
 	mod._preset_editor_widgets = {}
@@ -678,8 +773,12 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 		return
 	end
 
-	local bulk_mod = begin_bulk_apply(has_bulk_conflict(mod_name, settings))
+	local bulk_mod = begin_bulk_apply()
 	local bulk_needs_reload = false
+
+	if bulk_mod and mod_name == BULK_GUARD_MOD then
+		apply_bulk_color_preset(bulk_mod, settings.color_preset)
+	end
 
 	for setting_id, value in pairs(settings) do
 		if
@@ -688,6 +787,7 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 			and setting_needs_update(target_mod, setting_id, value)
 		then
 			target_mod:set(setting_id, value, true)
+			Core.apply_change_count = Core.apply_change_count + 1
 
 			if bulk_mod and mod_name == BULK_GUARD_MOD and is_bulk_reload_setting(setting_id) then
 				bulk_needs_reload = true
@@ -717,17 +817,16 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 		return
 	end
 
-	local conflict = false
+	local bulk_mod = begin_bulk_apply()
+	local bulk_needs_reload = false
 
-	for mod_name, settings in pairs(mods) do
-		if has_bulk_conflict(Utils.resolve_mod_name(mod_name) or mod_name, settings) then
-			conflict = true
-			break
+	if bulk_mod then
+		for mod_name, settings in pairs(mods) do
+			if (Utils.resolve_mod_name(mod_name) or mod_name) == BULK_GUARD_MOD and type(settings) == "table" then
+				apply_bulk_color_preset(bulk_mod, settings.color_preset)
+			end
 		end
 	end
-
-	local bulk_mod = begin_bulk_apply(conflict)
-	local bulk_needs_reload = false
 
 	for mod_name, settings in pairs(mods) do
 		local resolved_name = Utils.resolve_mod_name(mod_name)
@@ -741,6 +840,7 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 					and setting_needs_update(target_mod, setting_id, value)
 				then
 					target_mod:set(setting_id, value, true)
+					Core.apply_change_count = Core.apply_change_count + 1
 
 					if bulk_mod and resolved_name == BULK_GUARD_MOD and is_bulk_reload_setting(setting_id) then
 						bulk_needs_reload = true
