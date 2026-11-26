@@ -20,6 +20,10 @@ local function rgba(rgb, alpha)
 	return { alpha or 255, rgb[1], rgb[2], rgb[3] }
 end
 
+local ACCENT_EDGE = rgba({ 250, 189, 73 }, 255)
+local ACCENT_TEXT = { 255, 226, 199, 126 }
+local ACCENT_BAR = rgba({ 218, 165, 32 }, 255)
+
 Styles.copy_color = function(value)
 	if type(value) ~= "table" then
 		return value
@@ -57,7 +61,10 @@ local function has_prefix(value, prefix)
 end
 
 Styles.COLORS = {
-	normal = { 255, 226, 199, 126 },
+	title = named_color("terminal_text_header_selected", 255, Color.terminal_text_header(255, true)),
+	body = named_color("terminal_text_body", 255, Color.terminal_text_header(255, true)),
+	rule = named_color("terminal_frame_hover", 160, Color.terminal_corner(160, true)),
+	normal = ACCENT_TEXT,
 	text = Color.terminal_text_header(255, true),
 	text_hover = Color.terminal_text_header_selected(255, true),
 	muted = color(Color.ui_grey_light, Color.terminal_text_header(255, true)),
@@ -71,15 +78,27 @@ Styles.COLORS = {
 	corner_hover = named_color("terminal_corner_hover", 255, Color.terminal_corner(255, true)),
 	corner_selected = named_color("terminal_corner_selected", 255, Color.terminal_frame_selected(255, true)),
 	background = named_color("terminal_background", 100, Color.terminal_grid_background(100, true)),
-	background_hover = named_color("terminal_background", 140, Color.terminal_grid_background(140, true)),
+	background_hover = named_color("terminal_background", 150, Color.terminal_grid_background(150, true)),
 	background_selected = named_color("terminal_background_selected", 110, Color.terminal_grid_background(110, true)),
 	gradient = named_color("terminal_background_gradient", 90, Color.terminal_grid_background(90, true)),
+	gradient_hover = named_color("terminal_background_gradient", 170, Color.terminal_grid_background(170, true)),
 	gradient_selected = named_color("terminal_frame_selected", 150, Color.terminal_frame_selected(150, true)),
 	popup_background = Color.terminal_grid_background(70, true),
-	tooltip_background = Color.black(230, true),
-	gold_edge = rgba({ 250, 189, 73 }, 255),
-	gold_text = { 255, 226, 199, 126 },
-	gold_bar = rgba({ 218, 165, 32 }, 255),
+	popup_shadow = Color.black(210, true),
+	tooltip_background = named_color("terminal_background", 250, Color.terminal_grid_background(250, true)),
+	tooltip_gradient = named_color("terminal_background_gradient", 80, Color.terminal_grid_background(80, true)),
+	tooltip_shadow = Color.black(210, true),
+	dropdown_fill = named_color("terminal_background", 255, Color.terminal_grid_background(255, true)),
+	dropdown_background = Color.terminal_grid_background(255, true),
+	dropdown_icon = named_color("terminal_icon", 255, Color.terminal_text_header(255, true)),
+	dropdown_icon_hover = named_color("terminal_icon_selected", 255, Color.terminal_text_header_selected(255, true)),
+	dropdown_icon_disabled = named_color("terminal_text_body_dark", 255, Color.ui_grey_medium(255, true)),
+	accent_edge = ACCENT_EDGE,
+	accent_text = ACCENT_TEXT,
+	accent_bar = ACCENT_BAR,
+	gold_edge = ACCENT_EDGE,
+	gold_text = ACCENT_TEXT,
+	gold_bar = ACCENT_BAR,
 	green_key = rgba({ 169, 191, 153 }, 255),
 	bone = rgba({ 232, 224, 206 }, 255),
 	shadow = Color.black(170, true),
@@ -186,9 +205,11 @@ Styles.button_passes = function(alignment, font_size, offset, template_name)
 		if style then
 			if style_id == "background" then
 				style.default_color = Styles.copy_color(Styles.COLORS.background)
+				style.hover_color = Styles.copy_color(Styles.COLORS.background_hover)
 				style.selected_color = Styles.copy_color(Styles.COLORS.background_selected)
 			elseif style_id == "background_gradient" then
 				style.default_color = Styles.copy_color(Styles.COLORS.gradient)
+				style.hover_color = Styles.copy_color(Styles.COLORS.gradient_hover)
 				style.selected_color = Styles.copy_color(Styles.COLORS.gradient_selected)
 			elseif style_id == "outer_shadow" then
 				style.color = Styles.copy_color(Styles.COLORS.shadow)
@@ -222,7 +243,7 @@ Styles.info_passes = function(font_size, offset)
 			pass_type = "text",
 			value_id = "text",
 			style_id = "text",
-			style = Styles.make_text_style(font_size or 18, offset or { 10, 0, 2 }, Styles.COLORS.muted),
+			style = Styles.make_text_style(font_size or 18, offset or { 10, 0, 2 }, Styles.COLORS.body),
 		},
 	}
 end
@@ -250,6 +271,47 @@ Styles.frame_passes = function(material, color, corner_color)
 	}
 end
 
+Styles.shadow_pass = function(style_id, size_addition, color)
+	return {
+		pass_type = "texture",
+		style_id = style_id or "dropshadow",
+		value = Styles.materials.dropshadow,
+		style = {
+			color = Styles.copy_color(color or Styles.COLORS.popup_shadow),
+			scale_to_material = true,
+			size_addition = size_addition or { 24, 24 },
+			offset = { 0, 0, 0 },
+		},
+	}
+end
+
+Styles.inner_shadow_pass = function(style_id, color)
+	return {
+		pass_type = "texture",
+		style_id = style_id or "inner_shadow",
+		value = Styles.materials.inner_shadow,
+		style = {
+			color = Styles.copy_color(color or Styles.COLORS.inner_shadow),
+			scale_to_material = true,
+			offset = { 0, 0, 1 },
+		},
+	}
+end
+
+Styles.rule_pass = function(style_id, size, offset, color, vertical_alignment)
+	return {
+		pass_type = "rect",
+		style_id = style_id or "rule",
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = vertical_alignment or "center",
+			size = size,
+			offset = offset,
+			color = Styles.copy_color(color or Styles.COLORS.rule),
+		},
+	}
+end
+
 Styles.customize_dropdown = function(passes)
 	for _, pass in ipairs(passes or {}) do
 		local style = pass.style
@@ -259,16 +321,16 @@ Styles.customize_dropdown = function(passes)
 			if style_id == "background" then
 				style.color = Styles.copy_color(Styles.COLORS.frame)
 			elseif style_id == "fill" then
-				style.color = Color.terminal_background(255, true)
+				style.color = Styles.copy_color(Styles.COLORS.dropdown_fill)
 				style.size = { 24, 12 }
 			elseif style_id == "line" then
-				style.default_color = Color.terminal_icon(255, true)
-				style.hover_color = Color.terminal_icon_selected(255, true)
-				style.disabled_color = Color.terminal_text_body_dark(255, true)
+				style.default_color = Styles.copy_color(Styles.COLORS.dropdown_icon)
+				style.hover_color = Styles.copy_color(Styles.COLORS.dropdown_icon_hover)
+				style.disabled_color = Styles.copy_color(Styles.COLORS.dropdown_icon_disabled)
 				style.color = Styles.copy_color(style.default_color)
 				style.size = { 24, 12 }
 			elseif style_id == "dropdown_background" then
-				style.color = Color.terminal_grid_background(255, true)
+				style.color = Styles.copy_color(Styles.COLORS.dropdown_background)
 			elseif style_id == "text" then
 				style.font_size = 16
 				style.default_color = Styles.copy_color(Styles.COLORS.normal)

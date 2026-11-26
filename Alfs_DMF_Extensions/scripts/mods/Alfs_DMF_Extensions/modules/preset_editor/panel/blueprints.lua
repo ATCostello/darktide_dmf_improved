@@ -38,6 +38,31 @@ local character_toggle_template = {
 	},
 	{
 		pass_type = "texture",
+		style_id = "glow",
+		value = Styles.materials.frame_glow,
+		style = {
+			horizontal_alignment = "center",
+			vertical_alignment = "center",
+			scale_to_material = true,
+			rest_color = Styles.copy_color(Styles.COLORS.accent_edge),
+			hover_color = Styles.copy_color(Styles.COLORS.accent_edge),
+			selected_color = Styles.copy_color(Styles.COLORS.accent_edge),
+			color = Styles.copy_color(Styles.COLORS.accent_edge),
+			size_addition = { 12, 12 },
+			offset = { 0, 0, 1 },
+		},
+		visibility_function = function(content)
+			return Styles.hovered_or_selected(content)
+		end,
+		change_function = function(content, style)
+			local selected = Styles.selected(content)
+
+			Styles.set_color(style.color, selected and style.selected_color or style.hover_color)
+			style.color[1] = selected and 110 or 70
+		end,
+	},
+	{
+		pass_type = "texture",
 		style_id = "background",
 		value = "content/ui/materials/backgrounds/default_square",
 		style = {
@@ -63,7 +88,7 @@ local character_toggle_template = {
 		style = {
 			scale_to_material = true,
 			rest_color = Styles.copy_color(Styles.COLORS.gradient),
-			hover_color = Styles.copy_color(Styles.COLORS.gradient),
+			hover_color = Styles.copy_color(Styles.COLORS.gradient_hover),
 			selected_color = Styles.copy_color(Styles.COLORS.gradient_selected),
 			color = Styles.copy_color(Styles.COLORS.gradient),
 			size_addition = { nil, -2 },

@@ -86,6 +86,20 @@ local scenegraph_definition = {
 		size = { 700, 42 },
 		position = { 40, 28, 2 },
 	},
+	header_rule = {
+		parent = "popup",
+		vertical_alignment = "top",
+		horizontal_alignment = "center",
+		size = { 1100, 1 },
+		position = { 0, 142, 2 },
+	},
+	bottom_rule = {
+		parent = "popup",
+		vertical_alignment = "bottom",
+		horizontal_alignment = "center",
+		size = { 1100, 1 },
+		position = { 0, -100, 2 },
+	},
 	scope_dropdown = {
 		parent = "popup",
 		vertical_alignment = "top",
@@ -204,6 +218,8 @@ local widget_draw_order = {
 	"actions_frame",
 	"title_divider",
 	"title_text",
+	"header_rule",
+	"bottom_rule",
 	"scope_dropdown",
 	"selected_preset_text",
 	"bottom_save",
@@ -213,6 +229,7 @@ local widget_draw_order = {
 }
 
 local tooltip_background_color = Styles.copy_color(Styles.COLORS.tooltip_background)
+local tooltip_gradient_color = Styles.copy_color(Styles.COLORS.tooltip_gradient)
 local tooltip_frame_color = Styles.copy_color(Styles.COLORS.frame)
 local tooltip_text_color = Styles.copy_color(Styles.COLORS.text)
 local tooltip_accent_color = Styles.copy_color(Styles.COLORS.normal)
@@ -226,6 +243,12 @@ local function tooltip_color_change(color, visible_alpha)
 		style.color[1] = content.visible and (visible_alpha or color[1]) or 0
 	end
 end
+
+local tooltip_shadow_pass = Styles.shadow_pass("tooltip_shadow", { 12, 12 }, Styles.COLORS.tooltip_shadow)
+tooltip_shadow_pass.change_function = tooltip_color_change(Styles.COLORS.tooltip_shadow, 210)
+
+local tooltip_inner_shadow_pass = Styles.inner_shadow_pass("tooltip_inner_shadow")
+tooltip_inner_shadow_pass.change_function = tooltip_color_change(Styles.COLORS.inner_shadow, 150)
 
 local tooltip_text_style = text_style(16, { 18, 0, 4 }, tooltip_text_color, "left", { 300, 30 })
 tooltip_text_style.font_type = "machine_medium"
@@ -254,14 +277,30 @@ local tooltip_definitions = {
 	},
 	widget_definitions = {
 		tooltip = UIWidget.create_definition({
+			tooltip_shadow_pass,
 			{
-				pass_type = "rect",
+				pass_type = "texture",
 				style_id = "background",
+				value = "content/ui/materials/backgrounds/default_square",
 				style = {
 					color = Styles.copy_color(tooltip_background_color),
+					scale_to_material = true,
+					offset = { 0, 0, 0 },
 				},
-				change_function = tooltip_color_change(tooltip_background_color, 230),
+				change_function = tooltip_color_change(tooltip_background_color, 250),
 			},
+			{
+				pass_type = "texture",
+				style_id = "gradient",
+				value = "content/ui/materials/gradients/gradient_vertical",
+				style = {
+					color = Styles.copy_color(tooltip_gradient_color),
+					scale_to_material = true,
+					offset = { 0, 0, 1 },
+				},
+				change_function = tooltip_color_change(tooltip_gradient_color, 80),
+			},
+			tooltip_inner_shadow_pass,
 			{
 				pass_type = "texture",
 				style_id = "top_line",
@@ -367,7 +406,7 @@ local title_text_style =
 	table.clone(UIFontSettings.header_1 or UIFontSettings.header_3 or UIFontSettings.button_primary or {})
 title_text_style.text_horizontal_alignment = "left"
 title_text_style.text_vertical_alignment = "center"
-title_text_style.text_color = Styles.copy_color(Styles.COLORS.normal)
+title_text_style.text_color = Styles.copy_color(Styles.COLORS.title)
 title_text_style.offset = { 0, 0, 2 }
 
 local selected_text_style = text_style(18, { 0, 0, 2 }, Styles.COLORS.normal, "right", { 260, 40 })
@@ -388,6 +427,7 @@ local popup_background_style = {
 	scale_to_material = true,
 	offset = { 0, 0, 0 },
 	size = { POPUP_BORDER_WIDTH, POPUP_BORDER_HEIGHT },
+	size_addition = { 18, 24 },
 	color = Color.terminal_grid_background(255, true),
 }
 
@@ -400,6 +440,7 @@ local backing_cog_color = Styles.copy_color(Styles.COLORS.normal)
 backing_cog_color[1] = 25
 
 local popup_backing_passes = {
+	Styles.shadow_pass("popup_shadow", { 24, 24 }, Styles.COLORS.popup_shadow),
 	{
 		pass_type = "rect",
 		style_id = "solid",
@@ -423,6 +464,7 @@ local popup_backing_passes = {
 			color = backing_gradient_color,
 		},
 	},
+	Styles.inner_shadow_pass("popup_inner_shadow"),
 	{
 		pass_type = "slug_icon",
 		style_id = "settings_cog",
@@ -473,8 +515,8 @@ local widget_definitions = {
 			value = "content/ui/materials/backgrounds/terminal_basic",
 			style = popup_background_style,
 		},
-		divider_pass("content/ui/materials/frames/premium_store/details_upper", "top", 56, -72),
-		divider_pass("content/ui/materials/frames/premium_store/details_lower_basic", "bottom", 72, 38),
+		divider_pass("content/ui/materials/frames/premium_store/details_upper", "top", 66, -82),
+		divider_pass("content/ui/materials/frames/premium_store/details_lower_basic", "bottom", 82, 48),
 	}, "popup_background"),
 	popup_frame = UIWidget.create_definition(
 		Styles.frame_passes("content/ui/materials/frames/frame_tile_2px", Styles.COLORS.line, Styles.COLORS.corner),
@@ -492,6 +534,11 @@ local widget_definitions = {
 		{
 			pass_type = "texture",
 			value = "content/ui/materials/dividers/skull_rendered_left_01",
+			style = {
+				color = Styles.copy_color(Styles.COLORS.frame),
+				scale_to_material = true,
+				offset = { 0, 0, 2 },
+			},
 		},
 	}, "title_divider"),
 	title_text = UIWidget.create_definition({
@@ -502,6 +549,12 @@ local widget_definitions = {
 			style = title_text_style,
 		},
 	}, "title_text"),
+	header_rule = UIWidget.create_definition({
+		Styles.rule_pass("rule"),
+	}, "header_rule"),
+	bottom_rule = UIWidget.create_definition({
+		Styles.rule_pass("rule"),
+	}, "bottom_rule"),
 	scope_dropdown = UIWidget.create_definition(dropdown_passes, "scope_dropdown", {
 		options = {},
 		options_by_value = {},
