@@ -127,6 +127,66 @@ local function sync_mod_cog(self)
 	return content, category_entry
 end
 
+local function clear_global_cog_tooltip(view, proxy)
+	if not proxy or not view._tooltip_data or view._tooltip_data.widget ~= proxy then
+		return
+	end
+
+	view._tooltip_data = nil
+
+	local tooltip = view._widgets_by_name and view._widgets_by_name.tooltip
+
+	if tooltip then
+		tooltip.content.visible = false
+	end
+end
+
+local function global_cog_tooltip_proxy(view, content)
+	local proxy = view._alfs_global_cog_tooltip_proxy
+
+	if not proxy then
+		proxy = {
+			offset = { 0, 0, 0 },
+			content = {
+				entry = { tooltip_text = mod:localize("preset_editor_global_tooltip") },
+				size = { 520, 0 },
+				hotspot = content.hotspot,
+			},
+		}
+		view._alfs_global_cog_tooltip_proxy = proxy
+	end
+
+	proxy.content.hotspot = content.hotspot
+	proxy.content.entry.tooltip_text = content.tooltip_text or mod:localize("preset_editor_global_tooltip")
+
+	return proxy
+end
+
+local function update_global_cog_tooltip_proxy(view, proxy)
+	if type(view._scenegraph_world_position) ~= "function" then
+		return false
+	end
+
+	local starting_point = view:_scenegraph_world_position("settings_grid_start")
+	local cog_position = view:_scenegraph_world_position(Constants.GLOBAL_COG_ID)
+
+	if not starting_point or not cog_position then
+		return false
+	end
+
+	local scroll_addition = 0
+	local grid = view._settings_content_grid
+
+	if grid and type(grid.length_scrolled) == "function" then
+		scroll_addition = grid:length_scrolled() or 0
+	end
+
+	proxy.offset[1] = cog_position[1] - starting_point[1]
+	proxy.offset[2] = cog_position[2] - starting_point[2] + scroll_addition
+
+	return true
+end
+
 local function handle_global_preset_cog(view)
 	if not view or view.view_name ~= "dmf_options_view" or view._popup_id then
 		return
@@ -134,16 +194,28 @@ local function handle_global_preset_cog(view)
 
 	local widget = view._widgets_by_name and view._widgets_by_name[Constants.GLOBAL_COG_ID]
 	local content = widget and widget.content
+	local proxy = view._alfs_global_cog_tooltip_proxy
 
 	if content then
 		content.visible = Core.presets_enabled()
 	end
 
 	if not content or not content.visible then
+		clear_global_cog_tooltip(view, proxy)
 		return
 	end
 
 	local hotspot = content.hotspot
+
+	if hotspot and (hotspot.is_hover or hotspot.is_focused) then
+		proxy = global_cog_tooltip_proxy(view, content)
+
+		if update_global_cog_tooltip_proxy(view, proxy) and type(view._set_tooltip_data) == "function" then
+			view:_set_tooltip_data(proxy, "")
+		end
+	else
+		clear_global_cog_tooltip(view, proxy)
+	end
 
 	if hotspot and hotspot.on_pressed then
 		hotspot.on_pressed = nil

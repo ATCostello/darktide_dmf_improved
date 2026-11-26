@@ -286,14 +286,6 @@ mod:hook_safe(CLASS.BaseView, "on_exit", function(self)
 	end
 
 	if self.view_name == "dmf_options_view" then
-		if mod._preset_panel_restore_settings_state_bound then
-			mod._preset_panel_restore_settings_state_bound()
-		end
-
-		if mod._close_preset_panel_if_open then
-			mod._close_preset_panel_if_open()
-		end
-
 		mod._gen_tabs_toggle_widgets = {}
 		mod._tab_inject_state = {}
 		mod._preset_editor_widgets = {}
@@ -330,10 +322,6 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
-	if mod._update_auto_presets then
-		mod._update_auto_presets(t)
-	end
-
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end
