@@ -64,12 +64,6 @@ mod.update = function(dt)
 	end
 end
 
--- debug mode toggle!!! Leave false for normal play.
-mod.DEBUG = false
-if mod.DEBUG then
-	dbg_mod = mod
-end
-
 mod.last_category = nil
 mod.current_category = nil
 
@@ -89,12 +83,7 @@ end
 mod.get_mod_storage_key_for_tab = get_mod_storage_key
 
 local function has_multiple_tabs(self)
-	local category = self._selected_category
-	if not category then
-		return false
-	end
-	local tabs = mod.get_tabs and mod.get_tabs(self, category)
-	return tabs and #tabs > 1
+	return (self and self._mod_tab_widget_count or 0) > 1
 end
 
 local option_values = {}
