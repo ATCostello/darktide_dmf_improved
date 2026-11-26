@@ -98,12 +98,14 @@ local function sync_options(parent)
 		content.options_by_value = options_by_value
 		content._options_key = key
 
-		local visible = math.min(#options, Definitions.SCOPE_MAX_VISIBLE_OPTIONS)
+		local num_options = #options
+		local visible = math.min(num_options, Definitions.SCOPE_MAX_VISIBLE_OPTIONS)
 		local row_height = Definitions.SCOPE_DROPDOWN_SIZE[2]
 
+		content.num_options = num_options
 		content.num_visible_options = visible
 		content.area_length = row_height * visible
-		content.scroll_length = math.max(row_height * #options - content.area_length, 0)
+		content.scroll_length = math.max(row_height * num_options - content.area_length, 0)
 		content.scroll_amount = content.scroll_length > 0 and row_height / content.scroll_length or 0
 	end
 
@@ -237,7 +239,7 @@ local function update_visible_options(parent, widget, input_service, focused)
 	local content = widget.content
 	local style = widget.style
 	local options = content.options or {}
-	local num_options = #options
+	local num_options = content.num_options or #options
 	local num_visible_options = math.max(1, content.num_visible_options or 1)
 	local row_height = Definitions.SCOPE_DROPDOWN_SIZE[2]
 	local using_gamepad = dropdown_using_gamepad(parent)
@@ -363,10 +365,12 @@ Dropdown.update = function(parent, dt, t, input_service)
 
 	if not focused then
 		local using_gamepad = dropdown_using_gamepad(parent)
-		local hotspot = content.hotspot or {}
+		local hotspot = content.hotspot
 
-		hotspot.is_selected = using_gamepad
-		hotspot.on_pressed = false
+		if hotspot then
+			hotspot.is_selected = using_gamepad
+			hotspot.on_pressed = false
+		end
 
 		return true
 	end

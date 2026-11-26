@@ -207,12 +207,21 @@ end
 
 local cursor_scratch = { 0, 0 }
 
-local function cursor_to_ui_space(input_service, parent)
+local function cursor_to_ui_space(input_service, parent, t)
 	if not input_service or type(input_service.get) ~= "function" then
 		return nil
 	end
 
+	if t and parent and parent._alfs_cursor_frame == t then
+		return parent._alfs_cursor_valid and cursor_scratch or nil
+	end
+
 	local cursor = input_service:get("cursor")
+
+	if parent then
+		parent._alfs_cursor_frame = t
+		parent._alfs_cursor_valid = cursor ~= nil
+	end
 
 	if not cursor then
 		return nil
@@ -221,12 +230,13 @@ local function cursor_to_ui_space(input_service, parent)
 	if IS_XBS or IS_PLAYSTATION then
 		cursor_scratch[1] = cursor[1]
 		cursor_scratch[2] = cursor[2]
-		return cursor_scratch
+	else
+		local render_scale = parent and parent._render_scale or 1
+		cursor_scratch[1] = cursor[1] / render_scale
+		cursor_scratch[2] = cursor[2] / render_scale
 	end
 
-	local render_scale = parent and parent._render_scale or 1
-
-	return UIResolution.inverse_scale_vector(cursor, 1 / render_scale)
+	return cursor_scratch
 end
 
 local function get_bar_ui_x(parent, widget, slider)
@@ -376,7 +386,7 @@ local function start_editing(content, slider_name)
 		local prev_slider = sliders_cached[prev.slider_name]
 
 		prev.content[prev_slider.editing] = false
-		prev.content[prev_slider.value_text] = "" --prev_entry and tostring(get_value(prev_entry)) or "0"
+		prev.content[prev_slider.value_text] = ""
 	end
 
 	local slider = sliders_cached[slider_name]
@@ -384,7 +394,7 @@ local function start_editing(content, slider_name)
 	content[slider.editing] = true
 
 	local entry = content[slider.entry]
-	local current = "" --entry and tostring(get_value(entry)) or "0"
+	local current = ""
 
 	content[slider.buffer] = current
 	content[slider.value_text] = current
@@ -744,6 +754,7 @@ local function build_blueprint(has_alpha)
 			{ name = "b", label = "B" },
 		}
 
+	local num_slider_configs = #slider_configs
 	local bar_width = has_alpha and BAR_WIDTH_ARGB or BAR_WIDTH_RGB
 
 	local passes = {}
@@ -779,15 +790,31 @@ local function build_blueprint(has_alpha)
 	}
 
 	local function cache_fills(widget, style)
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
-			widget[sliders_cached[config.name].fill_widget] = style[sliders_cached[config.name].fill]
+			local slider = sliders_cached[config.name]
+			local fill_style = style[slider.fill]
+
+			if fill_style then
+				local own_fill = table.clone(fill_style)
+				own_fill.size = table.clone(fill_style.size)
+				style[slider.fill] = own_fill
+				widget[slider.fill_widget] = own_fill
+			end
 		end
-		widget._preview_color = style.preview_style.color
+
+		local preview_style = style.preview_style
+
+		if preview_style then
+			local own_preview = table.clone(preview_style)
+			own_preview.color = table.clone(preview_style.color)
+			style.preview_style = own_preview
+			widget._preview_color = own_preview.color
+		end
 	end
 
 	local function handle_inputs(parent, widget, content, cursor_ui, left_hold, confirm_pressed)
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			slider_input(
 				parent,
@@ -804,7 +831,7 @@ local function build_blueprint(has_alpha)
 	end
 
 	local function handle_text_inputs(parent, widget, content, input_service, dt, t)
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			value_text_input(
 				parent,
@@ -821,7 +848,7 @@ local function build_blueprint(has_alpha)
 
 		local any_editing = false
 
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			if content[sliders_cached[config.name].editing] then
 				any_editing = true
@@ -832,7 +859,7 @@ local function build_blueprint(has_alpha)
 		if any_editing then
 			local keystrokes = Keyboard.keystrokes()
 
-			for config_index = 1, #slider_configs do
+			for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 				if content[sliders_cached[config.name].editing] then
 					value_text_input(
@@ -852,7 +879,7 @@ local function build_blueprint(has_alpha)
 	end
 
 	local function handle_gamepad_inputs(parent, widget, content, input_service)
-		local num_sliders = #slider_configs
+		local num_sliders = num_slider_configs
 
 		for i, config in ipairs(slider_configs) do
 			slider_gamepad_input(
@@ -876,7 +903,7 @@ local function build_blueprint(has_alpha)
 		cache_fills(widget, style)
 		content.hotspot = {}
 
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			local ch_entry = content[sliders_cached[config.name].entry]
 			content[sliders_cached[config.name].min] = entry_min(ch_entry)
@@ -901,7 +928,7 @@ local function build_blueprint(has_alpha)
 
 		local preview_color = widget._preview_color
 
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			local ch_entry = content[sliders_cached[config.name].entry]
 			local value = get_value(ch_entry)
@@ -970,7 +997,7 @@ local function build_blueprint(has_alpha)
 			using_gamepad = not parent:using_cursor_navigation()
 		end
 
-		local cursor_ui = cursor_to_ui_space(input_service, parent)
+		local cursor_ui = cursor_to_ui_space(input_service, parent, t)
 		local dropdown_open = is_dropdown_open(parent, t)
 
 		local dropdown_just_closed = content._prev_dropdown_open and not dropdown_open
@@ -1024,7 +1051,7 @@ local function build_blueprint(has_alpha)
 		content._prev_left_hold = left_hold
 
 		if not dropdown_open and not dropdown_just_closed then
-			for config_index = 1, #slider_configs do
+			for config_index = 1, num_slider_configs do
 				local config = slider_configs[config_index]
 
 				if content[sliders_cached[config.name].editing] then
@@ -1056,7 +1083,7 @@ local function build_blueprint(has_alpha)
 		local hovered_slider = nil
 		local any_hover = false
 
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			local label_hotspot = content[sliders_cached[config.name].label_hotspot]
 
@@ -1131,7 +1158,7 @@ local function build_blueprint(has_alpha)
 
 		local preview_color = widget._preview_color
 
-		for config_index = 1, #slider_configs do
+		for config_index = 1, num_slider_configs do
 			local config = slider_configs[config_index]
 			local cached_slider = sliders_cached[config.name]
 			local value

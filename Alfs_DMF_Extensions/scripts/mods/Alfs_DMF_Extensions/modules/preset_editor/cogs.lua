@@ -373,7 +373,9 @@ mod._install_preset_cog_hooks = function()
 
 	if type(header_class._position_tooltip) == "function" then
 		mod:hook(header_class, "_position_tooltip", function(func, self, hovered_widget)
-			if hovered_widget and hovered_widget == self._widgets_by_name[Constants.MOD_COG_ID] then
+			local widgets_by_name = self._widgets_by_name
+
+			if hovered_widget and widgets_by_name and hovered_widget == widgets_by_name[Constants.MOD_COG_ID] then
 				position_cog_tooltip(self)
 				return
 			end
@@ -391,11 +393,13 @@ mod._install_preset_cog_hooks = function()
 	if type(header_class._update_tooltip) == "function" then
 		mod:hook_safe(header_class, "_update_tooltip", function(self)
 			local content = mod_cog_content(self)
+			local widgets_by_name = self._widgets_by_name
+			local cog_widget = widgets_by_name and widgets_by_name[Constants.MOD_COG_ID]
 
 			if not content or not content.visible then
-				local tooltip = self._widgets_by_name and self._widgets_by_name.tooltip
+				local tooltip = widgets_by_name and widgets_by_name.tooltip
 
-				if tooltip and self._hovered_tooltip_widget == self._widgets_by_name[Constants.MOD_COG_ID] then
+				if tooltip and self._hovered_tooltip_widget == cog_widget then
 					tooltip.content.visible = false
 					self._hovered_tooltip_widget = nil
 				end
@@ -409,22 +413,27 @@ mod._install_preset_cog_hooks = function()
 				return
 			end
 
-			local tooltip = self._widgets_by_name.tooltip
+			local tooltip = widgets_by_name and widgets_by_name.tooltip
+
+			if not tooltip or not cog_widget then
+				return
+			end
+
 			local tooltip_text = content.tooltip_text or get_mod_cog_tooltip()
 
 			if
-				self._hovered_tooltip_widget ~= self._widgets_by_name[Constants.MOD_COG_ID]
+				self._hovered_tooltip_widget ~= cog_widget
 				or tooltip.content.text ~= tooltip_text
 				or tooltip.content.mod_name_text ~= ""
 			then
-				self._hovered_tooltip_widget = self._widgets_by_name[Constants.MOD_COG_ID]
+				self._hovered_tooltip_widget = cog_widget
 				self._tooltip_layout_dirty = true
 			end
 
 			tooltip.content.visible = true
 			tooltip.content.text = tooltip_text
 			tooltip.content.mod_name_text = ""
-			self:_position_tooltip(self._widgets_by_name[Constants.MOD_COG_ID])
+			self:_position_tooltip(cog_widget)
 		end)
 	end
 end

@@ -702,6 +702,7 @@ mod.create_tab_bar = function(self, category)
 	if #tabs <= 1 then
 		self._mod_tab_grid = nil
 		self._mod_tab_widgets = nil
+		self._mod_tab_widget_count = 0
 		return
 	end
 
@@ -835,6 +836,7 @@ mod.create_tab_bar = function(self, category)
 	grid:set_render_scale(self._render_scale)
 
 	self._mod_tab_widgets = widgets
+	self._mod_tab_widget_count = #widgets
 	self._mod_tab_grid = grid
 end
 
@@ -940,23 +942,6 @@ mod.filter_settings = function(self, category, scroll_to_top)
 			end
 		end
 	end
-
-	--[[if #visible_widgets <= 2 then
-		for index, data in ipairs(category_widgets) do
-			local widget = data.widget
-			local alignment_widget = data.alignment_widget
-
-			if widget and alignment_widget then
-				if not widget.visible then
-					widget.visible = true
-					alignment_widget.visible = true
-
-					visible_widgets[#visible_widgets + 1] = widget
-					visible_alignment[#visible_alignment + 1] = alignment_widget
-				end
-			end
-		end
-	end]]
 
 	local old_grid = self._settings_content_grid
 	local saved_scroll_progress = 0
@@ -1070,7 +1055,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 
 		if grid then
 			local tab_widgets = self._mod_tab_widgets or EMPTY_TABLE
-			local tab_widget_count = #tab_widgets
+			local tab_widget_count = self._mod_tab_widget_count or 0
 			local using_gamepad = not self:using_cursor_navigation()
 
 			if not using_gamepad then
@@ -1165,7 +1150,7 @@ mod:hook(CLASS.BaseView, "draw", function(func, self, dt, t, input_service, laye
 		self._alfs_tab_tooltip_data = tooltip_data
 
 		local tab_widgets = self._mod_tab_widgets or EMPTY_TABLE
-		local tab_widget_count = #tab_widgets
+		local tab_widget_count = self._mod_tab_widget_count or 0
 
 		for i = 1, tab_widget_count do
 			local w = tab_widgets[i]
@@ -1393,6 +1378,7 @@ mod._addModTabs = function(self, dt, t, input_service)
 				if self._mod_tab_grid then
 					self._mod_tab_grid = nil
 					self._mod_tab_widgets = nil
+					self._mod_tab_widget_count = 0
 				end
 
 				if self._settings_content_grid ~= mod._grid_ref then

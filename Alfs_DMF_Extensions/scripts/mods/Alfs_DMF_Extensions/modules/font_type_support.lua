@@ -45,6 +45,7 @@ local CONTENT_STYLE_MAP = {
 	{ content_key = "text", style_key = "list_header" },
 	{ content_key = "value_text", style_key = "text" },
 }
+local CONTENT_STYLE_MAP_COUNT = #CONTENT_STYLE_MAP
 
 local option_keys = {}
 
@@ -70,7 +71,9 @@ mod._addFontSupport = function(self, dt, t, input_service)
 		return
 	end
 
-	for i = 1, #widgets do
+	local widget_count = #widgets
+
+	for i = 1, widget_count do
 		local row = widgets[i]
 		local widget = row and row.widget
 
@@ -80,11 +83,9 @@ mod._addFontSupport = function(self, dt, t, input_service)
 
 			if content and style then
 				local text_cache = content._alfs_font_text_cache or {}
-				local content_style_count = #CONTENT_STYLE_MAP
-
 				content._alfs_font_text_cache = text_cache
 
-				for mapping_index = 1, content_style_count do
+				for mapping_index = 1, CONTENT_STYLE_MAP_COUNT do
 					local mapping = CONTENT_STYLE_MAP[mapping_index]
 					local text = content[mapping.content_key]
 

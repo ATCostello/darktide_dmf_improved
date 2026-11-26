@@ -392,8 +392,11 @@ mod._updateRGBSliders = function(self, input_service, dt, t)
 		return
 	end
 
-	for _, row in ipairs(widgets) do
-		local widget = row.widget
+	local widget_count = #widgets
+
+	for index = 1, widget_count do
+		local row = widgets[index]
+		local widget = row and row.widget
 
 		if widget and widget.type == "rgb_widget" and widget.update then
 			widget.update(self, widget, input_service, dt, t)
@@ -567,7 +570,9 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	content.color_value_text_dirty = true
 	content.preview_hotspot.use_is_focused = true
 	content.hotspot.pressed_callback = function()
-		if not entry.disabled and not Managers.ui:using_cursor_navigation() then
+		local ui_manager = Managers and Managers.ui
+
+		if not entry.disabled and ui_manager and type(ui_manager.using_cursor_navigation) == "function" and not ui_manager:using_cursor_navigation() then
 			self:cb_on_settings_pressed(widget, entry)
 		end
 	end
@@ -578,7 +583,8 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 
 		if gamepad_active_channel then
 			local gamepad_channel_value = content.gamepad_channel_value or content.preview_color[gamepad_active_channel]
-			local dt = Manager.time:dt("ui")
+			local time_manager = Managers and Managers.time
+			local dt = time_manager and type(time_manager.dt) == "function" and time_manager:dt("ui") or 0
 
 			if input_service:get("move_left_per_second") then
 				gamepad_channel_value = math.max(0, gamepad_channel_value - GAMEPAD_CHANNEL_SPEED * dt)

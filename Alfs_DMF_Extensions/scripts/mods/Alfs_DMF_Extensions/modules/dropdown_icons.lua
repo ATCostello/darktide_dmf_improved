@@ -19,11 +19,6 @@ local function copy_color(color)
 end
 
 local function get_widget_icon_x(widget)
-	--local widget_size = widget.content and widget.content.size
-	--local widget_width = widget_size and widget_size[1]
-	--if widget_width then
-	--	return widget_width - SETTINGS_VALUE_WIDTH + ICON_CONSTANT_OFFSET
-	--end
 	return nil
 end
 

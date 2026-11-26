@@ -318,25 +318,52 @@ mod:hook_safe(CLASS.BaseView, "init", function(self, definitions, settings, cont
 		orig_settings_header = defs.scenegraph_definition.settings_header
 	end
 
-	defs.scenegraph_definition.settings_header.position[2] = orig_settings_header.position[2] - 40
+	local scenegraph_definition = defs.scenegraph_definition
+	local header = scenegraph_definition.settings_header
+	local grid_background = scenegraph_definition.settings_grid_background
+	local scrollbar = scenegraph_definition.settings_scrollbar
+	local grid_interaction = scenegraph_definition.settings_grid_interaction
+	local grid_mask = scenegraph_definition.settings_grid_mask
 
-	defs.scenegraph_definition.settings_grid_background.size[1] = orig_settings_grid_background.size[1] + 80
-	defs.scenegraph_definition.settings_grid_background.size[2] = 1012
-	defs.scenegraph_definition.settings_grid_background.position[1] = orig_settings_grid_background.position[1] + 80
-	defs.scenegraph_definition.settings_grid_background.position[2] = 16
+	if header and header.position and orig_settings_header and orig_settings_header.position then
+		header.position[2] = orig_settings_header.position[2] - 40
+	end
 
-	defs.scenegraph_definition.settings_scrollbar.size[2] = 1012
+	if
+		grid_background
+		and grid_background.size
+		and grid_background.position
+		and orig_settings_grid_background
+		and orig_settings_grid_background.size
+		and orig_settings_grid_background.position
+	then
+		grid_background.size[1] = orig_settings_grid_background.size[1] + 80
+		grid_background.size[2] = 1012
+		grid_background.position[1] = orig_settings_grid_background.position[1] + 80
+		grid_background.position[2] = 16
+	end
 
-	defs.scenegraph_definition.settings_grid_interaction.size[2] = 1012
+	if scrollbar and scrollbar.size then
+		scrollbar.size[2] = 1012
+	end
 
-	defs.scenegraph_definition.settings_grid_mask.size[1] = defs.scenegraph_definition.settings_grid_interaction.size[1]
-		+ 20
-	defs.scenegraph_definition.settings_grid_mask.size[2] = defs.scenegraph_definition.settings_grid_interaction.size[2]
-		+ 20
-	defs.scenegraph_definition.settings_grid_mask.position[1] = defs.scenegraph_definition.settings_grid_interaction.position[1]
-		- 20
-	defs.scenegraph_definition.settings_grid_mask.position[2] =
-		defs.scenegraph_definition.settings_grid_interaction.position[2]
+	if grid_interaction and grid_interaction.size then
+		grid_interaction.size[2] = 1012
+	end
+
+	if
+		grid_mask
+		and grid_mask.size
+		and grid_mask.position
+		and grid_interaction
+		and grid_interaction.size
+		and grid_interaction.position
+	then
+		grid_mask.size[1] = grid_interaction.size[1] + 20
+		grid_mask.size[2] = grid_interaction.size[2] + 20
+		grid_mask.position[1] = grid_interaction.position[1] - 20
+		grid_mask.position[2] = grid_interaction.position[2]
+	end
 
 	if self._ui_scenegraph then
 		self._ui_scenegraph = UIScenegraph.init_scenegraph(defs.scenegraph_definition, self._render_scale)
@@ -456,7 +483,7 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 		mod._rgb_original_widgets = {}
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
-		mod._rgb_active_mode = mod.current_rgb_mode and mod.current_rgb_mode() or mod:get("enable_RGB_widget")
+		mod._rgb_active_mode = mod.current_rgb_mode and mod.current_rgb_mode() or cached_option("enable_RGB_widget")
 		mod._ensure_icon_packages_loaded()
 	end
 end)
@@ -477,17 +504,14 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 		tooltip_content.tooltip_text = tooltip
 	end
 
-	--if mod:get("enable_scroll_position_saving") then
-	--mod._saveScrollPosition(self)
-	--end
-
 	if mod.sync_rgb_mode then
 		mod.sync_rgb_mode(self)
 	end
 
 	mod._addModTabs(self, dt, t, input_service)
 
-	local rgb_mode = mod.current_rgb_mode and mod.current_rgb_mode() or cached_option("enable_RGB_widget")
+	local rgb_mode = mod._rgb_active_mode
+		or (mod.current_rgb_mode and mod.current_rgb_mode() or cached_option("enable_RGB_widget"))
 
 	if rgb_mode == "argb_sliders" then
 		mod._addRgbSliders(self)
@@ -498,10 +522,6 @@ mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
 	if rgb_mode ~= "disabled" then
 		mod._updateRGBSliders(self, input_service, dt, t)
 	end
-
-	--if mod:get("enable_dropdown_icons") then
-	--	mod._addDropdownIcons(self, dt, t, input_service)
-	--end
 
 	if cached_option("enable_font_support") then
 		mod._addFontSupport(self, dt, t, input_service)

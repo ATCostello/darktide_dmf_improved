@@ -48,12 +48,6 @@ table.insert(mod.settings_widgets, {
 				end
 			end,
 		},
-		--{
-		--	setting_id = "enable_scroll_position_saving",
-		--	type = "checkbox",
-		--	default_value = true,
-		--	tooltip = "enable_scroll_position_saving_tooltip",
-		--},
 		{
 			setting_id = "enable_mod_tabs",
 			type = "checkbox",
@@ -73,25 +67,6 @@ table.insert(mod.settings_widgets, {
 			tooltip = "enable_RGB_widget_tooltip",
 			options = rgb_widget_styles,
 		},
-		--{
-		--	setting_id = "reload_mods_keybind",
-		--	type = "keybind",
-		--	default_value = {
-		--		"r",
-		--		"left shift",
-		--		"left ctrl",
-		--	},
-		--	keybind_trigger = "pressed",
-		--	keybind_type = "function_call",
-		--	function_name = "reload_all_mods",
-		--	keybind_global = true,
-		--},
-		--{
-		--	setting_id = "enable_dropdown_icons",
-		--	type = "checkbox",
-		--	default_value = true,
-		--	tooltip = "enable_dropdown_icons_tooltip",
-		--},
 		{
 			setting_id = "enable_font_support",
 			type = "checkbox",

@@ -605,10 +605,7 @@ PresetEditorPanelView._update_selected_text = function(self)
 
 	if not self._selected_name then
 		widget.content.selected_text = ""
-		return
 	end
-
-	--widget.content.selected_text = mod:localize("preset_editor_selected", self._selected_name)
 end
 
 PresetEditorPanelView._invalidate_character_request = function(self)

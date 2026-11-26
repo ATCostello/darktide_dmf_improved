@@ -1,6 +1,5 @@
 local mod = get_mod("Alfs_DMF_Extensions")
-mod.version = "3.0.0"
-mod:info("Alfs DMF Extensions is installed, using version: " .. tostring(mod.version))
+local gradient_text = mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/utils/gradient_text")
 
 local next = next
 local InputUtils = require("scripts/managers/input/input_utils")
@@ -11,48 +10,16 @@ local colours = {
 	text = "169,191,153",
 }
 
-local function lerp(a, b, t)
-	return a + (b - a) * t
-end
+local title_colour = colours.title
 
-local function utf8_chars(s)
-	local chars = {}
-	for char in string.gmatch(s, "[%z\1-\127\194-\244][\128-\191]*") do
-		table.insert(chars, char)
-	end
-	return chars
-end
-
-mod.gradientText = function(text, startColor, endColor, colorSpaces)
-	local result = ""
-	local chars = utf8_chars(text)
-	local visibleIndex = 0
-
-	for _, char in ipairs(chars) do
-		if colorSpaces or char ~= " " then
-			visibleIndex = visibleIndex + 1
-		end
+mod.gradientText = function(text, start_colour, end_colour, colour_spaces)
+	if type(gradient_text) ~= "function" then
+		return text
 	end
 
-	local currentIndex = 0
+	local gradient = gradient_text(text, start_colour, end_colour, colour_spaces) or ""
 
-	for _, char in ipairs(chars) do
-		if not colorSpaces and char == " " then
-			result = result .. char
-		else
-			currentIndex = currentIndex + 1
-			local t = (visibleIndex <= 1) and 0 or (currentIndex - 1) / (visibleIndex - 1)
-
-			local r = math.floor(lerp(startColor[1], endColor[1], t))
-			local g = math.floor(lerp(startColor[2], endColor[2], t))
-			local b = math.floor(lerp(startColor[3], endColor[3], t))
-
-			result = result .. string.format("{#color(%d,%d,%d)}%s", r, g, b, char)
-		end
-	end
-
-	result = "{#color(" .. colours.title .. ")} " .. result .. "{#reset()}"
-	return result
+	return "{#color(" .. title_colour .. ")} " .. gradient .. "{#reset()}"
 end
 
 --local name = mod.gradientText("Alf's DMF Extensions", { 255, 255, 0 }, { 255, 0, 255 }, true)
@@ -119,11 +86,6 @@ mod.localisation = {
 			.. colours.text
 			.. ")}Alfthebigheaded\n"
 			.. "{#color("
-			.. colours.subtitle
-			.. ")}Version: {#color("
-			.. colours.text
-			.. ")}"
-			.. mod.version
 			.. "{#reset()}",
 		ru = "{#color("
 			.. colours.text
@@ -137,11 +99,6 @@ mod.localisation = {
 			.. colours.text
 			.. ")}Alfthebigheaded\n"
 			.. "{#color("
-			.. colours.subtitle
-			.. ")}Версия: {#color("
-			.. colours.text
-			.. ")}"
-			.. mod.version
 			.. "{#reset()}",
 		["zh-cn"] = "{#color("
 			.. colours.text
@@ -155,11 +112,6 @@ mod.localisation = {
 			.. colours.text
 			.. ")}Alfthebigheaded\n"
 			.. "{#color("
-			.. colours.subtitle
-			.. ")}版本：{#color("
-			.. colours.text
-			.. ")}"
-			.. mod.version
 			.. "{#reset()}",
 		["zh-tw"] = "{#color("
 			.. colours.text
@@ -173,11 +125,6 @@ mod.localisation = {
 			.. colours.text
 			.. ")}Alfthebigheaded\n"
 			.. "{#color("
-			.. colours.subtitle
-			.. ")}版本：{#color("
-			.. colours.text
-			.. ")}"
-			.. mod.version
 			.. "{#reset()}",
 	},
 	general_settings = {
@@ -1239,7 +1186,6 @@ end
 
 local apply_colours = function()
 	for key, values in next, mod.localisation do
-		-- apply rgb colours
 		if
 			string.find(key, "colour")
 			and not string.find(key, "colour_R")
@@ -1261,14 +1207,11 @@ local apply_colours = function()
 			end
 		end
 
-		-- adjust tooltip text opacity
 		if string.find(key, "_tooltip") then
 			for language, text in next, values do
 				local rgb = { 144, 155, 136 }
 
 				if rgb ~= nil then
-					-- Strip any colour tags applied by a previous pass, otherwise every
-					-- call wraps the already-wrapped string again and grows it forever.
 					local clean = string.gsub(text, "{#.-}", "")
 					local text = apply_color_to_text(clean, rgb[1], rgb[2], rgb[3])
 
@@ -1293,16 +1236,18 @@ for _, action in ipairs(mod._available_aliases) do
 end
 
 mod.toggle_pizazz = function()
-	for key, values in next, mod.localisation do
-		if key == "mod_name" then
-			for language, text in next, values do
-				if mod:get("mod_name_pizazz_toggle") then
-					mod.localisation[key][language] = mod.localisation["mod_name_pizazz"][language]
-				else
-					mod.localisation[key][language] = mod.localisation["mod_name_boring"][language]
-				end
-			end
-		end
+	local source = mod.localisation.mod_name_boring
+
+	if mod:get("mod_name_pizazz_toggle") ~= false then
+		source = mod.localisation.mod_name_pizazz
+	end
+
+	if type(source) ~= "table" then
+		return
+	end
+
+	for language, name in pairs(source) do
+		mod.localisation.mod_name[language] = name
 	end
 end
 
