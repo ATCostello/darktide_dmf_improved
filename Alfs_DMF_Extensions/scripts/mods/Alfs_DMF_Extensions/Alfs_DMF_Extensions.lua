@@ -23,7 +23,6 @@ mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/drop
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/font_type_support")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/scrollable_dropdown")
 mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/mod_reload_keybind")
-mod:io_dofile("Alfs_DMF_Extensions/scripts/mods/Alfs_DMF_Extensions/modules/icon_package_loader")
 
 if mod._install_character_hooks then
 	mod._install_character_hooks()
@@ -57,10 +56,6 @@ mod.update = function(dt)
 
 	if mod._update_auto_presets then
 		mod._update_auto_presets(auto_preset_time)
-	end
-
-	if mod._update_icon_packages then
-		mod._update_icon_packages()
 	end
 end
 
@@ -252,7 +247,6 @@ mod:hook_safe(CLASS.BaseView, "init", function(self, definitions, settings, cont
 
 	mod._prepare_global_preset_cog(definitions, settings)
 	mod._install_preset_cog_hooks()
-	mod._ensure_icon_packages_loaded()
 
 	local defs = self._definitions
 	defs.scenegraph_definition = defs.scenegraph_definition or {}
@@ -473,7 +467,6 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 		mod._rgb_last_category = nil
 		mod._color_widget_last_category = nil
 		mod._rgb_active_mode = mod.current_rgb_mode and mod.current_rgb_mode() or cached_option("enable_RGB_widget")
-		mod._ensure_icon_packages_loaded()
 	end
 end)
 

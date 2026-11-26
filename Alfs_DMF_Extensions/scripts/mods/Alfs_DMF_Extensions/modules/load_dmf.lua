@@ -5,6 +5,64 @@ mod.dmf = dmf
 
 mod._group_tooltip_lookup = mod._group_tooltip_lookup or {}
 
+local loaded_packages = setmetatable({}, { __mode = "k" })
+
+local function load_legacy_package(mod_instance, package_name)
+	local mod_type = type(mod_instance)
+
+	if
+		type(package_name) ~= "string"
+		or package_name == ""
+		or (mod_type ~= "table" and mod_type ~= "userdata")
+		or type(mod_instance.load_package) ~= "function"
+	then
+		return
+	end
+
+	local application = Application
+	if not application or type(application.can_get_resource) ~= "function" then
+		return
+	end
+
+	if not application.can_get_resource("package", package_name) then
+		return
+	end
+
+	local packages = loaded_packages[mod_instance]
+
+	if packages and packages[package_name] then
+		return
+	end
+
+	if type(mod_instance.package_status) == "function" then
+		local status = mod_instance:package_status(package_name)
+		if status == "loaded" or status == "loading" then
+			return
+		end
+	end
+
+	packages = packages or {}
+	packages[package_name] = true
+	loaded_packages[mod_instance] = packages
+
+	mod_instance:load_package(package_name)
+end
+
+local function load_legacy_packages(mod_instance, packages)
+	if type(packages) ~= "table" then
+		return
+	end
+
+	for _, package_name in ipairs(packages) do
+		load_legacy_package(mod_instance, package_name)
+	end
+end
+
+mod._ensure_icon_packages_loaded = function()
+	return true
+end
+mod._update_icon_packages = mod._ensure_icon_packages_loaded
+
 local function collect_group_tooltips(widgets, mod_name, tooltips)
 	if not mod_name then
 		return
@@ -33,12 +91,7 @@ dmf.initialize_mod_data = function(mod_instance, mod_data)
 	local result = original_initialize_mod_data(mod_instance, mod_data)
 
 	if mod_data and mod_data.required_icon_packages then
-		local packages = mod._required_icon_packages
-		for _, pkg in ipairs(mod_data.required_icon_packages) do
-			if type(pkg) == "string" then
-				packages[#packages + 1] = pkg
-			end
-		end
+		load_legacy_packages(mod_instance, mod_data.required_icon_packages)
 	end
 
 	return result
@@ -50,12 +103,7 @@ dmf.initialize_mod_options = function(passed_mod, options)
 	local result = original_initialize(passed_mod, options)
 
 	if options and options.required_icon_packages then
-		local packages = mod._required_icon_packages
-		for _, pkg in ipairs(options.required_icon_packages) do
-			if type(pkg) == "string" then
-				packages[#packages + 1] = pkg
-			end
-		end
+		load_legacy_packages(passed_mod, options.required_icon_packages)
 	end
 
 	if not (options and options.widgets) then
@@ -377,17 +425,10 @@ mod.on_all_mods_loaded = function()
 		if mod_name then
 			local mod_instance = get_mod(mod_name)
 			if mod_instance and mod_instance.required_icon_packages then
-				local packages = mod._required_icon_packages
-				for _, pkg in ipairs(mod_instance.required_icon_packages) do
-					if type(pkg) == "string" then
-						packages[#packages + 1] = pkg
-					end
-				end
+				load_legacy_packages(mod_instance, mod_instance.required_icon_packages)
 			end
 		end
 	end
-
-	mod._ensure_icon_packages_loaded()
 end
 
 local function patch_group_header_blueprint()

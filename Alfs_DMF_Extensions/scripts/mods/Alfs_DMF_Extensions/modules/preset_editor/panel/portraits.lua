@@ -182,12 +182,24 @@ Portraits.load = function(parent, widget, element)
 
 	local frame_item = Portraits.frame_item(profile)
 
-	if frame_item and type(ui.load_item_icon) == "function" then
-		content.frame_load_id = ui:load_item_icon(frame_item, function(item)
-			if content.profile == profile then
-				Portraits.set_frame_from_item(widget, item)
+	if frame_item and ui and type(ui.load_item_icon) == "function" then
+		content.frame_load_id = ui:load_item_icon(
+			frame_item,
+			function(item)
+				if content.profile == profile then
+					Portraits.set_frame_from_item(widget, item)
+				end
+			end,
+			nil,
+			nil,
+			nil,
+			function()
+				if content.profile == profile then
+					content.frame_load_id = nil
+					Portraits.set_frame_from_item(widget, nil)
+				end
 			end
-		end)
+		)
 	end
 end
 
