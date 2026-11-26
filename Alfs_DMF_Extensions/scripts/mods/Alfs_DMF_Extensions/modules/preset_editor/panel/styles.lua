@@ -158,9 +158,7 @@ end
 Styles.selected = function(content)
 	local hotspot = content and content.hotspot or {}
 
-	return Styles.assigned(content)
-		or hotspot.is_selected
-		or (hotspot.anim_select_progress or 0) > 0
+	return Styles.assigned(content) or hotspot.is_selected or (hotspot.anim_select_progress or 0) > 0
 end
 
 Styles.state_color = function(content, style)

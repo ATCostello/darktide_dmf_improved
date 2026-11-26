@@ -346,9 +346,7 @@ end
 
 local function restore_original_widgets(self)
 	for category, stored in pairs(mod._rgb_original_widgets) do
-		local widgets = self
-			and self._settings_category_widgets
-			and self._settings_category_widgets[category]
+		local widgets = self and self._settings_category_widgets and self._settings_category_widgets[category]
 
 		if widgets == stored.widgets then
 			for i = #widgets, 1, -1 do

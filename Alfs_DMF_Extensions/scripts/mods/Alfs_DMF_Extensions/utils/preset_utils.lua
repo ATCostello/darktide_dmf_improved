@@ -28,7 +28,13 @@ Utils.notify = function(text, notification_type)
 		return false
 	end
 
-	event_manager:trigger("event_add_notification_message", notification_type or "default", tostring(text or ""), nil, nil)
+	event_manager:trigger(
+		"event_add_notification_message",
+		notification_type or "default",
+		tostring(text or ""),
+		nil,
+		nil
+	)
 
 	return true
 end

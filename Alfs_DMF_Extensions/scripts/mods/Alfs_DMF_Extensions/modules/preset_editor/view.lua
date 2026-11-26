@@ -73,7 +73,8 @@ local function install_settings_close_guard()
 	end
 
 	local class_registry = rawget(_G, "CLASS") or rawget(_G, "CLASSES")
-	local ui_manager = type(class_registry) == "table" and (class_registry.UIManager or class_registry.ui_manager) or nil
+	local ui_manager = type(class_registry) == "table" and (class_registry.UIManager or class_registry.ui_manager)
+		or nil
 
 	if type(ui_manager) ~= "table" or type(ui_manager.close_view) ~= "function" then
 		return
@@ -183,7 +184,11 @@ mod._close_preset_panel_if_open = function()
 
 	clear_stale_preset_panel_view(ui._view_handler)
 
-	if type(ui.view_active) == "function" and ui:view_active(Constants.PRESET_PANEL_VIEW) and type(ui.close_view) == "function" then
+	if
+		type(ui.view_active) == "function"
+		and ui:view_active(Constants.PRESET_PANEL_VIEW)
+		and type(ui.close_view) == "function"
+	then
 		ui:close_view(Constants.PRESET_PANEL_VIEW, true)
 	end
 end
@@ -485,7 +490,11 @@ mod._preset_panel_show_scope_dropdown = function(view)
 	end
 end
 
-if not mod._preset_panel_registered and type(mod.add_require_path) == "function" and type(mod.register_view) == "function" then
+if
+	not mod._preset_panel_registered
+	and type(mod.add_require_path) == "function"
+	and type(mod.register_view) == "function"
+then
 	mod:add_require_path(Constants.PRESET_PANEL_PATH)
 	mod:register_view({
 		view_name = Constants.PRESET_PANEL_VIEW,
@@ -599,7 +608,10 @@ mod.open_preset_editor = function(view, category)
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = mod:localize("preset_editor_title"),
-		description_text_unlocalized = mod:localize("preset_editor_description", Utils.get_display_mod_name(target_mod_name)),
+		description_text_unlocalized = mod:localize(
+			"preset_editor_description",
+			Utils.get_display_mod_name(target_mod_name)
+		),
 		type = "default",
 		options = options,
 	})

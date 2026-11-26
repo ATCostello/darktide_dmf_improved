@@ -100,7 +100,11 @@ end
 local function tooltip_progress(content)
 	local hotspot = content.hotspot
 
-	return math.max(hotspot.anim_hover_progress or 0, hotspot.anim_focus_progress or 0, hotspot.anim_select_progress or 0)
+	return math.max(
+		hotspot.anim_hover_progress or 0,
+		hotspot.anim_focus_progress or 0,
+		hotspot.anim_select_progress or 0
+	)
 end
 
 local function position_tooltip(content, style)
@@ -128,7 +132,8 @@ end
 local function make_settings_profile_button_template(base_template)
 	local template = table.clone(base_template)
 	local base_init = template.init
-	local tooltip_text_style = table.clone(UIFontSettings.body_small or UIFontSettings.body or UIFontSettings.button_primary)
+	local tooltip_text_style =
+		table.clone(UIFontSettings.body_small or UIFontSettings.body or UIFontSettings.button_primary)
 
 	tooltip_text_style.font_size = 17
 	tooltip_text_style.text_horizontal_alignment = "left"
@@ -185,8 +190,10 @@ local function make_settings_profile_button_template(base_template)
 end
 
 local function register_settings_profile_button_templates()
-	ButtonPassTemplates.alfs_settings_profile_button = make_settings_profile_button_template(ButtonPassTemplates.terminal_button)
-	ButtonPassTemplates.alfs_settings_profile_button_small = make_settings_profile_button_template(ButtonPassTemplates.terminal_button_small)
+	ButtonPassTemplates.alfs_settings_profile_button =
+		make_settings_profile_button_template(ButtonPassTemplates.terminal_button)
+	ButtonPassTemplates.alfs_settings_profile_button_small =
+		make_settings_profile_button_template(ButtonPassTemplates.terminal_button_small)
 end
 
 local function mark_ignored(profile_mod)
@@ -200,7 +207,9 @@ local function mark_ignored(profile_mod)
 end
 
 local function import_profile(profile_mod)
-	local mods = mod.decode_global_profile_settings and mod.decode_global_profile_settings(profile_mod.global_profile_settings) or nil
+	local mods = mod.decode_global_profile_settings
+			and mod.decode_global_profile_settings(profile_mod.global_profile_settings)
+		or nil
 
 	if not mods or not mod.apply_global_profile_settings or not mod.apply_global_profile_settings(mods) then
 		if not Core or not Core.silent then
@@ -254,7 +263,12 @@ local function show_next_prompt()
 	local entry = table.remove(pending_profiles, 1)
 	local profile_mod = entry.profile_mod
 	local description = entry.updated
-		and mod:localize("settings_profile_updated_description", profile_name(profile_mod), entry.previous_version, entry.version)
+			and mod:localize(
+				"settings_profile_updated_description",
+				profile_name(profile_mod),
+				entry.previous_version,
+				entry.version
+			)
 		or mod:localize("settings_profile_new_description", profile_name(profile_mod), entry.version)
 
 	prompt_open = true

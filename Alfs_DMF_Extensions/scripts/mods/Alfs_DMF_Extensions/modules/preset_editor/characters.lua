@@ -197,7 +197,9 @@ Characters.queue_auto_sync = function(character_id)
 	auto_apply_state.queued_at_t = nil
 
 	if Characters.has_auto_work(character_id) then
-		Utils.notify(mod:localize("preset_editor_auto_apply_start", Characters.display_name_for_character(character_id)))
+		Utils.notify(
+			mod:localize("preset_editor_auto_apply_start", Characters.display_name_for_character(character_id))
+		)
 	end
 end
 

@@ -576,7 +576,7 @@ Definitions.animations = {
 		{
 			name = "fade_in",
 			start_time = 0,
-			end_time = 0.18,
+			end_time = 0.0,
 			init = function(parent)
 				parent._render_settings.alpha_multiplier = 0
 			end,
@@ -592,7 +592,7 @@ Definitions.animations = {
 		{
 			name = "fade_out",
 			start_time = 0,
-			end_time = 0.14,
+			end_time = 0.0,
 			init = function(parent)
 				parent._render_settings.alpha_multiplier = 1
 			end,

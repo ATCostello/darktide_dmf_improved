@@ -124,12 +124,7 @@ PresetEditorPanelView._draw_background_dim = function(self, dt, t, input_service
 	render_settings.inverse_scale = render_scale and 1 / render_scale or nil
 
 	UIRenderer.begin_pass(ui_renderer, self._ui_scenegraph, input_service, dt, render_settings)
-	UIRenderer.draw_rect(
-		ui_renderer,
-		Vector3(0, 0, 0),
-		Vector3(screen_size[1], screen_size[2], 0),
-		Color(90, 0, 0, 0)
-	)
+	UIRenderer.draw_rect(ui_renderer, Vector3(0, 0, 0), Vector3(screen_size[1], screen_size[2], 0), Color(90, 0, 0, 0))
 	UIRenderer.end_pass(ui_renderer)
 
 	render_settings.start_layer = previous_start_layer
@@ -249,7 +244,12 @@ local function dropdown_blocks_outside_close(view, input_service)
 	local holding_left = input_service:get("left_hold") == true
 	local scrollbar_hotspot = content.scrollbar_hotspot
 
-	if holding_left and (content.drag_active or (scrollbar_hotspot and (scrollbar_hotspot.is_hover or scrollbar_hotspot.on_pressed))) then
+	if
+		holding_left
+		and (
+			content.drag_active or (scrollbar_hotspot and (scrollbar_hotspot.is_hover or scrollbar_hotspot.on_pressed))
+		)
+	then
 		return true
 	end
 
@@ -393,7 +393,8 @@ PresetEditorPanelView.on_enter = function(self)
 	self._input_legend_element = self:_add_element(ViewElementInputLegend, "input_legend", 200)
 
 	for _, legend_input in ipairs(Definitions.legend_inputs) do
-		local on_pressed_callback = legend_input.on_pressed_callback and callback(self, legend_input.on_pressed_callback)
+		local on_pressed_callback = legend_input.on_pressed_callback
+			and callback(self, legend_input.on_pressed_callback)
 
 		self._input_legend_element:add_entry(
 			legend_input.display_name,
@@ -404,8 +405,10 @@ PresetEditorPanelView.on_enter = function(self)
 		)
 	end
 
-	self._list_grid = self:_add_element(ViewElementGrid, "preset_list", 202, Definitions.list_grid_settings, "preset_list_pivot")
-	self._actions_grid = self:_add_element(ViewElementGrid, "preset_actions", 204, Definitions.actions_grid_settings, "actions_pivot")
+	self._list_grid =
+		self:_add_element(ViewElementGrid, "preset_list", 202, Definitions.list_grid_settings, "preset_list_pivot")
+	self._actions_grid =
+		self:_add_element(ViewElementGrid, "preset_actions", 204, Definitions.actions_grid_settings, "actions_pivot")
 	self._tooltip_element = self:_add_element(PresetTooltipElement, "preset_tooltip", 206)
 	self._outside_click_ignore_frames = 2
 	self._selected_name = nil
@@ -569,7 +572,8 @@ PresetEditorPanelView._rebuild_actions = function(self)
 		self._character_request_id = request_id
 
 		local function present_characters(profiles)
-			if self._character_request_id ~= request_id
+			if
+				self._character_request_id ~= request_id
 				or not self._actions_grid
 				or not self._character_mode
 				or self._selected_name ~= selected_name

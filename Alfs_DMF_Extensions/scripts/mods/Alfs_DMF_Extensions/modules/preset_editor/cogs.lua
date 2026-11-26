@@ -52,15 +52,11 @@ local function add_global_cog_definitions(definitions)
 		position = { 340, Constants.GLOBAL_COG_Y, 2 },
 	}
 
-	definitions.widget_definitions[Constants.GLOBAL_COG_ID] = UIWidget.create_definition(
-		cog_pass_template(size),
-		Constants.GLOBAL_COG_ID,
-		{
+	definitions.widget_definitions[Constants.GLOBAL_COG_ID] =
+		UIWidget.create_definition(cog_pass_template(size), Constants.GLOBAL_COG_ID, {
 			visible = true,
 			tooltip_text = mod:localize("preset_editor_global_tooltip"),
-		},
-		size
-	)
+		}, size)
 end
 
 local function add_mod_cog_definitions(definitions)
@@ -78,15 +74,11 @@ local function add_mod_cog_definitions(definitions)
 		position = { 0, Constants.COG_Y, 4 },
 	}
 
-	definitions.widget_definitions[Constants.MOD_COG_ID] = UIWidget.create_definition(
-		cog_pass_template(size),
-		Constants.MOD_COG_ID,
-		{
+	definitions.widget_definitions[Constants.MOD_COG_ID] =
+		UIWidget.create_definition(cog_pass_template(size), Constants.MOD_COG_ID, {
 			visible = false,
 			tooltip_text = mod:localize("preset_editor_tooltip"),
-		},
-		size
-	)
+		}, size)
 end
 
 local function is_options_header(self)
@@ -251,7 +243,8 @@ local function position_mod_cog(self)
 	if self._has_pin then
 		local pin_position = type(self.scenegraph_position) == "function" and self:scenegraph_position("pin") or nil
 		local pin_x = pin_position and pin_position[1] or (title_width + Constants.COG_GAP)
-		local pin_y = pin_position and pin_position[2] or (Constants.COG_Y - (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5)
+		local pin_y = pin_position and pin_position[2]
+			or (Constants.COG_Y - (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5)
 
 		cog_x = pin_x + Constants.PIN_SIZE + Constants.COG_GAP
 		cog_y = pin_y + (Constants.PIN_SIZE - Constants.COG_SIZE) * 0.5 + Constants.PIN_COG_Y_OFFSET

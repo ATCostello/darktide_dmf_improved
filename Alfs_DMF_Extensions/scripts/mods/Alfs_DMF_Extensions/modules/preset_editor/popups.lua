@@ -282,10 +282,8 @@ end
 Popups.show_export = function(view, name, settings, target_mod_name)
 	local json = Utils.encode_json(Core.build_payload(name, settings, target_mod_name))
 	local options = export_options(view, json)
-	local description = string.format(
-		"Share this string with another player for %s.",
-		Utils.get_display_mod_name(target_mod_name)
-	)
+	local description =
+		string.format("Share this string with another player for %s.", Utils.get_display_mod_name(target_mod_name))
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = "Export Preset JSON",
@@ -298,10 +296,8 @@ end
 Popups.show_global_export = function(view, name, mods)
 	local json = Utils.encode_json(Core.build_global_payload(name, mods))
 	local options = export_options(view, json)
-	local description = string.format(
-		"Share this string with another player for %s.",
-		mod:localize("preset_editor_all_mods")
-	)
+	local description =
+		string.format("Share this string with another player for %s.", mod:localize("preset_editor_all_mods"))
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = "Export Global Preset JSON",
@@ -312,10 +308,7 @@ Popups.show_global_export = function(view, name, mods)
 end
 
 Popups.copy_per_mod_selected_json = function(view, name, settings, target_mod_name)
-	return Popups.copy_json_to_clipboard(
-		view,
-		Utils.encode_json(Core.build_payload(name, settings, target_mod_name))
-	)
+	return Popups.copy_json_to_clipboard(view, Utils.encode_json(Core.build_payload(name, settings, target_mod_name)))
 end
 
 Popups.copy_global_selected_json = function(view, name, mods)
@@ -330,11 +323,14 @@ Popups.copy_per_mod_current_json = function(view, settings, target_mod_name)
 end
 
 Popups.copy_global_current_json = function(view, mods)
-	return Popups.copy_json_to_clipboard(view, Utils.encode_json({
-		format = Constants.GLOBAL_PRESET_FORMAT,
-		name = "Current Settings",
-		mods = mods,
-	}))
+	return Popups.copy_json_to_clipboard(
+		view,
+		Utils.encode_json({
+			format = Constants.GLOBAL_PRESET_FORMAT,
+			name = "Current Settings",
+			mods = mods,
+		})
+	)
 end
 
 Popups.show_import = function(view, category, target_mod_name)
@@ -450,7 +446,11 @@ Popups.show_global_import = function(view)
 				end
 
 				if decoded.format ~= Constants.GLOBAL_PRESET_FORMAT then
-					Popups.show_message(view, "Import Failed", "This is not an Alfs DMF Extensions global preset string.")
+					Popups.show_message(
+						view,
+						"Import Failed",
+						"This is not an Alfs DMF Extensions global preset string."
+					)
 					return
 				end
 
@@ -718,7 +718,10 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = tostring(name),
-		description_text_unlocalized = mod:localize("preset_editor_description", Utils.get_display_mod_name(target_mod_name)),
+		description_text_unlocalized = mod:localize(
+			"preset_editor_description",
+			Utils.get_display_mod_name(target_mod_name)
+		),
 		type = "default",
 		options = options,
 	})
@@ -730,7 +733,11 @@ Popups.show_global_preset_options = function(view, name)
 	local mods = type(preset) == "table" and Core.normalize_global_mods(preset.mods) or nil
 
 	if not mods then
-		Popups.show_message(view, "Preset Error", string.format("Global preset '%s' could not be found.", tostring(name)))
+		Popups.show_message(
+			view,
+			"Preset Error",
+			string.format("Global preset '%s' could not be found.", tostring(name))
+		)
 		return
 	end
 
@@ -767,13 +774,18 @@ Popups.show_global_preset_options = function(view, name)
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
-				Popups.show_confirmation(view, "Delete Preset", string.format("Delete global preset '%s'?", name), function()
-					local current_presets = Core.get_global_preset_store()
+				Popups.show_confirmation(
+					view,
+					"Delete Preset",
+					string.format("Delete global preset '%s'?", name),
+					function()
+						local current_presets = Core.get_global_preset_store()
 
-					current_presets[name] = nil
-					Core.save_global_preset_store(current_presets)
-					Popups.refresh_preset_panel(view)
-				end)
+						current_presets[name] = nil
+						Core.save_global_preset_store(current_presets)
+						Popups.refresh_preset_panel(view)
+					end
+				)
 			end,
 		},
 		{

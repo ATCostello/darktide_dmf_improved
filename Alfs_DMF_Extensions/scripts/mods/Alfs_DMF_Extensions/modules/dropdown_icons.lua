@@ -1,7 +1,6 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
-mod._release_dropdown_materials = function()
-end
+mod._release_dropdown_materials = function() end
 
 local SETTINGS_VALUE_WIDTH = 500
 local ICON_CONSTANT_OFFSET = 0
@@ -20,7 +19,6 @@ local function copy_color(color)
 end
 
 local function get_widget_icon_x(widget)
-
 	--local widget_size = widget.content and widget.content.size
 	--local widget_width = widget_size and widget_size[1]
 	--if widget_width then

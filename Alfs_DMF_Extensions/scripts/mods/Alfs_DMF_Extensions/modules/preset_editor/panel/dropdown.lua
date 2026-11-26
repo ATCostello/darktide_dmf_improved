@@ -216,8 +216,10 @@ local function update_visible_options(parent, widget, input_service, focused)
 	local num_visible_options = math.max(1, content.num_visible_options or 1)
 	local row_height = Definitions.SCOPE_DROPDOWN_SIZE[2]
 	local ui_manager = Managers and Managers.ui
-	local using_gamepad = ui_manager and type(ui_manager.using_cursor_navigation) == "function"
-		and not ui_manager:using_cursor_navigation() or false
+	local using_gamepad = ui_manager
+			and type(ui_manager.using_cursor_navigation) == "function"
+			and not ui_manager:using_cursor_navigation()
+		or false
 	local selected_index = content.selected_index or 1
 	local new_index = nil
 	local new_value = nil
@@ -331,8 +333,10 @@ Dropdown.update = function(parent, dt, t, input_service)
 
 	if not focused then
 		local ui_manager = Managers and Managers.ui
-		local using_gamepad = ui_manager and type(ui_manager.using_cursor_navigation) == "function"
-			and not ui_manager:using_cursor_navigation() or false
+		local using_gamepad = ui_manager
+				and type(ui_manager.using_cursor_navigation) == "function"
+				and not ui_manager:using_cursor_navigation()
+			or false
 		local hotspot = content.hotspot or {}
 
 		hotspot.is_selected = using_gamepad

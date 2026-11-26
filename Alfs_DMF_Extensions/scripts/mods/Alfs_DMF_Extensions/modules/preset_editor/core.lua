@@ -411,7 +411,12 @@ Core.refresh_options_view = function(view, target_mod_name)
 
 	local dmf = Utils.get_dmf()
 
-	if dmf and target_mod_name and view._options_templates and type(dmf.update_mod_options_visibility) == "function" then
+	if
+		dmf
+		and target_mod_name
+		and view._options_templates
+		and type(dmf.update_mod_options_visibility) == "function"
+	then
 		dmf:update_mod_options_visibility(view._options_templates, target_mod_name)
 	end
 

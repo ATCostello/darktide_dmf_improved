@@ -7,7 +7,8 @@ local Styles = mod._preset_panel_styles
 local Portraits = mod._preset_panel_portraits or {}
 mod._preset_panel_portraits = Portraits
 
-Portraits.MATERIAL = UISettings and UISettings.portrait_frame_default_material or "content/ui/materials/base/ui_portrait_frame_base"
+Portraits.MATERIAL = UISettings and UISettings.portrait_frame_default_material
+	or "content/ui/materials/base/ui_portrait_frame_base"
 Portraits.DEFAULT_TEXTURE = UISettings and UISettings.portrait_frame_default_texture or nil
 Portraits.NO_RENDER = "content/ui/materials/base/ui_portrait_frame_base_no_render"
 
@@ -87,7 +88,12 @@ local function profile_is_valid(profile)
 
 	local unit = profile.unit
 
-	if type(unit) == "userdata" and type(Unit) == "table" and type(Unit.alive) == "function" and not Unit.alive(unit) then
+	if
+		type(unit) == "userdata"
+		and type(Unit) == "table"
+		and type(Unit.alive) == "function"
+		and not Unit.alive(unit)
+	then
 		return false
 	end
 
@@ -159,15 +165,20 @@ Portraits.load = function(parent, widget, element)
 
 	local render_context = parent and parent.package_scope and { package_scope = parent.package_scope } or nil
 
-	content.icon_load_id = ui:load_profile_portrait(profile, function(grid_index, rows, columns, render_target)
-		if content.profile == profile then
-			Portraits.set(widget, grid_index, rows, columns, render_target, profile)
+	content.icon_load_id = ui:load_profile_portrait(
+		profile,
+		function(grid_index, rows, columns, render_target)
+			if content.profile == profile then
+				Portraits.set(widget, grid_index, rows, columns, render_target, profile)
+			end
+		end,
+		render_context,
+		function()
+			if content.profile == profile then
+				Portraits.clear(widget)
+			end
 		end
-	end, render_context, function()
-		if content.profile == profile then
-			Portraits.clear(widget)
-		end
-	end)
+	)
 
 	local frame_item = Portraits.frame_item(profile)
 
