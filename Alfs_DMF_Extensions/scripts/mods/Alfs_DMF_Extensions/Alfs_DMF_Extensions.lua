@@ -161,7 +161,8 @@ local function hovered_group_tooltip(self)
 
 			if entry._alfs_tooltip_for ~= category_mod then
 				entry._alfs_tooltip_for = category_mod
-				entry._alfs_tooltip_display_key = entry.display_name and (category_mod .. "|" .. entry.display_name) or nil
+				entry._alfs_tooltip_display_key = entry.display_name and (category_mod .. "|" .. entry.display_name)
+					or nil
 				entry._alfs_tooltip_setting_key = entry.setting_id and (category_mod .. "|" .. entry.setting_id) or nil
 			end
 

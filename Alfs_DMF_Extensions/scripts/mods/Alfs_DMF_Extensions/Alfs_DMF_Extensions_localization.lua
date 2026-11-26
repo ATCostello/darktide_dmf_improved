@@ -164,8 +164,8 @@ mod.localisation = {
 		["zh-tw"] = "預設載入通知",
 	},
 	enable_preset_load_notification_tooltip = {
-		en = "Shows the \"LOADED PRESET\" notification when switching characters automatically applies a preset.",
-		ru = "Показывает уведомление \"LOADED PRESET\" при автоматическом применении пресета при смене персонажа.",
+		en = 'Shows the "LOADED PRESET" notification when switching characters automatically applies a preset.',
+		ru = 'Показывает уведомление "LOADED PRESET" при автоматическом применении пресета при смене персонажа.',
 		["zh-cn"] = "在切换角色自动应用预设时显示“LOADED PRESET”通知。",
 		["zh-tw"] = "在切換角色自動套用預設時顯示「LOADED PRESET」通知。",
 	},

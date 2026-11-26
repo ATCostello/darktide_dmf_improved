@@ -23,8 +23,8 @@ local function dropdown_using_gamepad(parent)
 	if using_cursor == nil then
 		local ui_manager = Managers and Managers.ui
 		using_cursor = ui_manager
-			and type(ui_manager.using_cursor_navigation) == "function"
-			and ui_manager:using_cursor_navigation()
+				and type(ui_manager.using_cursor_navigation) == "function"
+				and ui_manager:using_cursor_navigation()
 			or false
 	end
 

@@ -134,7 +134,13 @@ local function calculate_font_size(self, text, max_width, base_size)
 	end
 
 	local render_scale = self._render_scale or 1
-	local cache_key = text .. "\0" .. tostring(max_width) .. "\0" .. tostring(base_size) .. "\0" .. tostring(render_scale)
+	local cache_key = text
+		.. "\0"
+		.. tostring(max_width)
+		.. "\0"
+		.. tostring(base_size)
+		.. "\0"
+		.. tostring(render_scale)
 	local cached_size = font_size_cache[cache_key]
 
 	if cached_size then

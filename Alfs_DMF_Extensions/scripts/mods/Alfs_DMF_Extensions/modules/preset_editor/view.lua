@@ -286,18 +286,18 @@ mod._preset_panel_apply = function(view, scope, name)
 	local preset_settings = Core.get_preset_settings(scope, preset)
 
 	if not preset_settings then
-		Popups.show_message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_not_found", tostring(name)))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_error_title"),
+			mod:localize("preset_editor_not_found", tostring(name))
+		)
 		return
 	end
 
 	Popups.show_confirmation(
 		view,
 		mod:localize("preset_editor_apply_title"),
-		mod:localize(
-			"preset_editor_apply_any_confirm",
-			name,
-			Core.scope_display_name(scope)
-		),
+		mod:localize("preset_editor_apply_any_confirm", name, Core.scope_display_name(scope)),
 		function()
 			Core.apply_scope_settings(scope, preset_settings, name, view, true)
 			Popups.refresh_preset_panel_selection(view)
@@ -306,13 +306,18 @@ mod._preset_panel_apply = function(view, scope, name)
 end
 
 mod._preset_panel_delete = function(view, scope, name)
-	Popups.show_confirmation(view, mod:localize("preset_editor_delete_title"), mod:localize("preset_editor_delete_confirm", name), function()
-		local presets = Core.get_scope_presets(scope)
+	Popups.show_confirmation(
+		view,
+		mod:localize("preset_editor_delete_title"),
+		mod:localize("preset_editor_delete_confirm", name),
+		function()
+			local presets = Core.get_scope_presets(scope)
 
-		presets[name] = nil
-		Core.save_scope_presets(scope, presets)
-		Popups.refresh_preset_panel(view)
-	end)
+			presets[name] = nil
+			Core.save_scope_presets(scope, presets)
+			Popups.refresh_preset_panel(view)
+		end
+	)
 end
 
 mod._preset_panel_show_save = function(view, scope)
@@ -324,7 +329,11 @@ mod._preset_panel_show_save = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_save_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -340,7 +349,11 @@ mod._preset_panel_show_import = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_import_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -352,7 +365,11 @@ mod._preset_panel_show_export = function(view, scope, name)
 	local preset_settings = Core.get_preset_settings(scope, preset)
 
 	if not preset_settings then
-		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_not_found", tostring(name)))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_export_failed_title"),
+			mod:localize("preset_editor_not_found", tostring(name))
+		)
 		return
 	end
 
@@ -364,7 +381,11 @@ mod._preset_panel_show_export = function(view, scope, name)
 	local target_mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not target_mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_export_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -375,7 +396,11 @@ mod._preset_panel_show_current_export = function(view, scope)
 	local settings = Core.scope_capture_settings(scope)
 
 	if type(settings) ~= "table" or not next(settings) then
-		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_export_nothing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_export_failed_title"),
+			mod:localize("preset_editor_export_nothing")
+		)
 		return
 	end
 
@@ -387,7 +412,11 @@ mod._preset_panel_show_current_export = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_export_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -585,7 +614,11 @@ mod.open_preset_editor = function(view, category)
 			local settings = Core.capture_settings(target_mod_name)
 
 			if not settings then
-				Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+				Popups.show_message(
+					view,
+					mod:localize("preset_editor_export_failed_title"),
+					mod:localize("preset_editor_target_mod_missing")
+				)
 				return
 			end
 
@@ -670,7 +703,11 @@ mod.open_global_preset_editor = function(view)
 			local mods = Core.capture_all_settings()
 
 			if not mods then
-				Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_no_export_mods"))
+				Popups.show_message(
+					view,
+					mod:localize("preset_editor_export_failed_title"),
+					mod:localize("preset_editor_no_export_mods")
+				)
 				return
 			end
 

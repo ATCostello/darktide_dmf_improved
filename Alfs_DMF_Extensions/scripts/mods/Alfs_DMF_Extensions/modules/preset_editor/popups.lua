@@ -305,8 +305,7 @@ end
 Popups.show_export = function(view, name, settings, target_mod_name)
 	local json = Utils.encode_json(Core.build_payload(name, settings, target_mod_name))
 	local options = export_options(view, json)
-	local description =
-		mod:localize("preset_editor_share_description", Utils.get_display_mod_name(target_mod_name))
+	local description = mod:localize("preset_editor_share_description", Utils.get_display_mod_name(target_mod_name))
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = mod:localize("preset_editor_export_json_title"),
@@ -319,8 +318,7 @@ end
 Popups.show_global_export = function(view, name, mods)
 	local json = Utils.encode_json(Core.build_global_payload(name, mods))
 	local options = export_options(view, json)
-	local description =
-		mod:localize("preset_editor_share_description", mod:localize("preset_editor_all_mods"))
+	local description = mod:localize("preset_editor_share_description", mod:localize("preset_editor_all_mods"))
 
 	Popups.show_popup(view, {
 		title_text_unlocalized = mod:localize("preset_editor_export_global_json_title"),
@@ -360,7 +358,11 @@ Popups.show_import = function(view, category, target_mod_name)
 	target_mod_name = Utils.resolve_mod_name(target_mod_name)
 
 	if not target_mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_import_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -377,12 +379,20 @@ Popups.show_import = function(view, category, target_mod_name)
 				local ok, decoded = Utils.decode_json(json_text)
 
 				if not ok or type(decoded) ~= "table" then
-					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_json_unreadable"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_json_unreadable")
+					)
 					return
 				end
 
 				if decoded.format ~= Constants.PRESET_FORMAT then
-					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_invalid_preset_string"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_invalid_preset_string")
+					)
 					return
 				end
 
@@ -400,7 +410,11 @@ Popups.show_import = function(view, category, target_mod_name)
 				end
 
 				if type(decoded.settings) ~= "table" then
-					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_no_preset_settings"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_no_preset_settings")
+					)
 					return
 				end
 
@@ -413,11 +427,7 @@ Popups.show_import = function(view, category, target_mod_name)
 				Popups.show_confirmation(
 					view,
 					mod:localize("preset_editor_import_title"),
-					mod:localize(
-						"preset_editor_import_confirm",
-						name,
-						Utils.get_display_mod_name(target_mod_name)
-					),
+					mod:localize("preset_editor_import_confirm", name, Utils.get_display_mod_name(target_mod_name)),
 					function()
 						Core.backup_global_settings()
 
@@ -464,7 +474,11 @@ Popups.show_global_import = function(view)
 				local ok, decoded = Utils.decode_json(json_text)
 
 				if not ok or type(decoded) ~= "table" then
-					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_json_unreadable"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_json_unreadable")
+					)
 					return
 				end
 
@@ -480,7 +494,11 @@ Popups.show_global_import = function(view)
 				local mods = Core.normalize_global_mods(decoded.mods)
 
 				if not mods then
-					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_no_mod_settings"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_no_mod_settings")
+					)
 					return
 				end
 
@@ -493,11 +511,7 @@ Popups.show_global_import = function(view)
 				Popups.show_confirmation(
 					view,
 					mod:localize("preset_editor_import_global_title"),
-					mod:localize(
-						"preset_editor_import_global_confirm",
-						name,
-						mod:localize("preset_editor_all_mods")
-					),
+					mod:localize("preset_editor_import_global_confirm", name, mod:localize("preset_editor_all_mods")),
 					function()
 						Core.backup_global_settings()
 
@@ -534,7 +548,11 @@ Popups.show_save = function(view, category, target_mod_name)
 	target_mod_name = Utils.resolve_mod_name(target_mod_name)
 
 	if not target_mod_name then
-		Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_save_failed_title"),
+			mod:localize("preset_editor_target_mod_missing")
+		)
 		return
 	end
 
@@ -552,7 +570,11 @@ Popups.show_save = function(view, category, target_mod_name)
 				local name = Utils.trim(name_text)
 
 				if name == "" then
-					Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_enter_name"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_save_failed_title"),
+						mod:localize("preset_editor_enter_name")
+					)
 					return
 				end
 
@@ -560,7 +582,11 @@ Popups.show_save = function(view, category, target_mod_name)
 					local settings = Core.capture_settings(target_mod_name)
 
 					if not settings then
-						Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
+						Popups.show_message(
+							view,
+							mod:localize("preset_editor_save_failed_title"),
+							mod:localize("preset_editor_target_mod_missing")
+						)
 						return
 					end
 
@@ -571,7 +597,11 @@ Popups.show_save = function(view, category, target_mod_name)
 					})
 					Core.save_preset_store(presets)
 					Popups.refresh_preset_panel(view)
-					Popups.show_message(view, mod:localize("preset_editor_saved_title"), mod:localize("preset_editor_saved", name))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_saved_title"),
+						mod:localize("preset_editor_saved", name)
+					)
 				end
 
 				local _, mod_presets = Core.get_mod_preset_bucket(target_mod_name, false)
@@ -619,7 +649,11 @@ Popups.show_global_save = function(view)
 				local name = Utils.trim(name_text)
 
 				if name == "" then
-					Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_enter_name"))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_save_failed_title"),
+						mod:localize("preset_editor_enter_name")
+					)
 					return
 				end
 
@@ -627,7 +661,11 @@ Popups.show_global_save = function(view)
 					local mods = Core.capture_all_settings()
 
 					if not mods then
-						Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_no_settings_to_save"))
+						Popups.show_message(
+							view,
+							mod:localize("preset_editor_save_failed_title"),
+							mod:localize("preset_editor_no_settings_to_save")
+						)
 						return
 					end
 
@@ -638,7 +676,11 @@ Popups.show_global_save = function(view)
 					})
 					Core.save_global_preset_store(presets)
 					Popups.refresh_preset_panel(view)
-					Popups.show_message(view, mod:localize("preset_editor_saved_title"), mod:localize("preset_editor_saved_global", name))
+					Popups.show_message(
+						view,
+						mod:localize("preset_editor_saved_title"),
+						mod:localize("preset_editor_saved_global", name)
+					)
 				end
 
 				local presets = Core.get_global_preset_store()
@@ -679,7 +721,11 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 	local preset = mod_presets and mod_presets[name] or nil
 
 	if type(preset) ~= "table" or type(preset.settings) ~= "table" then
-		Popups.show_message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_not_found", tostring(name)))
+		Popups.show_message(
+			view,
+			mod:localize("preset_editor_error_title"),
+			mod:localize("preset_editor_not_found", tostring(name))
+		)
 		return
 	end
 
@@ -692,11 +738,7 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 				Popups.show_confirmation(
 					view,
 					mod:localize("preset_editor_apply_title"),
-					mod:localize(
-						"preset_editor_apply_confirm",
-						name,
-						Utils.get_display_mod_name(target_mod_name)
-					),
+					mod:localize("preset_editor_apply_confirm", name, Utils.get_display_mod_name(target_mod_name)),
 					function()
 						Core.apply_settings(view, target_mod_name, preset.settings, name)
 					end
@@ -716,16 +758,21 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
-				Popups.show_confirmation(view, mod:localize("preset_editor_delete_title"), mod:localize("preset_editor_delete_confirm", name), function()
-					local current_presets, current_mod_presets = Core.get_mod_preset_bucket(target_mod_name, false)
+				Popups.show_confirmation(
+					view,
+					mod:localize("preset_editor_delete_title"),
+					mod:localize("preset_editor_delete_confirm", name),
+					function()
+						local current_presets, current_mod_presets = Core.get_mod_preset_bucket(target_mod_name, false)
 
-					if current_mod_presets then
-						current_mod_presets[name] = nil
-						Core.save_preset_store(current_presets)
+						if current_mod_presets then
+							current_mod_presets[name] = nil
+							Core.save_preset_store(current_presets)
+						end
+
+						Popups.refresh_preset_panel(view)
 					end
-
-					Popups.refresh_preset_panel(view)
-				end)
+				)
 			end,
 		},
 		{
@@ -773,11 +820,7 @@ Popups.show_global_preset_options = function(view, name)
 				Popups.show_confirmation(
 					view,
 					mod:localize("preset_editor_apply_global_title"),
-					mod:localize(
-						"preset_editor_apply_global_confirm",
-						name,
-						mod:localize("preset_editor_all_mods")
-					),
+					mod:localize("preset_editor_apply_global_confirm", name, mod:localize("preset_editor_all_mods")),
 					function()
 						Core.apply_global_settings(view, mods, name)
 					end

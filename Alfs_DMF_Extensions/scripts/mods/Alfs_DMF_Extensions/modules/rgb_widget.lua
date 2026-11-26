@@ -572,7 +572,12 @@ local function create_dmf_color_widget(self, base_name, rgb_entries, has_alpha, 
 	content.hotspot.pressed_callback = function()
 		local ui_manager = Managers and Managers.ui
 
-		if not entry.disabled and ui_manager and type(ui_manager.using_cursor_navigation) == "function" and not ui_manager:using_cursor_navigation() then
+		if
+			not entry.disabled
+			and ui_manager
+			and type(ui_manager.using_cursor_navigation) == "function"
+			and not ui_manager:using_cursor_navigation()
+		then
 			self:cb_on_settings_pressed(widget, entry)
 		end
 	end

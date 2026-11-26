@@ -30,6 +30,17 @@ local EXCLUDED_SETTINGS = {
 	[Constants.PRESETS_SETTING] = true,
 }
 
+local DEFERRED_REFRESH_METHODS = {
+	"on_settings_profile_applied",
+	"on_deferred_settings_applied",
+	"refresh_settings_close",
+	"refresh_pickup_names",
+	"refresh_templates",
+	"refresh_all",
+}
+
+local REFRESH_ERROR_PREFIX = "Alfs DMF Extensions profile refresh"
+
 local function is_excluded_setting(mod_name, setting_id)
 	if not setting_id or type(setting_id) ~= "string" then
 		return true
@@ -215,8 +226,9 @@ Core.get_config_setting_ids = function(target_mod_name)
 	end
 
 	local application = rawget(_G, "Application")
-	local all_settings = application and type(application.user_setting) == "function"
-		and application.user_setting("mods_settings")
+	local all_settings = application
+			and type(application.user_setting) == "function"
+			and application.user_setting("mods_settings")
 		or nil
 
 	if type(all_settings) ~= "table" then
@@ -282,12 +294,7 @@ Core.get_setting_ids = function(target_mod_name)
 					local widget = mod_widgets[i]
 					local setting_id = widget and widget.setting_id
 
-					if
-						setting_id
-						and widget.type ~= "group"
-						and widget.type ~= "button"
-						and not seen[setting_id]
-					then
+					if setting_id and widget.type ~= "group" and widget.type ~= "button" and not seen[setting_id] then
 						seen[setting_id] = true
 						count = count + 1
 						widget_ids[count] = setting_id
@@ -406,8 +413,9 @@ Core.capture_all_settings = function()
 	end
 
 	local application = rawget(_G, "Application")
-	local all_settings = application and type(application.user_setting) == "function"
-		and application.user_setting("mods_settings")
+	local all_settings = application
+			and type(application.user_setting) == "function"
+			and application.user_setting("mods_settings")
 		or nil
 
 	if type(all_settings) == "table" then
@@ -764,6 +772,38 @@ Core.refresh_options_view = function(view, target_mod_name)
 	end
 end
 
+Core.refresh_deferred_settings = function(mods)
+	if type(mods) ~= "table" then
+		return
+	end
+
+	local dmf = Utils.get_dmf()
+
+	if not dmf or type(dmf.safe_call_nr) ~= "function" then
+		return
+	end
+
+	for mod_name in pairs(mods) do
+		local resolved_name = type(mod_name) == "string" and Utils.resolve_mod_name(mod_name) or mod_name
+
+		if type(resolved_name) == "string" then
+			local target_mod = get_mod(resolved_name)
+
+			if target_mod then
+				for i = 1, #DEFERRED_REFRESH_METHODS do
+					local method_name = DEFERRED_REFRESH_METHODS[i]
+					local refresh = target_mod[method_name]
+
+					if type(refresh) == "function" then
+						dmf.safe_call_nr(target_mod, REFRESH_ERROR_PREFIX, refresh, target_mod, mods)
+						break
+					end
+				end
+			end
+		end
+	end
+end
+
 Core.apply_settings = function(view, target_mod_name, settings, target_label, defer_flush)
 	local mod_name = Utils.resolve_mod_name(target_mod_name)
 	local target_mod = mod_name and get_mod(mod_name) or nil
@@ -802,6 +842,8 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 		Core.flush_settings()
 		Core.refresh_options_view(view, mod_name)
 	end
+
+	Core.refresh_deferred_settings({ [mod_name] = settings })
 
 	if target_label then
 		message(
@@ -858,6 +900,8 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 		Core.flush_settings()
 		Core.refresh_options_view(view)
 	end
+
+	Core.refresh_deferred_settings(mods)
 
 	if target_label then
 		message(

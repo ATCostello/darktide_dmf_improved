@@ -860,7 +860,7 @@ local function build_blueprint(has_alpha)
 			local keystrokes = Keyboard.keystrokes()
 
 			for config_index = 1, num_slider_configs do
-			local config = slider_configs[config_index]
+				local config = slider_configs[config_index]
 				if content[sliders_cached[config.name].editing] then
 					value_text_input(
 						parent,
