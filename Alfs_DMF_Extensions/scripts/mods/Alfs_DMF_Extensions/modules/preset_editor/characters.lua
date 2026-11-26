@@ -330,7 +330,9 @@ Characters.sync_auto_presets = function(character_id)
 	Core.flush_settings()
 	Core.set_silent(false)
 
-	if #applied_names > 0 or restored then
+	local show_loaded_preset = mod:get("enable_preset_load_notification")
+
+	if show_loaded_preset ~= false and (#applied_names > 0 or restored) then
 		local preset_text = #applied_names > 0 and table.concat(applied_names, "\n")
 			or mod:localize("preset_editor_auto_apply_restore")
 

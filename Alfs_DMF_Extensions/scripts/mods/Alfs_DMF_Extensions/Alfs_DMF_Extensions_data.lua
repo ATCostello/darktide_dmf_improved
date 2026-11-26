@@ -49,6 +49,12 @@ table.insert(mod.settings_widgets, {
 			end,
 		},
 		{
+			setting_id = "enable_preset_load_notification",
+			type = "checkbox",
+			default_value = true,
+			tooltip = "enable_preset_load_notification_tooltip",
+		},
+		{
 			setting_id = "enable_mod_tabs",
 			type = "checkbox",
 			default_value = true,

@@ -157,6 +157,18 @@ mod.localisation = {
 		["zh-cn"] = "在每个模组名称旁边和 MOD OPTIONS 旁边显示预设按钮。禁用后可隐藏所有预设控件。",
 		["zh-tw"] = "在每個模組名稱旁邊與 MOD OPTIONS 旁邊顯示預設按鈕。停用後可隱藏所有預設控制項。",
 	},
+	enable_preset_load_notification = {
+		en = "Preset Load Notification",
+		ru = "Уведомление о загрузке пресета",
+		["zh-cn"] = "预设加载通知",
+		["zh-tw"] = "預設載入通知",
+	},
+	enable_preset_load_notification_tooltip = {
+		en = "Shows the \"LOADED PRESET\" notification when switching characters automatically applies a preset.",
+		ru = "Показывает уведомление \"LOADED PRESET\" при автоматическом применении пресета при смене персонажа.",
+		["zh-cn"] = "在切换角色自动应用预设时显示“LOADED PRESET”通知。",
+		["zh-tw"] = "在切換角色自動套用預設時顯示「LOADED PRESET」通知。",
+	},
 	enable_scroll_position_saving = {
 		en = "Scroll Position Saving",
 		ru = "Сохранение позиции прокрутки",
