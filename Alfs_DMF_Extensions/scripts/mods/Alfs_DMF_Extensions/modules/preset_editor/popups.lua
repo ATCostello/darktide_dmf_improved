@@ -163,7 +163,7 @@ end
 
 Popups.show_message = function(view, title, text)
 	Popups.show_popup(view, {
-		title_text_unlocalized = tostring(title or "Preset Editor"),
+		title_text_unlocalized = tostring(title or mod:localize("preset_editor_title")),
 		description_text_unlocalized = tostring(text or ""),
 		type = "default",
 		options = {
@@ -208,7 +208,7 @@ Popups.show_confirmation = function(view, title, description, on_confirm)
 	end
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = tostring(title or "Confirm"),
+		title_text_unlocalized = tostring(title or mod:localize("preset_editor_confirm_title")),
 		description_text_unlocalized = tostring(description or ""),
 		type = "default",
 		options = {
@@ -254,7 +254,7 @@ local function export_options(view, json)
 
 	if clipboard and type(clipboard.put) == "function" then
 		options[#options + 1] = {
-			text = "Copy to clipboard",
+			text = mod:localize("preset_editor_copy_to_clipboard"),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
@@ -283,10 +283,10 @@ Popups.show_export = function(view, name, settings, target_mod_name)
 	local json = Utils.encode_json(Core.build_payload(name, settings, target_mod_name))
 	local options = export_options(view, json)
 	local description =
-		string.format("Share this string with another player for %s.", Utils.get_display_mod_name(target_mod_name))
+		mod:localize("preset_editor_share_description", Utils.get_display_mod_name(target_mod_name))
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Export Preset JSON",
+		title_text_unlocalized = mod:localize("preset_editor_export_json_title"),
 		description_text_unlocalized = description,
 		type = "default",
 		options = options,
@@ -297,10 +297,10 @@ Popups.show_global_export = function(view, name, mods)
 	local json = Utils.encode_json(Core.build_global_payload(name, mods))
 	local options = export_options(view, json)
 	local description =
-		string.format("Share this string with another player for %s.", mod:localize("preset_editor_all_mods"))
+		mod:localize("preset_editor_share_description", mod:localize("preset_editor_all_mods"))
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Export Global Preset JSON",
+		title_text_unlocalized = mod:localize("preset_editor_export_global_json_title"),
 		description_text_unlocalized = description,
 		type = "default",
 		options = options,
@@ -318,7 +318,7 @@ end
 Popups.copy_per_mod_current_json = function(view, settings, target_mod_name)
 	return Popups.copy_json_to_clipboard(
 		view,
-		Utils.encode_json(Core.build_payload("Current Settings", settings, target_mod_name))
+		Utils.encode_json(Core.build_payload(mod:localize("preset_editor_current_settings"), settings, target_mod_name))
 	)
 end
 
@@ -327,7 +327,7 @@ Popups.copy_global_current_json = function(view, mods)
 		view,
 		Utils.encode_json({
 			format = Constants.GLOBAL_PRESET_FORMAT,
-			name = "Current Settings",
+			name = mod:localize("preset_editor_current_settings"),
 			mods = mods,
 		})
 	)
@@ -337,38 +337,38 @@ Popups.show_import = function(view, category, target_mod_name)
 	target_mod_name = Utils.resolve_mod_name(target_mod_name)
 
 	if not target_mod_name then
-		Popups.show_message(view, "Import Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
 	local options = {
 		{
 			template_type = "terminal_input_field",
-			keyboard_title = "Preset JSON",
+			keyboard_title = mod:localize("preset_editor_preset_json_title"),
 		},
 		{
-			text = "Import",
+			text = mod:localize("preset_editor_import_button"),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function(json_text)
 				local ok, decoded = Utils.decode_json(json_text)
 
 				if not ok or type(decoded) ~= "table" then
-					Popups.show_message(view, "Import Failed", "The JSON string could not be read.")
+					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_json_unreadable"))
 					return
 				end
 
 				if decoded.format ~= Constants.PRESET_FORMAT then
-					Popups.show_message(view, "Import Failed", "This is not an Alfs DMF Extensions preset string.")
+					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_invalid_preset_string"))
 					return
 				end
 
 				if Utils.resolve_mod_name(decoded.mod_name) ~= Utils.resolve_mod_name(target_mod_name) then
 					Popups.show_message(
 						view,
-						"Import Failed",
-						string.format(
-							"That preset is for '%s', not '%s'.",
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize(
+							"preset_editor_wrong_mod",
 							Utils.get_display_mod_name(decoded.mod_name),
 							Utils.get_display_mod_name(target_mod_name)
 						)
@@ -377,21 +377,21 @@ Popups.show_import = function(view, category, target_mod_name)
 				end
 
 				if type(decoded.settings) ~= "table" then
-					Popups.show_message(view, "Import Failed", "The preset does not contain any settings.")
+					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_no_preset_settings"))
 					return
 				end
 
 				local name = Utils.trim(decoded.name)
 
 				if name == "" then
-					name = "Imported Preset"
+					name = mod:localize("preset_editor_imported_name")
 				end
 
 				Popups.show_confirmation(
 					view,
-					"Import Preset",
-					string.format(
-						"Import '%s' into %s? All current settings for this mod will be overwritten.",
+					mod:localize("preset_editor_import_title"),
+					mod:localize(
+						"preset_editor_import_confirm",
 						name,
 						Utils.get_display_mod_name(target_mod_name)
 					),
@@ -420,8 +420,8 @@ Popups.show_import = function(view, category, target_mod_name)
 	}
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Import Preset JSON",
-		description_text_unlocalized = "Paste a preset JSON string, then press Import.",
+		title_text_unlocalized = mod:localize("preset_editor_import_json_title"),
+		description_text_unlocalized = mod:localize("preset_editor_import_json_description"),
 		type = "default",
 		options = options,
 	})
@@ -431,25 +431,25 @@ Popups.show_global_import = function(view)
 	local options = {
 		{
 			template_type = "terminal_input_field",
-			keyboard_title = "Global Preset JSON",
+			keyboard_title = mod:localize("preset_editor_global_json_title"),
 		},
 		{
-			text = "Import",
+			text = mod:localize("preset_editor_import_button"),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function(json_text)
 				local ok, decoded = Utils.decode_json(json_text)
 
 				if not ok or type(decoded) ~= "table" then
-					Popups.show_message(view, "Import Failed", "The JSON string could not be read.")
+					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_json_unreadable"))
 					return
 				end
 
 				if decoded.format ~= Constants.GLOBAL_PRESET_FORMAT then
 					Popups.show_message(
 						view,
-						"Import Failed",
-						"This is not an Alfs DMF Extensions global preset string."
+						mod:localize("preset_editor_import_failed_title"),
+						mod:localize("preset_editor_invalid_global_string")
 					)
 					return
 				end
@@ -457,21 +457,21 @@ Popups.show_global_import = function(view)
 				local mods = Core.normalize_global_mods(decoded.mods)
 
 				if not mods then
-					Popups.show_message(view, "Import Failed", "The preset does not contain any mod settings.")
+					Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_no_mod_settings"))
 					return
 				end
 
 				local name = Utils.trim(decoded.name)
 
 				if name == "" then
-					name = "Imported Global Preset"
+					name = mod:localize("preset_editor_imported_global_name")
 				end
 
 				Popups.show_confirmation(
 					view,
-					"Import Global Preset",
-					string.format(
-						"Import '%s' for %s? All current settings for every mod will be overwritten.",
+					mod:localize("preset_editor_import_global_title"),
+					mod:localize(
+						"preset_editor_import_global_confirm",
 						name,
 						mod:localize("preset_editor_all_mods")
 					),
@@ -500,8 +500,8 @@ Popups.show_global_import = function(view)
 	}
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Import Global Preset JSON",
-		description_text_unlocalized = "Paste a global preset JSON string, then press Import.",
+		title_text_unlocalized = mod:localize("preset_editor_import_global_json_title"),
+		description_text_unlocalized = mod:localize("preset_editor_import_global_json_description"),
 		type = "default",
 		options = options,
 	})
@@ -511,7 +511,7 @@ Popups.show_save = function(view, category, target_mod_name)
 	target_mod_name = Utils.resolve_mod_name(target_mod_name)
 
 	if not target_mod_name then
-		Popups.show_message(view, "Save Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
@@ -519,17 +519,17 @@ Popups.show_save = function(view, category, target_mod_name)
 		{
 			template_type = "terminal_input_field",
 			max_length = 60,
-			keyboard_title = "Preset name",
+			keyboard_title = mod:localize("preset_editor_preset_name_title"),
 		},
 		{
-			text = "Save",
+			text = mod:localize("preset_editor_save_button"),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function(name_text)
 				local name = Utils.trim(name_text)
 
 				if name == "" then
-					Popups.show_message(view, "Save Failed", "Enter a preset name.")
+					Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_enter_name"))
 					return
 				end
 
@@ -537,7 +537,7 @@ Popups.show_save = function(view, category, target_mod_name)
 					local settings = Core.capture_settings(target_mod_name)
 
 					if not settings then
-						Popups.show_message(view, "Save Failed", "The target mod could not be found.")
+						Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 						return
 					end
 
@@ -548,7 +548,7 @@ Popups.show_save = function(view, category, target_mod_name)
 					})
 					Core.save_preset_store(presets)
 					Popups.refresh_preset_panel(view)
-					Popups.show_message(view, "Preset Saved", string.format("Saved '%s'.", name))
+					Popups.show_message(view, mod:localize("preset_editor_saved_title"), mod:localize("preset_editor_saved", name))
 				end
 
 				local _, mod_presets = Core.get_mod_preset_bucket(target_mod_name, false)
@@ -556,8 +556,8 @@ Popups.show_save = function(view, category, target_mod_name)
 				if mod_presets and mod_presets[name] then
 					Popups.show_confirmation(
 						view,
-						"Overwrite Preset",
-						string.format("Overwrite the existing preset '%s'?", name),
+						mod:localize("preset_editor_overwrite_title"),
+						mod:localize("preset_editor_overwrite", name),
 						do_save
 					)
 				else
@@ -574,8 +574,8 @@ Popups.show_save = function(view, category, target_mod_name)
 	}
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Save Preset",
-		description_text_unlocalized = "Enter a name for the new preset.",
+		title_text_unlocalized = mod:localize("preset_editor_save_title"),
+		description_text_unlocalized = mod:localize("preset_editor_save_description"),
 		type = "default",
 		options = options,
 	})
@@ -586,17 +586,17 @@ Popups.show_global_save = function(view)
 		{
 			template_type = "terminal_input_field",
 			max_length = 60,
-			keyboard_title = "Global preset name",
+			keyboard_title = mod:localize("preset_editor_global_name_title"),
 		},
 		{
-			text = "Save",
+			text = mod:localize("preset_editor_save_button"),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function(name_text)
 				local name = Utils.trim(name_text)
 
 				if name == "" then
-					Popups.show_message(view, "Save Failed", "Enter a preset name.")
+					Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_enter_name"))
 					return
 				end
 
@@ -604,7 +604,7 @@ Popups.show_global_save = function(view)
 					local mods = Core.capture_all_settings()
 
 					if not mods then
-						Popups.show_message(view, "Save Failed", "No mod settings could be saved.")
+						Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_no_settings_to_save"))
 						return
 					end
 
@@ -615,7 +615,7 @@ Popups.show_global_save = function(view)
 					})
 					Core.save_global_preset_store(presets)
 					Popups.refresh_preset_panel(view)
-					Popups.show_message(view, "Preset Saved", string.format("Saved global preset '%s'.", name))
+					Popups.show_message(view, mod:localize("preset_editor_saved_title"), mod:localize("preset_editor_saved_global", name))
 				end
 
 				local presets = Core.get_global_preset_store()
@@ -623,8 +623,8 @@ Popups.show_global_save = function(view)
 				if presets[name] then
 					Popups.show_confirmation(
 						view,
-						"Overwrite Preset",
-						string.format("Overwrite the existing global preset '%s'?", name),
+						mod:localize("preset_editor_overwrite_title"),
+						mod:localize("preset_editor_overwrite_global", name),
 						do_save
 					)
 				else
@@ -641,9 +641,9 @@ Popups.show_global_save = function(view)
 	}
 
 	Popups.show_popup(view, {
-		title_text_unlocalized = "Save Global Preset",
-		description_text_unlocalized = string.format(
-			"Enter a name for the new %s preset.",
+		title_text_unlocalized = mod:localize("preset_editor_save_global_title"),
+		description_text_unlocalized = mod:localize(
+			"preset_editor_save_global_description",
 			mod:localize("preset_editor_all_mods")
 		),
 		type = "default",
@@ -656,21 +656,21 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 	local preset = mod_presets and mod_presets[name] or nil
 
 	if type(preset) ~= "table" or type(preset.settings) ~= "table" then
-		Popups.show_message(view, "Preset Error", string.format("Preset '%s' could not be found.", tostring(name)))
+		Popups.show_message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_not_found", tostring(name)))
 		return
 	end
 
 	local options = {
 		{
-			text = string.format("Apply '%s'", name),
+			text = mod:localize("preset_editor_apply_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
 				Popups.show_confirmation(
 					view,
-					"Apply Preset",
-					string.format(
-						"Apply '%s' to %s? All current settings for this mod will be overwritten.",
+					mod:localize("preset_editor_apply_title"),
+					mod:localize(
+						"preset_editor_apply_confirm",
 						name,
 						Utils.get_display_mod_name(target_mod_name)
 					),
@@ -681,7 +681,7 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 			end,
 		},
 		{
-			text = string.format("Export '%s' JSON", name),
+			text = mod:localize("preset_editor_export_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
@@ -689,11 +689,11 @@ Popups.show_preset_options = function(view, category, target_mod_name, name)
 			end,
 		},
 		{
-			text = string.format("Delete '%s'", name),
+			text = mod:localize("preset_editor_delete_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
-				Popups.show_confirmation(view, "Delete Preset", string.format("Delete preset '%s'?", name), function()
+				Popups.show_confirmation(view, mod:localize("preset_editor_delete_title"), mod:localize("preset_editor_delete_confirm", name), function()
 					local current_presets, current_mod_presets = Core.get_mod_preset_bucket(target_mod_name, false)
 
 					if current_mod_presets then
@@ -735,23 +735,23 @@ Popups.show_global_preset_options = function(view, name)
 	if not mods then
 		Popups.show_message(
 			view,
-			"Preset Error",
-			string.format("Global preset '%s' could not be found.", tostring(name))
+			mod:localize("preset_editor_error_title"),
+			mod:localize("preset_editor_global_not_found", tostring(name))
 		)
 		return
 	end
 
 	local options = {
 		{
-			text = string.format("Apply '%s'", name),
+			text = mod:localize("preset_editor_apply_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
 				Popups.show_confirmation(
 					view,
-					"Apply Global Preset",
-					string.format(
-						"Apply '%s' to %s? All current settings for every mod will be overwritten.",
+					mod:localize("preset_editor_apply_global_title"),
+					mod:localize(
+						"preset_editor_apply_global_confirm",
 						name,
 						mod:localize("preset_editor_all_mods")
 					),
@@ -762,7 +762,7 @@ Popups.show_global_preset_options = function(view, name)
 			end,
 		},
 		{
-			text = string.format("Export '%s' JSON", name),
+			text = mod:localize("preset_editor_export_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
@@ -770,14 +770,14 @@ Popups.show_global_preset_options = function(view, name)
 			end,
 		},
 		{
-			text = string.format("Delete '%s'", name),
+			text = mod:localize("preset_editor_delete_option", name),
 			no_localization = true,
 			close_on_pressed = true,
 			callback = function()
 				Popups.show_confirmation(
 					view,
-					"Delete Preset",
-					string.format("Delete global preset '%s'?", name),
+					mod:localize("preset_editor_delete_title"),
+					mod:localize("preset_editor_delete_global_confirm", name),
 					function()
 						local current_presets = Core.get_global_preset_store()
 

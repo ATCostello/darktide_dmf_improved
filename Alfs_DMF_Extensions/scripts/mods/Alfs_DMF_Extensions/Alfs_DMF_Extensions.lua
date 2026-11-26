@@ -417,6 +417,10 @@ mod:hook_safe(CLASS.BaseView, "on_enter", function(self)
 end)
 
 mod:hook_safe(CLASS.BaseView, "update", function(self, dt, t, input_service)
+	if mod._update_auto_presets then
+		mod._update_auto_presets(t)
+	end
+
 	if self.view_name ~= "dmf_options_view" then
 		return
 	end

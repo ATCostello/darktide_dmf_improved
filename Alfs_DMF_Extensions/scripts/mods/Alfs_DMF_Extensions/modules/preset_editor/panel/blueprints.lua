@@ -1,6 +1,7 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
 local UISoundEvents = require("scripts/settings/ui/ui_sound_events")
+local UIRenderer = require("scripts/managers/ui/ui_renderer")
 
 local Styles = mod._preset_panel_styles
 local Portraits = mod._preset_panel_portraits
@@ -163,17 +164,43 @@ local character_toggle_template = {
 	},
 }
 
+local preset_entry_size = { 400, 42 }
+local preset_text_offset = { 12, 0, 3 }
+local preset_text_width = preset_entry_size[1] - preset_text_offset[1] - 12
+local preset_button_passes = Styles.button_passes("left", 20, preset_text_offset)
+
+for _, pass in ipairs(preset_button_passes) do
+	if pass.style_id == "text" and pass.style then
+		pass.style.size = { preset_text_width, preset_entry_size[2] }
+		pass.style.text_fit_with = true
+	end
+end
+
 Blueprints.preset_entry = {
-	size = { 400, 42 },
-	pass_template = Styles.button_passes("left", 20, { 94, 0, 3 }),
-	init = function(parent, widget, element, callback_name)
+	size = preset_entry_size,
+	pass_template = preset_button_passes,
+	init = function(parent, widget, element, callback_name, secondary_callback_name, ui_renderer)
 		init_hotspot_widget(parent, widget, element, callback_name)
 
 		local content = widget and widget.content
 
-		if content then
-			content.name = element and element.name or nil
-			content.hotspot.is_selected = parent and parent._selected_name == content.name or false
+		if not content then
+			return
+		end
+
+		content.name = element and element.name or nil
+		content.hotspot.is_selected = parent and parent._selected_name == content.name or false
+
+		local text_style = widget.style and widget.style.text
+		local text = content.original_text or content.text or ""
+
+		if ui_renderer and text_style and text ~= "" then
+			local cropped = UIRenderer.styled_crop_text_width(ui_renderer, text, text_style, preset_text_width)
+
+			if cropped and cropped ~= text then
+				content.original_text = cropped
+				content.text = cropped
+			end
 		end
 	end,
 }

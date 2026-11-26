@@ -367,7 +367,7 @@ mod._install_character_hooks = Characters.install_hooks
 local function profile_level(profile)
 	local level = type(profile) == "table" and profile.current_level or nil
 
-	return level and ("Lv " .. tostring(level)) or ""
+	return level and (mod:localize("preset_editor_level_prefix") .. tostring(level)) or ""
 end
 
 local function profile_title(profile)

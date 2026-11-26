@@ -286,15 +286,15 @@ mod._preset_panel_apply = function(view, scope, name)
 	local preset_settings = Core.get_preset_settings(scope, preset)
 
 	if not preset_settings then
-		Popups.show_message(view, "Preset Error", string.format("Preset '%s' could not be found.", tostring(name)))
+		Popups.show_message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_not_found", tostring(name)))
 		return
 	end
 
 	Popups.show_confirmation(
 		view,
-		"Apply Preset",
-		string.format(
-			"Apply '%s' to %s? All current settings will be overwritten.",
+		mod:localize("preset_editor_apply_title"),
+		mod:localize(
+			"preset_editor_apply_any_confirm",
 			name,
 			Core.scope_display_name(scope)
 		),
@@ -306,7 +306,7 @@ mod._preset_panel_apply = function(view, scope, name)
 end
 
 mod._preset_panel_delete = function(view, scope, name)
-	Popups.show_confirmation(view, "Delete Preset", string.format("Delete preset '%s'?", name), function()
+	Popups.show_confirmation(view, mod:localize("preset_editor_delete_title"), mod:localize("preset_editor_delete_confirm", name), function()
 		local presets = Core.get_scope_presets(scope)
 
 		presets[name] = nil
@@ -324,7 +324,7 @@ mod._preset_panel_show_save = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, "Save Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_save_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
@@ -340,7 +340,7 @@ mod._preset_panel_show_import = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, "Import Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_import_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
@@ -352,7 +352,7 @@ mod._preset_panel_show_export = function(view, scope, name)
 	local preset_settings = Core.get_preset_settings(scope, preset)
 
 	if not preset_settings then
-		Popups.show_message(view, "Export Failed", string.format("Preset '%s' could not be found.", tostring(name)))
+		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_not_found", tostring(name)))
 		return
 	end
 
@@ -364,7 +364,7 @@ mod._preset_panel_show_export = function(view, scope, name)
 	local target_mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not target_mod_name then
-		Popups.show_message(view, "Export Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
@@ -375,7 +375,7 @@ mod._preset_panel_show_current_export = function(view, scope)
 	local settings = Core.scope_capture_settings(scope)
 
 	if type(settings) ~= "table" or not next(settings) then
-		Popups.show_message(view, "Export Failed", "No settings could be exported.")
+		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_export_nothing"))
 		return
 	end
 
@@ -387,7 +387,7 @@ mod._preset_panel_show_current_export = function(view, scope)
 	local mod_name = Utils.resolve_mod_name(scope.mod_name) or nil
 
 	if not mod_name then
-		Popups.show_message(view, "Export Failed", "The target mod could not be found.")
+		Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
@@ -534,7 +534,7 @@ mod.open_preset_editor = function(view, category)
 	local target_mod_name = Utils.get_target_mod_name(category)
 
 	if not target_mod_name or not get_mod(target_mod_name) then
-		Popups.show_message(view, "Preset Editor", "This mod has no settings that can be saved as a preset.")
+		Popups.show_message(view, mod:localize("preset_editor_title"), mod:localize("preset_editor_no_save_settings"))
 		return
 	end
 
@@ -569,7 +569,7 @@ mod.open_preset_editor = function(view, category)
 	end
 
 	options[#options + 1] = {
-		text = "Save current settings as preset",
+		text = mod:localize("preset_editor_save_current_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()
@@ -578,14 +578,14 @@ mod.open_preset_editor = function(view, category)
 	}
 
 	options[#options + 1] = {
-		text = "Export current settings JSON",
+		text = mod:localize("preset_editor_export_current_json_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()
 			local settings = Core.capture_settings(target_mod_name)
 
 			if not settings then
-				Popups.show_message(view, "Export Failed", "The target mod could not be found.")
+				Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_target_mod_missing"))
 				return
 			end
 
@@ -594,7 +594,7 @@ mod.open_preset_editor = function(view, category)
 	}
 
 	options[#options + 1] = {
-		text = "Import preset JSON",
+		text = mod:localize("preset_editor_import_json_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()
@@ -654,7 +654,7 @@ mod.open_global_preset_editor = function(view)
 	end
 
 	options[#options + 1] = {
-		text = "Save current settings as global preset",
+		text = mod:localize("preset_editor_save_current_global_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()
@@ -663,14 +663,14 @@ mod.open_global_preset_editor = function(view)
 	}
 
 	options[#options + 1] = {
-		text = "Export current settings JSON",
+		text = mod:localize("preset_editor_export_current_json_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()
 			local mods = Core.capture_all_settings()
 
 			if not mods then
-				Popups.show_message(view, "Export Failed", "No mod settings could be exported.")
+				Popups.show_message(view, mod:localize("preset_editor_export_failed_title"), mod:localize("preset_editor_no_export_mods"))
 				return
 			end
 
@@ -679,7 +679,7 @@ mod.open_global_preset_editor = function(view)
 	}
 
 	options[#options + 1] = {
-		text = "Import global preset JSON",
+		text = mod:localize("preset_editor_import_global_json_option"),
 		no_localization = true,
 		close_on_pressed = true,
 		callback = function()

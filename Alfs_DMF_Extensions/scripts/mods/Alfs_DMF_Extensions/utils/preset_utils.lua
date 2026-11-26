@@ -122,7 +122,7 @@ Utils.decode_json = function(text)
 	local dmf = Utils.get_dmf()
 
 	if dmf and type(dmf.safe_call) == "function" then
-		return dmf.safe_call(mod, { "[Preset Editor] Invalid preset JSON" }, cjson.decode, text)
+		return dmf.safe_call(mod, { mod:localize("preset_editor_invalid_json") }, cjson.decode, text)
 	end
 
 	return true, cjson.decode(text)

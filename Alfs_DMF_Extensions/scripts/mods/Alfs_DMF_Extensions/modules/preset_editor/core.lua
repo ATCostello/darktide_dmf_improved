@@ -13,11 +13,32 @@ local preset_store_cache = nil
 local global_preset_store_cache = nil
 local presets_enabled_cache = nil
 
-local IMPORT_STATE_MOD = "Alfs_Darktide_Improved_profile_settings"
-local IMPORT_STATE_SETTING = "has_been_imported"
+local EXCLUDED_MODS = {
+	DMF = true,
+}
 
-local function is_import_state_setting(mod_name, setting_id)
-	return setting_id == IMPORT_STATE_SETTING and Utils.resolve_mod_name(mod_name) == IMPORT_STATE_MOD
+local EXCLUDED_SETTINGS = {
+	has_been_imported = true,
+	settings_profile_importer_state = true,
+	dmf_initialized = true,
+	show_developer_console = true,
+	disabled_mods_list = true,
+	chat_history = true,
+	[Constants.PRESET_SETTING] = true,
+	[Constants.GLOBAL_PRESET_SETTING] = true,
+	[Constants.PRESETS_SETTING] = true,
+}
+
+local function is_excluded_setting(mod_name, setting_id)
+	if not setting_id or type(setting_id) ~= "string" then
+		return true
+	end
+
+	if EXCLUDED_MODS[mod_name] or EXCLUDED_SETTINGS[setting_id] then
+		return true
+	end
+
+	return string.sub(setting_id, 1, 13) == "options_menu_" or string.sub(setting_id, 1, 14) == "preset_editor_"
 end
 
 local function setting_needs_update(target_mod, setting_id, value)
@@ -98,65 +119,135 @@ Core.save_global_preset_store = function(presets)
 	end
 end
 
+Core.get_config_setting_ids = function(target_mod_name)
+	local resolved = Utils.resolve_mod_name(target_mod_name) or target_mod_name
+
+	if not resolved or EXCLUDED_MODS[resolved] then
+		return {}, 0
+	end
+
+	local application = rawget(_G, "Application")
+	local all_settings = application and type(application.user_setting) == "function"
+		and application.user_setting("mods_settings")
+		or nil
+
+	if type(all_settings) ~= "table" then
+		return {}, 0
+	end
+
+	local namespace = all_settings[resolved]
+
+	if type(namespace) ~= "table" then
+		namespace = all_settings[target_mod_name]
+
+		if type(namespace) ~= "table" then
+			return {}, 0
+		end
+	end
+
+	local ids = {}
+	local count = 0
+
+	for setting_id, value in pairs(namespace) do
+		if not is_excluded_setting(resolved, setting_id) and value ~= nil then
+			count = count + 1
+			ids[count] = setting_id
+		end
+	end
+
+	return ids, count
+end
+
 Core.get_setting_ids = function(target_mod_name)
 	if not target_mod_name then
 		return {}, 0
 	end
 
+	local widget_ids, widget_count = {}, 0
 	local dmf = Utils.get_dmf()
 	local widgets_data = dmf and dmf.options_widgets_data
 
-	if not widgets_data then
-		return {}, 0
-	end
+	if widgets_data then
+		local cached = setting_ids_cache[target_mod_name]
 
-	local cached = setting_ids_cache[target_mod_name]
-
-	if cached then
-		if widgets_data[cached.index] == cached.widgets then
-			return cached.ids, cached.count
+		if cached then
+			if widgets_data[cached.index] == cached.widgets then
+				widget_ids, widget_count = cached.ids, cached.count
+			else
+				setting_ids_cache[target_mod_name] = nil
+			end
 		end
 
-		setting_ids_cache[target_mod_name] = nil
-	end
+		if not setting_ids_cache[target_mod_name] then
+			for index = 1, #widgets_data do
+				local mod_widgets = widgets_data[index]
+				local header = mod_widgets and mod_widgets[1]
 
-	for index = 1, #widgets_data do
-		local mod_widgets = widgets_data[index]
-		local header = mod_widgets and mod_widgets[1]
+				if header and header.mod_name == target_mod_name then
+					local ids = {}
+					local seen = {}
+					local count = 0
 
-		if header and header.mod_name == target_mod_name then
-			local ids = {}
-			local seen = {}
-			local count = 0
+					for i = 2, #mod_widgets do
+						local widget = mod_widgets[i]
+						local setting_id = widget and widget.setting_id
 
-			for i = 2, #mod_widgets do
-				local widget = mod_widgets[i]
-				local setting_id = widget and widget.setting_id
+						if
+							setting_id
+							and widget.type ~= "group"
+							and widget.type ~= "button"
+							and not seen[setting_id]
+						then
+							seen[setting_id] = true
+							count = count + 1
+							ids[count] = setting_id
+						end
+					end
 
-				if
-					setting_id
-					and widget.type ~= "group"
-					and widget.type ~= "button"
-					and not seen[setting_id]
-				then
-					seen[setting_id] = true
-					count = count + 1
-					ids[count] = setting_id
+					setting_ids_cache[target_mod_name] = {
+						ids = ids,
+						count = count,
+						index = index,
+						widgets = mod_widgets,
+					}
+					widget_ids, widget_count = ids, count
+					break
 				end
 			end
-
-			setting_ids_cache[target_mod_name] = {
-				ids = ids,
-				count = count,
-				index = index,
-				widgets = mod_widgets,
-			}
-
-			return ids, count
 		end
 	end
 
-	return {}, 0
+	local config_ids, config_count = Core.get_config_setting_ids(target_mod_name)
+
+	if config_count == 0 then
+		return widget_ids, widget_count
+	end
+
+	local ids = {}
+	local seen = {}
+	local count = 0
+
+	for i = 1, widget_count do
+		local setting_id = widget_ids[i]
+
+		if not seen[setting_id] then
+			seen[setting_id] = true
+			count = count + 1
+			ids[count] = setting_id
+		end
+	end
+
+	for i = 1, config_count do
+		local setting_id = config_ids[i]
+
+		if not seen[setting_id] then
+			seen[setting_id] = true
+			count = count + 1
+			ids[count] = setting_id
+		end
+	end
+
+	return ids, count
 end
 
 Core.capture_settings = function(target_mod_name)
@@ -173,7 +264,7 @@ Core.capture_settings = function(target_mod_name)
 	for i = 1, count do
 		local setting_id = ids[i]
 
-		if not is_import_state_setting(mod_name, setting_id) then
+		if not is_excluded_setting(mod_name, setting_id) then
 			local value = target_mod:get(setting_id)
 
 			if value ~= nil then
@@ -193,6 +284,7 @@ Core.capture_all_settings = function()
 	end
 
 	local mods = {}
+	local seen = {}
 	local widgets_data = dmf.options_widgets_data or {}
 
 	for index = 1, #widgets_data do
@@ -202,9 +294,31 @@ Core.capture_all_settings = function()
 
 		if mod_name and #mod_widgets > 1 and get_mod(mod_name) then
 			local settings = Core.capture_settings(mod_name)
+			local resolved = Utils.resolve_mod_name(mod_name) or mod_name
 
 			if settings and next(settings) then
-				mods[mod_name] = settings
+				mods[resolved] = settings
+				seen[resolved] = true
+			end
+		end
+	end
+
+	local application = rawget(_G, "Application")
+	local all_settings = application and type(application.user_setting) == "function"
+		and application.user_setting("mods_settings")
+		or nil
+
+	if type(all_settings) == "table" then
+		for mod_name, namespace in pairs(all_settings) do
+			local resolved = Utils.resolve_mod_name(mod_name) or mod_name
+
+			if type(namespace) == "table" and not seen[resolved] and get_mod(resolved) then
+				local settings = Core.capture_settings(mod_name)
+
+				if settings and next(settings) then
+					mods[resolved] = settings
+					seen[resolved] = true
+				end
 			end
 		end
 	end
@@ -217,7 +331,7 @@ Core.capture_all_settings = function()
 end
 
 Core.make_backup_name = function()
-	local base = "BACKUP " .. tostring(os.date("%Y-%m-%d %H-%M-%S"))
+	local base = mod:localize("preset_editor_backup_prefix") .. tostring(os.date("%Y-%m-%d %H-%M-%S"))
 	local presets = Core.get_global_preset_store()
 	local name = base
 	local index = 2
@@ -492,21 +606,17 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 	local target_mod = mod_name and get_mod(mod_name) or nil
 
 	if not target_mod or type(settings) ~= "table" then
-		message(view, "Preset Error", "The target mod could not be found.")
+		message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_target_mod_missing"))
 		return
 	end
 
-	local ids, count = Core.get_setting_ids(mod_name)
-
-	for i = 1, count do
-		local setting_id = ids[i]
-
-		if not is_import_state_setting(mod_name, setting_id) then
-			local value = settings[setting_id]
-
-			if value ~= nil and setting_needs_update(target_mod, setting_id, value) then
-				target_mod:set(setting_id, value, true)
-			end
+	for setting_id, value in pairs(settings) do
+		if
+			not is_excluded_setting(mod_name, setting_id)
+			and value ~= nil
+			and setting_needs_update(target_mod, setting_id, value)
+		then
+			target_mod:set(setting_id, value, true)
 		end
 	end
 
@@ -516,13 +626,17 @@ Core.apply_settings = function(view, target_mod_name, settings, target_label, de
 	end
 
 	if target_label then
-		message(view, "Preset Applied", string.format("Applied '%s'.", tostring(target_label)))
+		message(
+			view,
+			mod:localize("preset_editor_applied_title"),
+			mod:localize("preset_editor_applied", tostring(target_label))
+		)
 	end
 end
 
 Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 	if type(mods) ~= "table" then
-		message(view, "Preset Error", "The global preset could not be read.")
+		message(view, mod:localize("preset_editor_error_title"), mod:localize("preset_editor_global_unreadable"))
 		return
 	end
 
@@ -531,17 +645,13 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 		local target_mod = resolved_name and get_mod(resolved_name) or nil
 
 		if target_mod and type(settings) == "table" then
-			local ids, count = Core.get_setting_ids(resolved_name)
-
-			for i = 1, count do
-				local setting_id = ids[i]
-
-				if not is_import_state_setting(resolved_name, setting_id) then
-					local value = settings[setting_id]
-
-					if value ~= nil and setting_needs_update(target_mod, setting_id, value) then
-						target_mod:set(setting_id, value, true)
-					end
+			for setting_id, value in pairs(settings) do
+				if
+					not is_excluded_setting(resolved_name, setting_id)
+					and value ~= nil
+					and setting_needs_update(target_mod, setting_id, value)
+				then
+					target_mod:set(setting_id, value, true)
 				end
 			end
 		end
@@ -553,7 +663,11 @@ Core.apply_global_settings = function(view, mods, target_label, defer_flush)
 	end
 
 	if target_label then
-		message(view, "Preset Applied", string.format("Applied global preset '%s'.", tostring(target_label)))
+		message(
+			view,
+			mod:localize("preset_editor_applied_title"),
+			mod:localize("preset_editor_applied_global", tostring(target_label))
+		)
 	end
 end
 
