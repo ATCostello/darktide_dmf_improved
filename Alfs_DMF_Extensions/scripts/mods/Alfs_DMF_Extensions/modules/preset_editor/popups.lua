@@ -429,8 +429,6 @@ Popups.show_import = function(view, category, target_mod_name)
 					mod:localize("preset_editor_import_title"),
 					mod:localize("preset_editor_import_confirm", name, Utils.get_display_mod_name(target_mod_name)),
 					function()
-						Core.backup_global_settings()
-
 						local presets, mod_presets = Core.get_mod_preset_bucket(target_mod_name, true)
 
 						mod_presets[name] = Core.preserve_assignment_fields(mod_presets[name], {
@@ -438,6 +436,7 @@ Popups.show_import = function(view, category, target_mod_name)
 							imported = true,
 						})
 						Core.save_preset_store(presets)
+						Core.backup_mod_settings(target_mod_name, name)
 						Core.apply_settings(view, target_mod_name, decoded.settings, name)
 						Popups.refresh_preset_panel(view)
 					end
@@ -513,8 +512,6 @@ Popups.show_global_import = function(view)
 					mod:localize("preset_editor_import_global_title"),
 					mod:localize("preset_editor_import_global_confirm", name, mod:localize("preset_editor_all_mods")),
 					function()
-						Core.backup_global_settings()
-
 						local presets = Core.get_global_preset_store()
 
 						presets[name] = Core.preserve_assignment_fields(presets[name], {
@@ -522,6 +519,7 @@ Popups.show_global_import = function(view)
 							imported = true,
 						})
 						Core.save_global_preset_store(presets)
+						Core.backup_global_settings(name)
 						Core.apply_global_settings(view, mods, name)
 						Popups.refresh_preset_panel(view)
 					end
@@ -897,15 +895,12 @@ mod.decode_global_profile_settings = function(data)
 	return Core.normalize_global_mods(decoded.mods or decoded.settings or decoded)
 end
 
-mod.apply_global_profile_settings = function(mods)
+mod.apply_global_profile_settings = function(mods, name)
 	if type(mods) ~= "table" or not next(mods) then
 		return false
 	end
 
-	if not Core.silent then
-		Core.backup_global_settings()
-	end
-
+	Core.backup_global_settings(name)
 	Core.apply_global_settings(nil, mods, nil)
 
 	return true

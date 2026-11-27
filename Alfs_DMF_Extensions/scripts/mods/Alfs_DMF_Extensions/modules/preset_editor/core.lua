@@ -225,33 +225,49 @@ Core.get_config_setting_ids = function(target_mod_name)
 		return {}, 0
 	end
 
+	local ids = {}
+	local count = 0
+	local seen = {}
 	local application = rawget(_G, "Application")
 	local all_settings = application
 			and type(application.user_setting) == "function"
 			and application.user_setting("mods_settings")
 		or nil
-
-	if type(all_settings) ~= "table" then
-		return {}, 0
-	end
-
-	local namespace = all_settings[resolved]
+	local namespace = type(all_settings) == "table" and all_settings[resolved] or nil
 
 	if type(namespace) ~= "table" then
-		namespace = all_settings[target_mod_name]
+		namespace = type(all_settings) == "table" and all_settings[target_mod_name] or nil
+	end
 
-		if type(namespace) ~= "table" then
-			return {}, 0
+	if type(namespace) == "table" then
+		for setting_id, value in pairs(namespace) do
+			if not is_excluded_setting(resolved, setting_id) and value ~= nil and not seen[setting_id] then
+				seen[setting_id] = true
+				count = count + 1
+				ids[count] = setting_id
+			end
 		end
 	end
 
-	local ids = {}
-	local count = 0
+	local target_mod = get_mod(resolved)
+	local get_extra_ids = target_mod
+			and type(target_mod.get_preset_setting_ids) == "function"
+			and target_mod.get_preset_setting_ids
+		or nil
 
-	for setting_id, value in pairs(namespace) do
-		if not is_excluded_setting(resolved, setting_id) and value ~= nil then
-			count = count + 1
-			ids[count] = setting_id
+	if get_extra_ids then
+		local extra_ids, extra_count = get_extra_ids(target_mod)
+
+		extra_ids = extra_ids or {}
+
+		for index = 1, extra_count or #extra_ids do
+			local setting_id = extra_ids and extra_ids[index]
+
+			if not is_excluded_setting(resolved, setting_id) and not seen[setting_id] then
+				seen[setting_id] = true
+				count = count + 1
+				ids[count] = setting_id
+			end
 		end
 	end
 
@@ -351,6 +367,8 @@ Core.capture_settings = function(target_mod_name, filter)
 	if not target_mod then
 		return nil
 	end
+
+	Core.invalidate_setting()
 
 	local settings = {}
 
@@ -462,21 +480,31 @@ local function capture_global_preset_settings(mods)
 	return captured
 end
 
-Core.make_backup_name = function()
-	local base = mod:localize("preset_editor_backup_prefix") .. tostring(os.date("%Y-%m-%d %H-%M-%S"))
-	local presets = Core.get_global_preset_store()
-	local name = base
+Core.make_backup_name = function(name, presets)
+	local preset_name = name
+
+	if not preset_name or preset_name == "" then
+		preset_name = mod:localize("preset_editor_imported_name")
+	end
+
+	local base = mod:localize("preset_editor_backup_prefix", preset_name, tostring(os.date("%Y-%m-%d %H-%M-%S")))
+
+	if type(presets) ~= "table" then
+		presets = {}
+	end
+
+	local backup_name = base
 	local index = 2
 
-	while presets[name] do
-		name = string.format("%s (%d)", base, index)
+	while presets[backup_name] do
+		backup_name = string.format("%s (%d)", base, index)
 		index = index + 1
 	end
 
-	return name
+	return backup_name
 end
 
-Core.backup_global_settings = function()
+Core.backup_global_settings = function(name)
 	local mods = Core.capture_all_settings()
 
 	if not mods then
@@ -485,11 +513,33 @@ Core.backup_global_settings = function()
 
 	local presets = Core.get_global_preset_store()
 
-	presets[Core.make_backup_name()] = {
+	presets[Core.make_backup_name(name, presets)] = {
 		mods = mods,
 		backup = true,
 	}
 	Core.save_global_preset_store(presets)
+
+	return true
+end
+
+Core.backup_mod_settings = function(target_mod_name, name)
+	local settings = Core.capture_settings(target_mod_name)
+
+	if not settings or not next(settings) then
+		return false
+	end
+
+	local store, presets = Core.get_mod_preset_bucket(target_mod_name, true)
+
+	if type(presets) ~= "table" then
+		return false
+	end
+
+	presets[Core.make_backup_name(name, presets)] = {
+		settings = settings,
+		backup = true,
+	}
+	Core.save_preset_store(store)
 
 	return true
 end

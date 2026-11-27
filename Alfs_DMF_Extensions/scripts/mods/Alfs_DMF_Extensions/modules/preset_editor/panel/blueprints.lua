@@ -24,6 +24,45 @@ local function init_hotspot_widget(parent, widget, element, callback_name)
 	content.tooltip_text = element and element.tooltip or ""
 end
 
+local function wrap_assignment_text(ui_renderer, widget, text, max_rows)
+	local style = widget and widget.style and widget.style.character_title
+
+	if not ui_renderer or not style or not style.font_type or not style.font_size or text == "" then
+		return text or ""
+	end
+
+	local width = style.size and style.size[1]
+
+	if not width then
+		return text
+	end
+
+	local rows = UIRenderer.word_wrap(ui_renderer, text, style.font_type, style.font_size, width)
+	local row_count = rows and #rows or 0
+
+	if row_count <= 1 then
+		return text
+	end
+
+	max_rows = max_rows or 2
+	local visible_rows = {}
+
+	for index = 1, math.min(row_count, max_rows) do
+		visible_rows[index] = rows[index]
+	end
+
+	if row_count > max_rows then
+		local last_index = #visible_rows
+		local last_row = visible_rows[last_index] or ""
+
+		visible_rows[last_index] = UIRenderer.styled_crop_text_width(ui_renderer, last_row .. " …", style, width)
+	end
+
+	return table.concat(visible_rows, "\n")
+end
+
+Blueprints.wrap_assignment_text = wrap_assignment_text
+
 local character_glow_pass = Styles.glow_pass("glow", { 12, 12 }, Styles.COLORS.accent_edge)
 
 character_glow_pass.style.rest_color = Styles.copy_color(Styles.COLORS.accent_edge)
@@ -148,31 +187,31 @@ local character_toggle_template = {
 		pass_type = "text",
 		value_id = "character_name",
 		style_id = "character_name",
-		style = Styles.make_text_style(20, { 72, -10, 3 }, Styles.COLORS.text, "left", { 260, 26 }),
+		style = Styles.make_text_style(20, { 72, -26, 3 }, Styles.COLORS.text, "left", { 500, 26 }),
 	},
 	{
 		pass_type = "text",
 		value_id = "character_archetype_title",
 		style_id = "character_archetype_title",
-		style = Styles.make_text_style(16, { 72, 12, 3 }, Styles.COLORS.muted, "left", { 260, 24 }),
+		style = Styles.make_text_style(16, { 72, -2, 3 }, Styles.COLORS.muted, "left", { 500, 24 }),
 	},
 	{
 		pass_type = "text",
 		value_id = "character_title",
 		style_id = "character_title",
-		style = Styles.make_text_style(14, { 340, -10, 3 }, Styles.COLORS.normal, "right", { 250, 24 }),
+		style = Styles.make_text_style(16, { 72, 24, 3 }, Styles.COLORS.normal, "left", { 548, 42 }),
 	},
 }
 
-for _, pass in ipairs(character_toggle_template) do
-	if pass.style_id == "character_title" and pass.style then
-		pass.style.text_fit_with = true
-	end
-end
-
 local preset_entry_size = { 400, 42 }
 local preset_text_offset = { 12, 0, 3 }
-local preset_text_width = preset_entry_size[1] - preset_text_offset[1] - 12
+local preset_text_margin = 12
+
+local function preset_entry_text_width(width)
+	return math.max(1, width - preset_text_offset[1] - preset_text_margin)
+end
+
+local preset_text_width = preset_entry_text_width(preset_entry_size[1])
 local preset_button_passes = Styles.button_passes("left", 20, preset_text_offset)
 
 for _, pass in ipairs(preset_button_passes) do
@@ -211,6 +250,27 @@ Blueprints.preset_entry = {
 	end,
 }
 
+Blueprints.resize_preset_entry = function(widget, width)
+	local content = widget and widget.content
+
+	if not content or not content.size then
+		return
+	end
+
+	content.size[1] = math.max(1, width)
+
+	local text_style = widget.style and widget.style.text
+	local text_width = preset_entry_text_width(content.size[1])
+
+	if text_style then
+		if type(text_style.size) == "table" then
+			text_style.size[1] = text_width
+		else
+			text_style.size = { text_width, preset_entry_size[2] }
+		end
+	end
+end
+
 Blueprints.action_button = {
 	size = { 640, 40 },
 	pass_template = Styles.button_passes("center", 20),
@@ -218,8 +278,76 @@ Blueprints.action_button = {
 }
 
 Blueprints.character_toggle = {
-	size = { 640, 64 },
+	size = { 640, 96 },
 	pass_template = character_toggle_template,
+	init = function(parent, widget, element, callback_name, secondary_callback_name, ui_renderer)
+		init_hotspot_widget(parent, widget, element, callback_name)
+
+		local content = widget and widget.content
+
+		if not content then
+			return
+		end
+
+		local archetype_name = element and element.archetype_name or ""
+		local level = element and element.level or ""
+		local assignment_text = element and element.title or ""
+
+		content.profile = element and element.profile or nil
+		Portraits.set_frame(widget, content.profile)
+		content.assigned = element and element.assigned == true
+		content.assignment_text = content.assigned and "\226\156\147" or ""
+		content.character_name = element and element.name or ""
+		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
+		content.character_title = wrap_assignment_text(ui_renderer, widget, assignment_text, 2)
+	end,
+	load_icon = Portraits.load,
+	unload_icon = Portraits.unload,
+	destroy = Portraits.unload,
+}
+
+local character_summary_template = table.clone(character_toggle_template)
+
+for index, pass in ipairs(character_summary_template) do
+	local style_id = pass.style_id
+
+	if style_id == "character_name" then
+		character_summary_template[index] = {
+			pass_type = "text",
+			value_id = "character_name",
+			style_id = "character_name",
+			style = Styles.make_text_style(20, { 72, -22, 3 }, Styles.COLORS.text, "left", { 980, 24 }),
+		}
+	elseif style_id == "character_archetype_title" then
+		character_summary_template[index] = {
+			pass_type = "text",
+			value_id = "character_archetype_title",
+			style_id = "character_archetype_title",
+			style = Styles.make_text_style(16, { 72, 2, 3 }, Styles.COLORS.muted, "left", { 980, 22 }),
+		}
+	elseif style_id == "character_title" then
+		local title_style = Styles.make_text_style(14, { 72, 26, 3 }, Styles.COLORS.normal, "left", { 980, 22 })
+
+		title_style.text_fit_with = true
+		character_summary_template[index] = {
+			pass_type = "text",
+			value_id = "character_title",
+			style_id = "character_title",
+			style = title_style,
+		}
+	elseif style_id == "assignment_text" then
+		character_summary_template[index] = {
+			pass_type = "text",
+			value_id = "assignment_text",
+			style_id = "assignment_text",
+			style = Styles.make_text_style(1, { 0, 0, 0 }, Styles.COLORS.normal, "right", { 1, 1 }),
+		}
+	end
+end
+
+Blueprints.character_summary = {
+	size = { 1084, 88 },
+	pass_template = character_summary_template,
 	init = function(parent, widget, element, callback_name)
 		init_hotspot_widget(parent, widget, element, callback_name)
 
@@ -234,8 +362,8 @@ Blueprints.character_toggle = {
 
 		content.profile = element and element.profile or nil
 		Portraits.set_frame(widget, content.profile)
-		content.assigned = element and element.assigned == true
-		content.assignment_text = content.assigned and "\226\156\147" or ""
+		content.assigned = false
+		content.assignment_text = ""
 		content.character_name = element and element.name or ""
 		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
 		content.character_title = element and element.title or ""

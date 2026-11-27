@@ -21,6 +21,15 @@ local SCOPE_DROPDOWN_WIDTH = 504
 local SCOPE_ROW_HEIGHT = 30
 local SCOPE_MAX_VISIBLE_OPTIONS = 6
 local ACTIONS_LIST_HEIGHT = 499
+local PANEL_MARGIN = 40
+local ACTIONS_PIVOT_MARGIN = 16
+local FULL_ACTIONS_PIVOT_WIDTH = POPUP_WIDTH - PANEL_MARGIN * 2 - ACTIONS_PIVOT_MARGIN
+local TAB_WIDTH = 360
+local TAB_HEIGHT = 52
+local TAB_GAP = 20
+local TAB_DIVIDER_WIDTH = 320
+local PRESET_TAB_X = 40
+local CHARACTERS_TAB_X = PRESET_TAB_X + TAB_WIDTH + TAB_GAP
 
 Definitions.POPUP_WIDTH = POPUP_WIDTH
 Definitions.POPUP_HEIGHT = POPUP_HEIGHT
@@ -76,15 +85,22 @@ local scenegraph_definition = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 240, 18 },
-		position = { 40, 75, 2 },
+		size = { TAB_DIVIDER_WIDTH, 26 },
+		position = { PRESET_TAB_X + (TAB_WIDTH - TAB_DIVIDER_WIDTH) * 0.5, 75, 2 },
 	},
-	title_text = {
+	title_tab_presets = {
 		parent = "popup",
 		vertical_alignment = "top",
 		horizontal_alignment = "left",
-		size = { 700, 42 },
-		position = { 40, 28, 2 },
+		size = { TAB_WIDTH, TAB_HEIGHT },
+		position = { PRESET_TAB_X, 20, 2 },
+	},
+	title_tab_characters = {
+		parent = "popup",
+		vertical_alignment = "top",
+		horizontal_alignment = "left",
+		size = { TAB_WIDTH, TAB_HEIGHT },
+		position = { CHARACTERS_TAB_X, 20, 2 },
 	},
 	header_rule = {
 		parent = "popup",
@@ -106,6 +122,13 @@ local scenegraph_definition = {
 		horizontal_alignment = "left",
 		size = { SCOPE_DROPDOWN_WIDTH, SCOPE_ROW_HEIGHT },
 		position = { 40, 96, 4 },
+	},
+	scope_label = {
+		parent = "popup",
+		vertical_alignment = "top",
+		horizontal_alignment = "left",
+		size = { SCOPE_DROPDOWN_WIDTH, 16 },
+		position = { 40, 126, 2 },
 	},
 	selected_preset_text = {
 		parent = "popup",
@@ -179,6 +202,23 @@ local scenegraph_definition = {
 	},
 }
 
+local tabs = {
+	{
+		name = "title_tab_presets",
+		action = "presets",
+		text_key = "preset_editor_tab_presets",
+		tooltip_key = "preset_editor_presets_tab_tooltip",
+		x = PRESET_TAB_X,
+	},
+	{
+		name = "title_tab_characters",
+		action = "characters_overview",
+		text_key = "preset_editor_tab_characters",
+		tooltip_key = "preset_editor_characters_view_tooltip",
+		x = CHARACTERS_TAB_X,
+	},
+}
+
 local bottom_buttons = {
 	{
 		name = "bottom_save",
@@ -217,10 +257,12 @@ local widget_draw_order = {
 	"list_frame",
 	"actions_frame",
 	"title_divider",
-	"title_text",
+	"title_tab_presets",
+	"title_tab_characters",
 	"header_rule",
 	"bottom_rule",
 	"scope_dropdown",
+	"scope_label",
 	"selected_preset_text",
 	"bottom_save",
 	"bottom_import",
@@ -402,14 +444,50 @@ local tooltip_definitions = {
 	},
 }
 
-local title_text_style =
-	table.clone(UIFontSettings.header_1 or UIFontSettings.header_3 or UIFontSettings.button_primary or {})
-title_text_style.text_horizontal_alignment = "left"
-title_text_style.text_vertical_alignment = "center"
-title_text_style.text_color = Styles.copy_color(Styles.COLORS.title)
-title_text_style.offset = { 0, 0, 2 }
+local function tab_text_style()
+	local style =
+		table.clone(UIFontSettings.header_2 or UIFontSettings.header_1 or UIFontSettings.button_primary or {})
+
+	style.font_size = 40
+	style.font_type = "machine_medium"
+	style.text_horizontal_alignment = "center"
+	style.text_vertical_alignment = "center"
+	style.horizontal_alignment = "center"
+	style.vertical_alignment = "center"
+	style.offset = { 0, 0, 2 }
+	style.size = { TAB_WIDTH, TAB_HEIGHT }
+	style.text_fit_with = true
+	style.text_color = Styles.copy_color(Styles.COLORS.muted)
+	style.rest_color = Styles.copy_color(Styles.COLORS.muted)
+	style.hover_color = Styles.copy_color(Styles.COLORS.text_hover)
+	style.selected_color = Styles.copy_color(Styles.COLORS.title)
+
+	return style
+end
+
+local function tab_passes()
+	return {
+		{
+			pass_type = "hotspot",
+			content_id = "hotspot",
+			content = { use_is_focused = true },
+		},
+		{
+			pass_type = "text",
+			value_id = "text",
+			style_id = "text",
+			style = tab_text_style(),
+			change_function = function(content, style)
+				Styles.state_color(content, style)
+			end,
+		},
+	}
+end
 
 local selected_text_style = text_style(18, { 0, 0, 2 }, Styles.COLORS.normal, "right", { 260, 40 })
+
+local scope_label_style = text_style(14, { 0, 0, 2 }, Styles.COLORS.normal, "left", { SCOPE_DROPDOWN_WIDTH, 16 })
+scope_label_style.text_fit_with = true
 
 local dropdown_passes = Styles.customize_dropdown(
 	DropdownPassTemplates.settings_dropdown(
@@ -533,22 +611,39 @@ local widget_definitions = {
 	title_divider = UIWidget.create_definition({
 		{
 			pass_type = "texture",
-			value = "content/ui/materials/dividers/skull_rendered_left_01",
+			value = "content/ui/materials/effects/wide_upward_glow",
+			style_id = "glow",
 			style = {
-				color = Styles.copy_color(Styles.COLORS.frame),
+				color = Color.ui_terminal(210, true),
+				horizontal_alignment = "center",
+				vertical_alignment = "bottom",
 				scale_to_material = true,
-				offset = { 0, 0, 2 },
+				size = { TAB_DIVIDER_WIDTH, 0 },
+				size_addition = { -5, 0 },
+				offset = { 0, -23, 1 },
+			},
+			change_function = function(content, style)
+				local progress = content.anim_select_progress or 1
+				local eased = math.easeOutCubic and math.easeOutCubic(progress) or progress
+
+				style.color[1] = 210 * eased
+				style.size_addition[2] = 72 * progress
+			end,
+		},
+		{
+			pass_type = "texture",
+			value = "content/ui/materials/dividers/skull_rendered_center_03",
+			style_id = "divider",
+			style = {
+				color = Styles.copy_color(Styles.COLORS.title),
+				horizontal_alignment = "center",
+				vertical_alignment = "center",
+				scale_to_material = true,
+				size = { TAB_DIVIDER_WIDTH, 26 },
+				offset = { 0, 0, 3 },
 			},
 		},
-	}, "title_divider"),
-	title_text = UIWidget.create_definition({
-		{
-			pass_type = "text",
-			value_id = "title_text",
-			style_id = "title_text",
-			style = title_text_style,
-		},
-	}, "title_text"),
+	}, "title_divider", { anim_select_progress = 1 }, { TAB_DIVIDER_WIDTH, 26 }),
 	header_rule = UIWidget.create_definition({
 		Styles.rule_pass("rule"),
 	}, "header_rule"),
@@ -566,6 +661,20 @@ local widget_definitions = {
 		internal_value = "global",
 		disabled = false,
 	}, Definitions.SCOPE_DROPDOWN_SIZE),
+	scope_label = UIWidget.create_definition(
+		{
+			{
+				pass_type = "text",
+				value_id = "scope_label",
+				style_id = "scope_label",
+				style = scope_label_style,
+			},
+		},
+		"scope_label",
+		{
+			scope_label = "",
+		}
+	),
 	selected_preset_text = UIWidget.create_definition({
 		{
 			pass_type = "text",
@@ -575,6 +684,14 @@ local widget_definitions = {
 		},
 	}, "selected_preset_text"),
 }
+
+for _, tab in ipairs(tabs) do
+	widget_definitions[tab.name] = UIWidget.create_definition(tab_passes(), tab.name, {
+		text = mod:localize(tab.text_key),
+		tooltip_text = mod:localize(tab.tooltip_key),
+		hotspot = {},
+	}, { TAB_WIDTH, TAB_HEIGHT })
+end
 
 for _, button in ipairs(bottom_buttons) do
 	local passes = Styles.button_passes("center", 20)
@@ -630,7 +747,12 @@ Definitions.widget_definitions = widget_definitions
 Definitions.widget_draw_order = widget_draw_order
 Definitions.tooltip_definitions = tooltip_definitions
 Definitions.blueprints = Blueprints
+Definitions.tabs = tabs
 Definitions.bottom_buttons = bottom_buttons
+Definitions.TAB_WIDTH = TAB_WIDTH
+Definitions.TAB_DIVIDER_WIDTH = TAB_DIVIDER_WIDTH
+Definitions.FULL_ACTIONS_PIVOT_WIDTH = FULL_ACTIONS_PIVOT_WIDTH
+Definitions.ACTIONS_PIVOT_MARGIN = ACTIONS_PIVOT_MARGIN
 Definitions.list_grid_settings = grid_settings(420, 531)
 Definitions.actions_grid_settings = grid_settings(660, ACTIONS_LIST_HEIGHT + 32, -64)
 Definitions.legend_inputs = {

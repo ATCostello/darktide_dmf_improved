@@ -1,6 +1,7 @@
 local mod = get_mod("Alfs_DMF_Extensions")
 
 local UISettings = require("scripts/settings/ui/ui_settings")
+local UIWidget = require("scripts/managers/ui/ui_widget")
 
 local Styles = mod._preset_panel_styles
 local Utils = mod._preset_utils
@@ -203,7 +204,9 @@ Portraits.load = function(parent, widget, element)
 	end
 end
 
-Portraits.unload = function(parent, widget)
+Portraits.unload = function(parent, widget, element, ui_renderer)
+	UIWidget.set_visible(widget, ui_renderer, false)
+
 	local content = widget and widget.content
 	local ui = Managers and Managers.ui
 	local load_id = content and content.icon_load_id

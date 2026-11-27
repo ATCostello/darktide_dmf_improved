@@ -15,6 +15,31 @@ local widget_draw_order = Definitions.widget_draw_order or {}
 local widget_draw_order_count = #widget_draw_order
 local bottom_buttons = Definitions.bottom_buttons or {}
 local bottom_button_count = #bottom_buttons
+local tabs = Definitions.tabs or {}
+local tab_count = #tabs
+local tab_width = Definitions.TAB_WIDTH or 0
+local tab_divider_width = Definitions.TAB_DIVIDER_WIDTH or 0
+local full_actions_width = Definitions.FULL_ACTIONS_PIVOT_WIDTH or 1084
+local actions_pivot_margin = Definitions.ACTIONS_PIVOT_MARGIN or 16
+local default_actions_width = Definitions.actions_grid_settings
+		and Definitions.actions_grid_settings.grid_size
+		and Definitions.actions_grid_settings.grid_size[1]
+	or 644
+local default_list_frame_width = Definitions.scenegraph_definition
+		and Definitions.scenegraph_definition.list_frame
+		and Definitions.scenegraph_definition.list_frame.size
+		and Definitions.scenegraph_definition.list_frame.size[1]
+	or 420
+local default_list_grid_width = Definitions.list_grid_settings
+		and Definitions.list_grid_settings.grid_size
+		and Definitions.list_grid_settings.grid_size[1]
+	or 404
+local list_width_margin = math.max(0, default_list_frame_width - default_list_grid_width)
+local preset_entry_default_width = Blueprints.preset_entry
+		and Blueprints.preset_entry.size
+		and Blueprints.preset_entry.size[1]
+	or 400
+local preset_button_margin = math.max(0, default_list_grid_width - preset_entry_default_width)
 local option_hotspot_keys = {}
 local option_hotspot_key_count = 0
 
@@ -228,6 +253,7 @@ PresetEditorPanelView.init = function(self, settings, context)
 	self._selected_name = nil
 	self._rebuilt_scope_key = nil
 	self._character_mode = false
+	self._characters_view_mode = false
 	self._character_request_id = 0
 	self._drawn_widgets = {}
 	self._pending_actions_rebuild = false
@@ -236,6 +262,14 @@ PresetEditorPanelView.init = function(self, settings, context)
 	self._open_anim_id = nil
 	self._close_anim_id = nil
 	self._has_presets = false
+	self._actions_width = default_actions_width
+	self._actions_width_target = default_actions_width
+	self._applied_actions_width = default_actions_width
+	self._applied_list_width = default_list_frame_width
+	self._list_button_width = preset_entry_default_width
+	self._list_pane_visible = true
+	self._divider_x = nil
+	self._divider_target_x = nil
 	self._save_button_widget = self._widgets_by_name and self._widgets_by_name.bottom_save or nil
 
 	for index = 1, bottom_button_count do
@@ -244,6 +278,15 @@ PresetEditorPanelView.init = function(self, settings, context)
 
 		if widget and widget.content.hotspot then
 			widget.content.hotspot.pressed_callback = callback(self, "cb_on_bottom_pressed", button.action)
+		end
+	end
+
+	for index = 1, tab_count do
+		local tab = tabs[index]
+		local widget = self._widgets_by_name[tab.name]
+
+		if widget and widget.content.hotspot then
+			widget.content.hotspot.pressed_callback = callback(self, "cb_on_tab_pressed", tab.action)
 		end
 	end
 
@@ -345,7 +388,17 @@ PresetEditorPanelView._maybe_close_on_outside_click = function(self, input_servi
 	ui:close_view(self.view_name)
 end
 
+PresetEditorPanelView._hide_grid_empty_message = function(self, grid)
+	local widget = grid and grid._widgets_by_name and grid._widgets_by_name.grid_empty
+
+	if widget and widget.content then
+		widget.content.visible = false
+	end
+end
+
 PresetEditorPanelView.update = function(self, dt, t, input_service)
+	self:_update_layout_animation(dt)
+
 	local pass_input, pass_draw = PresetEditorPanelView.super.update(self, dt, t, input_service)
 
 	Dropdown.update(self, dt, t, input_service)
@@ -378,6 +431,11 @@ PresetEditorPanelView.update = function(self, dt, t, input_service)
 		self:_rebuild_actions()
 	end
 
+	if self._characters_view_mode then
+		self:_hide_grid_empty_message(self._list_grid)
+		self:_hide_grid_empty_message(self._actions_grid)
+	end
+
 	self:_update_tooltip()
 	self:_update_save_pulse(t)
 
@@ -399,6 +457,16 @@ PresetEditorPanelView._update_tooltip = function(self)
 
 	if not tooltip_text then
 		tooltip_text = tooltip_text_for_widget(self._widgets_by_name.scope_dropdown)
+	end
+
+	if not tooltip_text then
+		for index = 1, tab_count do
+			tooltip_text = tooltip_text_for_widget(self._widgets_by_name[tabs[index].name])
+
+			if tooltip_text then
+				break
+			end
+		end
 	end
 
 	if not tooltip_text then
@@ -524,6 +592,16 @@ PresetEditorPanelView._rebuild = function(self)
 
 	mod._preset_panel_context = self._scope
 	self._character_mode = false
+	self:_update_tabs()
+
+	local widgets_by_name = self._widgets_by_name
+
+	if self._characters_view_mode then
+		self._list_grid:present_grid_layout({}, Blueprints)
+		Dropdown.sync(self)
+		self:_rebuild_characters_view()
+		return
+	end
 
 	local current_scope_key = panel_scope_key(self._scope)
 	local names = mod._preset_panel_get_names(self._scope)
@@ -567,12 +645,15 @@ PresetEditorPanelView._rebuild = function(self)
 	end
 
 	self._list_grid:present_grid_layout(layout, Blueprints, callback(self, "cb_on_preset_pressed"))
+	self:_apply_list_button_width()
 	self:_update_preset_selection()
 
-	local widgets_by_name = self._widgets_by_name
+	local scope_label = widgets_by_name.scope_label
 
-	if widgets_by_name.title_text then
-		widgets_by_name.title_text.content.title_text = mod:localize("preset_editor_title")
+	if scope_label and scope_label.content then
+		local scope_name = mod._preset_panel_get_scope_name and mod._preset_panel_get_scope_name() or ""
+
+		scope_label.content.scope_label = mod:localize("preset_editor_viewing_presets_for_mod", tostring(scope_name))
 	end
 
 	Dropdown.sync(self)
@@ -612,8 +693,55 @@ PresetEditorPanelView._invalidate_character_request = function(self)
 	self._character_request_id = self._character_request_id + 1
 end
 
+PresetEditorPanelView._rebuild_characters_view = function(self)
+	if not self._actions_grid then
+		return
+	end
+
+	self:_invalidate_character_request()
+
+	local request_id = self._character_request_id
+	local layout = {}
+	local callback_name = callback(self, "cb_on_character_pressed")
+
+	local function present_characters(profiles)
+		if self._character_request_id ~= request_id or not self._actions_grid or not self._characters_view_mode then
+			return
+		end
+
+		for _, profile in ipairs(profiles or {}) do
+			layout[#layout + 1] = {
+				widget_type = "character_summary",
+				action = "character_summary",
+				id = profile.id,
+				name = profile.name,
+				archetype_name = profile.archetype_name,
+				profile = profile.profile,
+				level = profile.level,
+				title = profile.title or "",
+				text = profile.name,
+				tooltip = mod:localize("preset_editor_character_tooltip", tostring(profile.name)),
+			}
+		end
+
+		self._actions_grid:present_grid_layout(layout, Blueprints, callback_name)
+	end
+
+	mod._preset_panel_get_characters(present_characters)
+
+	if #layout == 0 then
+		self._actions_grid:present_grid_layout({ hint }, Blueprints, callback_name)
+	end
+
+	self:_update_bottom_buttons()
+end
+
 PresetEditorPanelView._rebuild_actions = function(self)
 	if not self._actions_grid then
+		return
+	end
+
+	if self._characters_view_mode then
 		return
 	end
 
@@ -660,7 +788,7 @@ PresetEditorPanelView._rebuild_actions = function(self)
 					archetype_name = profile.archetype_name,
 					profile = profile.profile,
 					level = profile.level,
-					title = profile.title,
+					title = profile.title or "",
 					assigned = mod._preset_panel_is_character_assigned(
 						mod._preset_panel_scope_for_view(self),
 						selected_name,
@@ -722,6 +850,207 @@ PresetEditorPanelView._rebuild_actions = function(self)
 	self:_update_bottom_buttons()
 end
 
+PresetEditorPanelView._set_list_visible = function(self, visible)
+	if self._list_pane_visible == visible then
+		return
+	end
+
+	self._list_pane_visible = visible
+
+	local list_frame = self._widgets_by_name and self._widgets_by_name.list_frame
+
+	if list_frame then
+		list_frame.visible = visible
+	end
+
+	if self._list_grid and type(self._list_grid.set_visibility) == "function" then
+		self._list_grid:set_visibility(visible)
+	end
+end
+
+PresetEditorPanelView._set_actions_width = function(self, width)
+	local rounded = math.floor(width + 0.5)
+
+	if rounded < 1 or self._applied_actions_width == rounded then
+		return
+	end
+
+	self._applied_actions_width = rounded
+
+	if type(self._set_scenegraph_size) == "function" then
+		self:_set_scenegraph_size("actions_frame", rounded + actions_pivot_margin, nil)
+		self:_set_scenegraph_size("actions_pivot", rounded, nil)
+	end
+
+	local grid = self._actions_grid
+	local settings = grid and grid._menu_settings
+
+	if settings and type(settings.grid_size) == "table" and type(settings.mask_size) == "table" then
+		settings.grid_size[1] = rounded
+		settings.mask_size[1] = rounded
+
+		if type(grid._update_window_size) == "function" then
+			grid:_update_window_size()
+		end
+	end
+end
+
+PresetEditorPanelView._apply_list_button_width = function(self)
+	if type(Blueprints.resize_preset_entry) ~= "function" then
+		return
+	end
+
+	local widgets = self._list_grid and self._list_grid._grid_widgets
+
+	if not widgets then
+		return
+	end
+
+	local width = self._list_button_width or preset_entry_default_width
+
+	for index = 1, #widgets do
+		local widget = widgets[index]
+
+		if widget and widget.type == "preset_entry" then
+			Blueprints.resize_preset_entry(widget, width)
+		end
+	end
+end
+
+PresetEditorPanelView._set_list_width = function(self, width)
+	local rounded = math.max(0, math.floor(width + 0.5))
+
+	if rounded == self._applied_list_width then
+		return
+	end
+
+	self._applied_list_width = rounded
+
+	local grid_width = math.max(1, rounded - list_width_margin)
+
+	if type(self._set_scenegraph_size) == "function" then
+		self:_set_scenegraph_size("list_frame", rounded, nil)
+		self:_set_scenegraph_size("preset_list_pivot", grid_width, nil)
+	end
+
+	local grid = self._list_grid
+	local settings = grid and grid._menu_settings
+
+	self._list_button_width = math.max(1, grid_width - preset_button_margin)
+	self:_apply_list_button_width()
+
+	if settings and type(settings.grid_size) == "table" and type(settings.mask_size) == "table" then
+		settings.grid_size[1] = grid_width
+		settings.mask_size[1] = grid_width
+
+		if type(grid._update_window_size) == "function" then
+			grid:_update_window_size()
+		end
+	end
+end
+
+PresetEditorPanelView._set_pane_mode = function(self, characters_active)
+	self._actions_width_target = characters_active and full_actions_width or default_actions_width
+end
+
+PresetEditorPanelView._update_layout_animation = function(self, dt)
+	if type(dt) ~= "number" then
+		return
+	end
+
+	local width = self._actions_width or default_actions_width
+	local target_width = self._actions_width_target or default_actions_width
+
+	if width ~= target_width then
+		local difference = target_width - width
+		local factor = math.min(1, dt * 10)
+		local next_width = width + difference * factor
+
+		if math.abs(difference) < 0.5 then
+			next_width = target_width
+		end
+
+		self._actions_width = next_width
+		self:_set_actions_width(next_width)
+	end
+
+	local list_width = math.max(0, math.min(default_list_frame_width, full_actions_width - 20 - width))
+
+	self:_set_list_width(list_width)
+	self:_set_list_visible(list_width >= 24)
+
+	local divider_x = self._divider_x
+	local divider_target = self._divider_target_x
+
+	if divider_x and divider_target and divider_x ~= divider_target then
+		local difference = divider_target - divider_x
+		local factor = math.min(1, dt * 20)
+		local next_x = divider_x + difference * factor
+
+		if math.abs(difference) < 0.5 then
+			next_x = divider_target
+		end
+
+		self._divider_x = next_x
+
+		if type(self._set_scenegraph_position) == "function" then
+			self:_set_scenegraph_position("title_divider", next_x)
+		end
+	end
+
+	local divider_widget = self._widgets_by_name and self._widgets_by_name.title_divider
+	local divider_content = divider_widget and divider_widget.content
+	local progress = divider_content and divider_content.anim_select_progress or 1
+
+	if progress < 1 then
+		divider_content.anim_select_progress = math.min(1, progress + dt * 8)
+	end
+end
+
+PresetEditorPanelView._update_tabs = function(self)
+	local characters_active = self._characters_view_mode == true
+	local active_tab = nil
+	local divider_widget = self._widgets_by_name and self._widgets_by_name.title_divider
+	local divider_content = divider_widget and divider_widget.content
+
+	self:_set_pane_mode(characters_active)
+
+	for index = 1, tab_count do
+		local tab = tabs[index]
+		local widget = self._widgets_by_name and self._widgets_by_name[tab.name]
+		local hotspot = widget and widget.content and widget.content.hotspot
+		local active = (tab.action == "characters_overview") == characters_active
+
+		if hotspot then
+			hotspot.is_selected = active
+		end
+
+		if active then
+			active_tab = tab
+		end
+	end
+
+	if active_tab then
+		local target_x = active_tab.x + (tab_width - tab_divider_width) * 0.5
+
+		if self._divider_x == nil then
+			self._divider_x = target_x
+
+			if divider_content then
+				divider_content.anim_select_progress = 1
+			end
+
+			if type(self._set_scenegraph_position) == "function" then
+				self:_set_scenegraph_position("title_divider", target_x)
+			end
+		elseif self._divider_target_x ~= target_x and divider_content then
+			divider_content.anim_select_progress = 0
+		end
+
+		self._divider_target_x = target_x
+	end
+end
+
 PresetEditorPanelView._update_bottom_buttons = function(self)
 	local close_widget = self._widgets_by_name.bottom_close
 
@@ -733,7 +1062,7 @@ PresetEditorPanelView._update_bottom_buttons = function(self)
 			local text_key = button.text_key
 			local tooltip_key = button.tooltip_key
 
-			if button.action == "close_back" and self._character_mode then
+			if button.action == "close_back" and (self._character_mode or self._characters_view_mode) then
 				text_key = "preset_editor_back"
 				tooltip_key = "preset_editor_back_tooltip"
 			end
@@ -759,11 +1088,21 @@ PresetEditorPanelView._set_scope = function(self, scope)
 	self._pending_scope = scope
 	self._pending_full_rebuild = true
 	self._character_mode = false
+	self._characters_view_mode = false
+	self:_update_tabs()
 end
 
 PresetEditorPanelView._handle_close_back = function(self)
 	if Dropdown.is_open(self) then
 		Dropdown.close(self)
+		return
+	end
+
+	if self._characters_view_mode then
+		self:_invalidate_character_request()
+		self._characters_view_mode = false
+		self._pending_full_rebuild = true
+		self:_update_tabs()
 		return
 	end
 
@@ -804,6 +1143,8 @@ PresetEditorPanelView.cb_on_preset_pressed = function(self, _, element)
 	self:_invalidate_character_request()
 	self._selected_name = element.name
 	self._character_mode = false
+	self._characters_view_mode = false
+	self:_update_tabs()
 	self:_update_preset_selection()
 	self:_update_selected_text()
 	self._pending_actions_rebuild = true
@@ -828,6 +1169,12 @@ PresetEditorPanelView.cb_on_action_pressed = function(self, _, element)
 	elseif action == "characters" then
 		self._character_mode = true
 		self._pending_actions_rebuild = true
+	elseif action == "characters_overview" then
+		self:_invalidate_character_request()
+		self._character_mode = false
+		self._characters_view_mode = true
+		self._pending_full_rebuild = true
+		self:_update_tabs()
 	elseif action == "back" or action == "close" or action == "close_back" then
 		self:_handle_close_back()
 	end
@@ -842,6 +1189,35 @@ PresetEditorPanelView.cb_on_bottom_pressed = function(self, action)
 	self:cb_on_action_pressed(nil, { action = action })
 end
 
+PresetEditorPanelView.cb_on_tab_pressed = function(self, tab)
+	if Dropdown.is_open(self) then
+		Dropdown.close(self)
+		return
+	end
+
+	if tab == "presets" then
+		if not self._characters_view_mode and not self._character_mode then
+			return
+		end
+
+		self:_invalidate_character_request()
+		self._character_mode = false
+		self._characters_view_mode = false
+		self._pending_full_rebuild = true
+		self:_update_tabs()
+	elseif tab == "characters_overview" then
+		if self._characters_view_mode then
+			return
+		end
+
+		self:_invalidate_character_request()
+		self._character_mode = false
+		self._characters_view_mode = true
+		self._pending_full_rebuild = true
+		self:_update_tabs()
+	end
+end
+
 PresetEditorPanelView.cb_on_scope_pressed = function(self)
 	Dropdown.toggle(self)
 end
@@ -851,6 +1227,10 @@ PresetEditorPanelView.cb_on_character_pressed = function(self, widget, element)
 
 	if Dropdown.is_open(self) then
 		Dropdown.close(self)
+		return
+	end
+
+	if action == "character_summary" then
 		return
 	end
 
@@ -880,10 +1260,16 @@ PresetEditorPanelView.cb_on_character_pressed = function(self, widget, element)
 		content.character_name = element.name or ""
 		content.character_archetype_title = level ~= "" and (archetype_name .. "  " .. level) or archetype_name
 
+		local assignment_text = element.title or ""
+
 		if type(mod._preset_panel_assigned_preset_text) == "function" then
-			content.character_title = mod._preset_panel_assigned_preset_text(element.id)
+			assignment_text = mod._preset_panel_assigned_preset_text(element.id) or ""
+		end
+
+		if type(Blueprints.wrap_assignment_text) == "function" then
+			content.character_title = Blueprints.wrap_assignment_text(self:ui_renderer(), widget, assignment_text, 2)
 		else
-			content.character_title = element.title or ""
+			content.character_title = assignment_text
 		end
 	end
 end

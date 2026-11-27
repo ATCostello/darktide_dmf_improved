@@ -241,7 +241,11 @@ local function import_profile(profile_mod)
 			and mod.decode_global_profile_settings(profile_mod.global_profile_settings)
 		or nil
 
-	if not mods or not mod.apply_global_profile_settings or not mod.apply_global_profile_settings(mods) then
+	if
+		not mods
+		or not mod.apply_global_profile_settings
+		or not mod.apply_global_profile_settings(mods, profile_name(profile_mod))
+	then
 		if not Core or not Core.silent then
 			mod._show_preset_message(
 				nil,
@@ -292,7 +296,9 @@ local function show_next_prompt()
 
 	local entry = table.remove(pending_profiles, 1)
 	local profile_mod = entry.profile_mod
-	local description = entry.updated
+	local backup_notice = mod:localize("preset_editor_backup_notice")
+	local description = (
+		entry.updated
 			and mod:localize(
 				"settings_profile_updated_description",
 				profile_name(profile_mod),
@@ -300,6 +306,9 @@ local function show_next_prompt()
 				entry.version
 			)
 		or mod:localize("settings_profile_new_description", profile_name(profile_mod), entry.version)
+	)
+		.. " "
+		.. backup_notice
 
 	prompt_open = true
 	register_settings_profile_button_templates()
@@ -314,7 +323,7 @@ local function show_next_prompt()
 				no_localization = true,
 				template_type = "alfs_settings_profile_button",
 				template_options = {
-					tooltip = mod:localize("settings_profile_accept_tooltip"),
+					tooltip = mod:localize("settings_profile_accept_tooltip") .. " " .. backup_notice,
 				},
 				close_on_pressed = true,
 				callback = function()
