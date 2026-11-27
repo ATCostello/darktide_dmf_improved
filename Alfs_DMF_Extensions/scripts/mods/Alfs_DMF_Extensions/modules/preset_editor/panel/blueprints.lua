@@ -271,6 +271,65 @@ Blueprints.resize_preset_entry = function(widget, width)
 	end
 end
 
+local preset_toggle_text_offset = { 12, 0, 3 }
+
+local function make_preset_toggle(size, font_size)
+	local text_width = size[1] - 104
+	local passes = Styles.button_passes("left", font_size or 20, preset_toggle_text_offset)
+
+	for _, pass in ipairs(passes) do
+		if pass.style_id == "text" and pass.style then
+			pass.style.size = { text_width, size[2] }
+			pass.style.text_fit_with = true
+		end
+	end
+
+	passes[#passes + 1] = {
+		pass_type = "text",
+		value_id = "toggle_mark",
+		style_id = "toggle_mark",
+		style = Styles.make_text_style(22, { size[1] - 54, 0, 4 }, Styles.COLORS.normal, "right", { 36, size[2] }),
+	}
+
+	return {
+		size = size,
+		pass_template = passes,
+		init = function(parent, widget, element, callback_name, secondary_callback_name, ui_renderer)
+			init_hotspot_widget(parent, widget, element, callback_name)
+
+			local content = widget and widget.content
+
+			if not content then
+				return
+			end
+
+			content.name = element and element.name or nil
+			content.assigned = element and element.assigned == true or false
+			content.toggle_mark = content.assigned and "\226\156\147" or ""
+			content.extra_margin = -size[2]
+
+			if content.hotspot then
+				content.hotspot.is_selected = content.assigned
+			end
+
+			local text_style = widget.style and widget.style.text
+			local text = content.original_text or content.text or ""
+
+			if ui_renderer and text_style and text ~= "" then
+				local cropped = UIRenderer.styled_crop_text_width(ui_renderer, text, text_style, text_width)
+
+				if cropped and cropped ~= text then
+					content.original_text = cropped
+					content.text = cropped
+				end
+			end
+		end,
+	}
+end
+
+Blueprints.preset_toggle = make_preset_toggle({ 1084, 42 })
+Blueprints.preset_toggle_half = make_preset_toggle({ 528, 42 }, 18)
+
 Blueprints.action_button = {
 	size = { 640, 40 },
 	pass_template = Styles.button_passes("center", 20),
@@ -293,6 +352,7 @@ Blueprints.character_toggle = {
 		local level = element and element.level or ""
 		local assignment_text = element and element.title or ""
 
+		content.extra_margin = -96
 		content.profile = element and element.profile or nil
 		Portraits.set_frame(widget, content.profile)
 		content.assigned = element and element.assigned == true
@@ -360,6 +420,7 @@ Blueprints.character_summary = {
 		local archetype_name = element and element.archetype_name or ""
 		local level = element and element.level or ""
 
+		content.extra_margin = -88
 		content.profile = element and element.profile or nil
 		Portraits.set_frame(widget, content.profile)
 		content.assigned = false
@@ -381,6 +442,19 @@ Blueprints.info = {
 
 		if content then
 			content.text = element and element.text or ""
+		end
+	end,
+}
+
+Blueprints.wide_info = {
+	size = { 1084, 32 },
+	pass_template = Styles.info_passes(18, { 10, 0, 2 }),
+	init = function(_, widget, element)
+		local content = widget and widget.content
+
+		if content then
+			content.text = element and element.text or ""
+			content.extra_margin = -32
 		end
 	end,
 }

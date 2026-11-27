@@ -169,25 +169,67 @@ Characters.assigned_preset_text = function(character_id)
 		return ""
 	end
 
+	local assignments = Characters.get_assigned_presets(character_id)
+	local max_entries = 3
 	local names = {}
 
-	for _, scope in ipairs(Characters.get_auto_scopes()) do
-		local name = Characters.get_assigned_preset(scope, character_id)
+	for index = 1, math.min(max_entries, #assignments) do
+		local assignment = assignments[index]
 
-		if name then
-			if Core.is_global_scope(scope) then
-				names[#names + 1] = name
-			else
-				local mod_name = Utils.get_display_mod_name(scope.mod_name) or tostring(scope.mod_name)
-				names[#names + 1] = mod_name .. ": " .. name
+		names[#names + 1] = assignment.display_name or assignment.name
+	end
+
+	local text = table.concat(names, "  |  ")
+	local remaining = #assignments - #names
+
+	if remaining > 0 then
+		local suffix = mod:localize("preset_editor_more_assigned_presets", tostring(remaining))
+
+		text = text ~= "" and (text .. "  |  " .. suffix) or suffix
+	end
+
+	return text
+end
+
+mod._preset_panel_assigned_preset_text = Characters.assigned_preset_text
+
+Characters.get_assigned_presets = function(character_id)
+	local result = {}
+
+	if not character_id then
+		return result
+	end
+
+	for _, scope in ipairs(Characters.get_auto_scopes()) do
+		local scope_name = Core.scope_display_name(scope) or tostring(scope and scope.mod_name or "")
+		local is_global = Core.is_global_scope(scope)
+
+		for _, name in ipairs(Core.get_preset_names(scope)) do
+			local preset = Core.get_scope_preset(scope, name)
+			local characters = preset and preset.characters
+
+			if type(characters) == "table" and characters[character_id] then
+				local display_name = name
+
+				if not is_global then
+					display_name = scope_name .. ": " .. name
+				end
+
+				result[#result + 1] = {
+					scope = scope,
+					scope_name = scope_name,
+					name = name,
+					preset = preset,
+					display_name = display_name,
+				}
 			end
 		end
 	end
 
-	return table.concat(names, "  |  ")
+	return result
 end
 
-mod._preset_panel_assigned_preset_text = Characters.assigned_preset_text
+mod._preset_panel_get_character_assignments = Characters.get_assigned_presets
 
 Characters.display_name_for_character = function(character_id)
 	if not character_id then

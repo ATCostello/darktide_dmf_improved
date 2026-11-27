@@ -382,10 +382,10 @@ mod.localisation = {
 		["zh-tw"] = "Saved presets for %s.",
 	},
 	preset_editor_all_mods = {
-		en = "All Mod Options",
-		ru = "All Mod Options",
-		["zh-cn"] = "All Mod Options",
-		["zh-tw"] = "All Mod Options",
+		en = "Global Presets",
+		ru = "Global Presets",
+		["zh-cn"] = "Global Presets",
+		["zh-tw"] = "Global Presets",
 	},
 	preset_editor_global_title = {
 		en = "Global Presets",
@@ -500,6 +500,48 @@ mod.localisation = {
 		ru = "%s",
 		["zh-cn"] = "%s",
 		["zh-tw"] = "%s",
+	},
+	preset_editor_assigned_presets_header = {
+		en = "++ ASSIGNED PRESETS ++",
+		ru = "++ ASSIGNED PRESETS ++",
+		["zh-cn"] = "++ ASSIGNED PRESETS ++",
+		["zh-tw"] = "++ ASSIGNED PRESETS ++",
+	},
+	preset_editor_more_assigned_presets = {
+		en = "... + %s more",
+		ru = "... + %s more",
+		["zh-cn"] = "... + %s more",
+		["zh-tw"] = "... + %s more",
+	},
+	preset_editor_character_no_assignments = {
+		en = "++ NO PRESETS ASSIGNED ++",
+		ru = "++ NO PRESETS ASSIGNED ++",
+		["zh-cn"] = "++ NO PRESETS ASSIGNED ++",
+		["zh-tw"] = "++ NO PRESETS ASSIGNED ++",
+	},
+	preset_editor_available_presets_header = {
+		en = "++ AVAILABLE PRESETS ++",
+		ru = "++ AVAILABLE PRESETS ++",
+		["zh-cn"] = "++ AVAILABLE PRESETS ++",
+		["zh-tw"] = "++ AVAILABLE PRESETS ++",
+	},
+	preset_editor_preset_assignment_tooltip = {
+		en = "Toggle assignment of '%s' for: %s",
+		ru = "Toggle assignment of '%s' for: %s",
+		["zh-cn"] = "Toggle assignment of '%s' for: %s",
+		["zh-tw"] = "Toggle assignment of '%s' for: %s",
+	},
+	preset_editor_assigned_preset_tooltip = {
+		en = "Untick to remove '%s' from: %s",
+		ru = "Untick to remove '%s' from: %s",
+		["zh-cn"] = "Untick to remove '%s' from: %s",
+		["zh-tw"] = "Untick to remove '%s' from: %s",
+	},
+	preset_editor_unassigned_preset_tooltip = {
+		en = "Tick to assign '%s' to: %s",
+		ru = "Tick to assign '%s' to: %s",
+		["zh-cn"] = "Tick to assign '%s' to: %s",
+		["zh-tw"] = "Tick to assign '%s' to: %s",
 	},
 	preset_editor_character_no_assignments_tooltip = {
 		en = "No automatic preset assignments for '%s'.",

@@ -112,7 +112,10 @@ local function sync_options(parent)
 	content.grow_downwards = true
 	content.disabled = false
 
-	local current_scope = mod._preset_panel_get_scope()
+	local current_scope = parent and parent._characters_view_mode == true
+		and type(parent._characters_scope) == "table"
+		and parent._characters_scope
+		or mod._preset_panel_get_scope()
 	local current_value = scope_key(current_scope)
 	local current_option = content.options_by_value and content.options_by_value[current_value]
 
@@ -217,6 +220,11 @@ end
 
 local function apply_option(parent, option)
 	if not option or type(option.scope) ~= "table" then
+		return
+	end
+
+	if parent and parent._characters_view_mode == true and type(parent._set_characters_scope) == "function" then
+		parent:_set_characters_scope(option.scope)
 		return
 	end
 

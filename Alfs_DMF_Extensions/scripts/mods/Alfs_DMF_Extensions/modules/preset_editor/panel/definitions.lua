@@ -21,6 +21,14 @@ local SCOPE_DROPDOWN_WIDTH = 504
 local SCOPE_ROW_HEIGHT = 30
 local SCOPE_MAX_VISIBLE_OPTIONS = 6
 local ACTIONS_LIST_HEIGHT = 499
+local ACTIONS_PIVOT_Y = 166
+local CHARACTERS_ACTIONS_PIVOT_Y = 104
+local CHARACTERS_ACTIONS_HEIGHT = ACTIONS_LIST_HEIGHT + ACTIONS_PIVOT_Y - CHARACTERS_ACTIONS_PIVOT_Y
+local DETAIL_DROPDOWN_Y = 414
+local DETAIL_PRESET_GAP = 24
+local DETAIL_UPPER_HEIGHT = DETAIL_DROPDOWN_Y - DETAIL_PRESET_GAP - CHARACTERS_ACTIONS_PIVOT_Y
+local DETAIL_AVAILABLE_Y = DETAIL_DROPDOWN_Y + SCOPE_ROW_HEIGHT + 24
+local DETAIL_AVAILABLE_HEIGHT = ACTIONS_PIVOT_Y + ACTIONS_LIST_HEIGHT - DETAIL_AVAILABLE_Y
 local PANEL_MARGIN = 40
 local ACTIONS_PIVOT_MARGIN = 16
 local FULL_ACTIONS_PIVOT_WIDTH = POPUP_WIDTH - PANEL_MARGIN * 2 - ACTIONS_PIVOT_MARGIN
@@ -38,6 +46,18 @@ Definitions.POPUP_BORDER_HEIGHT = POPUP_BORDER_HEIGHT
 Definitions.SCOPE_DROPDOWN_SIZE = { SCOPE_DROPDOWN_WIDTH, SCOPE_ROW_HEIGHT }
 Definitions.SCOPE_MAX_VISIBLE_OPTIONS = SCOPE_MAX_VISIBLE_OPTIONS
 Definitions.SCOPE_DROPDOWN_ROWS = SCOPE_MAX_VISIBLE_OPTIONS
+Definitions.CHARACTERS_ACTIONS_PIVOT_Y = CHARACTERS_ACTIONS_PIVOT_Y
+Definitions.CHARACTERS_ACTIONS_HEIGHT = CHARACTERS_ACTIONS_HEIGHT
+Definitions.DETAIL_UPPER_HEIGHT = DETAIL_UPPER_HEIGHT
+Definitions.DETAIL_PRESET_GAP = DETAIL_PRESET_GAP
+Definitions.DETAIL_DROPDOWN_Y = DETAIL_DROPDOWN_Y
+Definitions.DETAIL_AVAILABLE_Y = DETAIL_AVAILABLE_Y
+Definitions.DETAIL_AVAILABLE_HEIGHT = DETAIL_AVAILABLE_HEIGHT
+Definitions.DETAIL_DROPDOWN_X = 48
+Definitions.DEFAULT_DROPDOWN_X = 40
+Definitions.DEFAULT_DROPDOWN_Y = 96
+Definitions.DEFAULT_SCOPE_LABEL_Y = 126
+Definitions.DETAIL_SCOPE_LABEL_Y = DETAIL_DROPDOWN_Y + SCOPE_ROW_HEIGHT + 2
 
 local function ease(progress)
 	return math.easeCubic and math.easeCubic(progress) or progress
@@ -163,7 +183,14 @@ local scenegraph_definition = {
 		vertical_alignment = "top",
 		horizontal_alignment = "right",
 		size = { 644, ACTIONS_LIST_HEIGHT },
-		position = { -48, 166, 2 },
+		position = { -48, ACTIONS_PIVOT_Y, 2 },
+	},
+	available_pivot = {
+		parent = "popup",
+		vertical_alignment = "top",
+		horizontal_alignment = "right",
+		size = { FULL_ACTIONS_PIVOT_WIDTH, DETAIL_AVAILABLE_HEIGHT },
+		position = { -48, DETAIL_AVAILABLE_Y, 2 },
 	},
 	bottom_actions = {
 		parent = "popup",
@@ -755,6 +782,7 @@ Definitions.FULL_ACTIONS_PIVOT_WIDTH = FULL_ACTIONS_PIVOT_WIDTH
 Definitions.ACTIONS_PIVOT_MARGIN = ACTIONS_PIVOT_MARGIN
 Definitions.list_grid_settings = grid_settings(420, 531)
 Definitions.actions_grid_settings = grid_settings(660, ACTIONS_LIST_HEIGHT + 32, -64)
+Definitions.available_grid_settings = grid_settings(FULL_ACTIONS_PIVOT_WIDTH, DETAIL_AVAILABLE_HEIGHT + 32, -64)
 Definitions.legend_inputs = {
 	{
 		input_action = "back",
